@@ -130,7 +130,7 @@ print(f"Size    : {OUTPUT.stat().st_size:,} bytes")
 
 from kaggle_environments import make
 
-from sample.buddy.agent import agent
+from src.sample.buddy.agent import agent
 
 env = make("kaggriculture", debug=True)
 env.run([agent, "random"])
