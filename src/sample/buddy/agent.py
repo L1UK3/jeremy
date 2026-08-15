@@ -1,5 +1,5 @@
-from src.sample.buddy.planner import Planner
-from src.sample.buddy.state import GameState
+from sample.buddy.planner import Planner
+from sample.buddy.state import GameState
 
 
 def agent(obs):

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Any
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -15,17 +15,17 @@ class GameState:
 
     money: int
 
-    prices: Dict[str, int]
-    shed: Dict[str, int]
-    seeds: Dict[str, int]
+    prices: dict[str, int]
+    shed: dict[str, int]
+    seeds: dict[str, int]
 
-    tiles: List[List[Any]]
+    tiles: list[list[Any]]
 
-    farmer: Tuple[int, int]
+    farmer: tuple[int, int]
 
-    hands: List
+    hands: list
 
-    unlocked_quadrants: List[int]
+    unlocked_quadrants: list[int]
 
     board_size: int
 

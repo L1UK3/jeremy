@@ -10,8 +10,8 @@ Output
 submission.py
 """
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 ROOT = Path(".")
 
