@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from board import Board
-from economy import Economy
-from actions import ActionBuilder
+from src.sample.buddy.board import Board
+from src.sample.buddy.economy import Economy
+from src.sample.buddy.actions import ActionBuilder
 
 
 @dataclass(slots=True)

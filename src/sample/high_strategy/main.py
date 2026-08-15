@@ -6,7 +6,7 @@ import io
 import tarfile
 from pathlib import Path
 
-from sample.high_strategy.model import AGENT_B64
+from src.sample.high_strategy.model import AGENT_B64
 
 # Expected checksums for the decoded agent script and the final packaged archive
 EXPECTED_MAIN_SHA = "d39dba50793d9777c990347443bf0c481c78adaea86055f6f6b0600dcfcd9f2e"
