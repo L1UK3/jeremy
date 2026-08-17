@@ -2,7 +2,6 @@ from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 
 class Economy:
-
     def __init__(self, state):
         self.state = state
 
@@ -40,9 +39,7 @@ class Economy:
         return self.crop_revenue(crop) - self.crop_cost(crop)
 
     def crop_roi(self, crop):
-
         grow = max(1, self.crop_grow_days(crop))
-
         return self.crop_profit(crop) / grow
 
     # ----------------------------
@@ -50,18 +47,13 @@ class Economy:
     # ----------------------------
 
     def best_crop(self):
-
         best = None
         best_roi = -1e9
-
         for crop in CROPS.keys():
-
             roi = self.crop_roi(crop)
-
             if roi > best_roi:
                 best_roi = roi
                 best = crop
-
         return best
 
     # ----------------------------
@@ -69,7 +61,6 @@ class Economy:
     # ----------------------------
 
     def should_sell(self, item):
-
         if self.inventory(item) == 0:
             return False
 
@@ -80,20 +71,16 @@ class Economy:
     # ----------------------------
 
     def should_buy_seed(self, crop):
-
         if self.seeds(crop) > 0:
             return False
 
-        return self.state.can_afford(
-            self.crop_cost(crop)
-        )
+        return self.state.can_afford(self.crop_cost(crop))
 
     # ----------------------------
     # LAND
     # ----------------------------
 
     def should_expand(self):
-
         return self.state.money > 5000
 
     # ----------------------------
@@ -101,5 +88,4 @@ class Economy:
     # ----------------------------
 
     def should_hire(self):
-
         return self.state.money > 10000
