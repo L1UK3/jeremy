@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 import tarfile
+from pathlib import Path
 
 src_dir = Path(__file__).resolve().parent
 root_dir = src_dir.parent
