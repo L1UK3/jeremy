@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from kaggle_environments import make
 
-from sample.buddy import agent
+import agent
 
 # Configuration
 NUM_EPISODES = 10
