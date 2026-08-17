@@ -5,28 +5,19 @@ from typing import Any
 @dataclass(slots=True)
 class GameState:
     raw: dict
-
     day: int
     player: int
-
     farm: dict
     private: dict
     market: dict
-
     money: int
-
     prices: dict[str, int]
     shed: dict[str, int]
     seeds: dict[str, int]
-
     tiles: list[list[Any]]
-
     farmer: tuple[int, int]
-
     hands: list
-
     unlocked_quadrants: list[int]
-
     board_size: int
 
     @classmethod
