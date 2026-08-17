@@ -6,7 +6,10 @@ raw/, then appends the raw files. Never shrinks the corpus: raw/ holds only the
 current crawl's downloads, the parquet holds history. Kaggle decompresses
 uploaded .gz, hence parquet (~240x on JSON text). Batched to cap memory.
 """
-import glob, gzip, os, shutil
+import glob
+import gzip
+import os
+import shutil
 from pathlib import Path
 
 import pyarrow as pa
