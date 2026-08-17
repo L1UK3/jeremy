@@ -6,7 +6,6 @@ does the winner run" should not require parsing gigabytes. One row per (episode,
 Hires come from farm state (hires_today), not submitted HIRE orders — the engine
 rejects orders once money runs short, so orders overcount.
 """
-import csv
 import hashlib
 import json
 from pathlib import Path
@@ -37,7 +36,7 @@ def stream_hashes(replay):
     rows = []
     for seat in (0, 1):
         h = hashlib.sha256()
-        row = {"seat": seat, "turns": max(0, len(steps) - 1)}
+        row: dict[str, int | str] = {"seat": seat, "turns": max(0, len(steps) - 1)}
         for t, step in enumerate(steps):
             if not t:    # steps[0] holds the engine's opening pass; skipped by
                 continue # convention, so hashes stay comparable across tools
@@ -78,7 +77,7 @@ def features(episode_id, replay):
                 if isinstance(order, list) and order and order[0] == "BUY_LAND" \
                         and first_land is None:
                     first_land = day
-            for unit in [a.get("farmer") or []] + list(a.get("hands") or []):
+            for unit in [a.get("farmer") or [], *list(a.get("hands") or [])]:
                 if isinstance(unit, list) and unit and unit[0] == "PLANT" and len(unit) > 1 \
                         and unit[1] in CROPS:
                     crops[unit[1]] = crops.get(unit[1], 0) + 1
@@ -113,7 +112,7 @@ def main():
     new_rows, new_hash_rows, done = [], [], 0
     for batch in pf.iter_batches(batch_size=20):
         tbl = batch.to_pydict()
-        for eid, blob in zip(tbl["episode_id"], tbl["replay_json"]):
+        for eid, blob in zip(tbl["episode_id"], tbl["replay_json"], strict=False):
             if eid in have and eid in have_hash:
                 continue
             try:

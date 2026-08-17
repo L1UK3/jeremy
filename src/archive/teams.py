@@ -7,7 +7,6 @@ until it stops returning new rows.
 """
 import csv
 import subprocess
-import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent

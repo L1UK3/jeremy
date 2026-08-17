@@ -18,3 +18,4 @@ requirements.local.txt
 src/archive/*.csv
 src/archive/*.parquet
 src/archive/*.json
+raw/

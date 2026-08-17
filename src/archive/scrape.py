@@ -55,7 +55,7 @@ def save_state(state):
 
 def list_episodes(session, submission_id):
     # Throttling is ambient, not transient: two touches, then skip.
-    for attempt in range(2):
+    for _ in range(2):
         r = session.post(LIST_URL, json={"submissionId": submission_id}, timeout=30)
         if r.status_code == 429:
             time.sleep(5)
