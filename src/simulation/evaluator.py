@@ -12,7 +12,7 @@ for p in (src_dir, agent_dir):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-from simulation.match import AgentType, Match  # noqa: E402
+from src.simulation.episode import AgentType, Match  # noqa: E402
 from simulation.metrics import EpisodeResult, EvaluationSummary  # noqa: E402
 from simulation.progress import progress  # noqa: E402
 
