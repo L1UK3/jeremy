@@ -1,11 +1,22 @@
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from kaggle_environments import make
 
-from simulation.metrics import EpisodeResult
+
+@dataclass(slots=True)
+class EpisodeResult:
+    episode_idx: int
+    seat: int
+    score_challenger: float
+    score_baseline: float
+    winner: int
+    status_challenger: str = "DONE"
+    status_baseline: str = "DONE"
+    replay_path: str | None = None
 
 
 class Episode:
