@@ -1,14 +1,7 @@
-from dataclasses import dataclass
-
+from agent.search import Search
 from environment.actions import Action, ActionBuilder
 from environment.board import Board
 from environment.economy import Economy
-
-
-@dataclass(slots=True)
-class Candidate:
-    score: float
-    action: object
 
 
 class Planner:
@@ -16,12 +9,12 @@ class Planner:
         self.state = state
         self.board = Board(state)
         self.eco = Economy(state)
-        self.candidates = []
+        self.search = Search()
 
     # ----------------------------------------------------
 
-    def add(self, score, action) -> None:
-        self.candidates.append(Candidate(score, action))
+    def add(self, score: float, action: Action) -> None:
+        self.search.add(score=score, action=action)
 
     # ----------------------------------------------------
 
@@ -104,23 +97,9 @@ class Planner:
     # ----------------------------------------------------
 
     def choose(self) -> Action:
-        if not self.candidates:
-            return ActionBuilder.pass_turn()
-        self.candidates.sort(
-            key=lambda c: c.score,
-            reverse=True,
+        return ActionBuilder.merge(
+            *(n.action for n in self.search.topk(len(self.search.nodes)))
         )
-        farmer = None
-        market = []
-        for candidate in self.candidates:
-            action = candidate.action
-            if farmer is None and action.farmer != ["PASS"]:
-                farmer = action
-            market.extend(action.market)
-        if farmer is None:
-            farmer = ActionBuilder.pass_turn()
-        farmer.market = market
-        return farmer
 
     # ----------------------------------------------------
 
@@ -129,4 +108,6 @@ class Planner:
         self.evaluate_current_tile()
         self.evaluate_planting()
         self.evaluate_movement()
+        self.search.dump()
+
         return self.choose()
