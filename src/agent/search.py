@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from actions import Action
-from state import GameState
+from environment.actions import Action
+from environment.state import GameState
 
 
 @dataclass(slots=True)

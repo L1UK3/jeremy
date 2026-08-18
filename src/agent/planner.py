@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from actions import Action, ActionBuilder
-from board import Board
-from economy import Economy
+from environment.actions import Action, ActionBuilder
+from environment.board import Board
+from environment.economy import Economy
 
 
 @dataclass(slots=True)
