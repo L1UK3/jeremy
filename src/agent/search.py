@@ -1,32 +1,36 @@
 from dataclasses import dataclass
+from typing import Any
+
+from actions import Action
+from state import GameState
 
 
 @dataclass(slots=True)
 class Node:
     score: float
-    action: object
-    state = None
-    parent = None
+    action: Action
+    state: GameState | None = None
+    parent: Any = None
 
 
 class Search:
-    def __init__(self):
-        self.nodes = []
+    def __init__(self) -> None:
+        self.nodes: list[Node] = []
 
     # --------------------------------------------------
 
-    def clear(self):
+    def clear(self) -> None:
         self.nodes.clear()
 
     # --------------------------------------------------
 
     def add(
         self,
-        score,
-        action,
-        state=None,
-        parent=None,
-    ):
+        score: float,
+        action: Action,
+        state: GameState | None = None,
+        parent: Any = None,
+    ) -> None:
 
         self.nodes.append(
             Node(
@@ -39,12 +43,12 @@ class Search:
 
     # --------------------------------------------------
 
-    def empty(self):
+    def empty(self) -> bool:
         return len(self.nodes) == 0
 
     # --------------------------------------------------
 
-    def best(self):
+    def best(self) -> Node | None:
         if self.empty():
             return None
         return max(
@@ -54,7 +58,7 @@ class Search:
 
     # --------------------------------------------------
 
-    def topk(self, k=5):
+    def topk(self, k: int = 5) -> list[Node]:
         return sorted(
             self.nodes,
             key=lambda n: n.score,
@@ -63,7 +67,7 @@ class Search:
 
     # --------------------------------------------------
 
-    def choose(self):
+    def choose(self) -> Action | None:
         node = self.best()
         if node is None:
             return None
@@ -71,7 +75,7 @@ class Search:
 
     # --------------------------------------------------
 
-    def dump(self):
+    def dump(self) -> None:
         for n in self.topk():
             print(
                 f"{n.score:8.2f}",

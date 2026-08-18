@@ -1,53 +1,50 @@
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(slots=True)
 class Tile:
     x: int
     y: int
-    data: object
+    data: Any
 
     @property
-    def empty(self):
+    def empty(self) -> bool:
         return self.data is None
 
     @property
-    def is_plant(self):
-        return (
-            isinstance(self.data, dict)
-            and self.data.get("kind") == "PLANT"
-        )
+    def is_plant(self) -> bool:
+        return isinstance(self.data, dict) and self.data.get("kind") == "PLANT"
 
     @property
-    def crop(self):
-        if self.is_plant:
-            return self.data["crop"]
+    def crop(self) -> str | None:
+        if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
+            return self.data.get("crop")
         return None
 
     @property
-    def watered(self):
-        if self.is_plant:
-            return self.data.get("watered_today", False)
+    def watered(self) -> bool:
+        if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
+            return bool(self.data.get("watered_today", False))
         return False
 
     @property
-    def yield_units(self):
-        if self.is_plant:
-            return self.data.get("yield_units", 0)
+    def yield_units(self) -> int:
+        if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
+            return int(self.data.get("yield_units", 0))
         return 0
 
     @property
-    def planted_day(self):
-        if self.is_plant:
+    def planted_day(self) -> int | None:
+        if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
             return self.data.get("planted_day")
         return None
 
-    def distance(self, x, y):
+    def distance(self, x: int, y: int) -> int:
         return abs(self.x - x) + abs(self.y - y)
 
 
 class Board:
-
     def __init__(self, state):
         self.state = state
         self.tiles = state.tiles

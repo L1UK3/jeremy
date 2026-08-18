@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from actions import ActionBuilder
+from actions import Action, ActionBuilder
 from board import Board
 from economy import Economy
 
@@ -20,13 +20,16 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def add(self, score, action):
+    def add(self, score, action) -> None:
         self.candidates.append(Candidate(score, action))
 
     # ----------------------------------------------------
 
-    def evaluate_market(self):
+    def evaluate_market(self) -> None:
         crop = self.eco.best_crop()
+        if crop is None:
+            return
+
         if self.eco.should_sell(crop):
             self.add(50, ActionBuilder.sell(crop, self.eco.inventory(crop)))
 
@@ -35,7 +38,7 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def evaluate_current_tile(self):
+    def evaluate_current_tile(self) -> None:
         tile = self.state.current_tile
         if not isinstance(tile, dict):
             return
@@ -53,11 +56,13 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def evaluate_planting(self):
+    def evaluate_planting(self) -> None:
         if self.state.current_tile is not None:
             return
 
         crop = self.eco.best_crop()
+        if crop is None:
+            return
 
         if not self.state.has_seed(crop):
             return
@@ -67,7 +72,7 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def evaluate_movement(self):
+    def evaluate_movement(self) -> None:
         target = self.board.nearest(self.board.harvestable())
         if target:
             self.add(40, self.move_to(target))
@@ -84,7 +89,7 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def move_to(self, tile):
+    def move_to(self, tile) -> Action:
         fx, fy = self.state.farmer
         if fx > tile.x:
             return ActionBuilder.move("WEST")
@@ -98,7 +103,7 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def choose(self):
+    def choose(self) -> Action:
         if not self.candidates:
             return ActionBuilder.pass_turn()
         self.candidates.sort(
@@ -119,7 +124,7 @@ class Planner:
 
     # ----------------------------------------------------
 
-    def play(self):
+    def play(self) -> Action:
         self.evaluate_market()
         self.evaluate_current_tile()
         self.evaluate_planting()
