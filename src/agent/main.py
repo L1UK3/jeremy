@@ -4,7 +4,8 @@ Integrates the rule-based heuristics planner.
 """
 
 from planner import Planner
-from state import GameState
+
+from environment.state import GameState
 
 
 def agent(obs: dict) -> dict:
