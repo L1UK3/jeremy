@@ -6,7 +6,7 @@
 
 **Jeremy** is a high-performance Python framework for building, simulating, benchmarking, and deploying competitive AI agents for the [Kaggle Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) multi-agent farming simulation environment. It is naturally named after a lovely farmer called Jeremy.
 
-<img src="https://i2-prod.manchestereveningnews.co.uk/article34141179.ece/ALTERNATES/s1200f/0_clarkson.jpg" width="25%" height="auto">
+<img src="https://i2-prod.manchestereveningnews.co.uk/article34141179.ece/ALTERNATES/s1200f/0_clarkson.jpg" width="75%" height="auto">
 
 ---
 
