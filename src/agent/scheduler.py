@@ -16,7 +16,7 @@ class Scheduler:
 
     # ----------------------------------------------------
 
-    def add_job(self, action, x, y, priority, actor="farmer"):
+    def add_job(self, action: str, x: int, y: int, priority: float, actor: str = "farmer") -> None:
         self.jobs.append(
             Job(
                 priority=priority,
@@ -28,7 +28,7 @@ class Scheduler:
 
     # ----------------------------------------------------
 
-    def sort(self):
+    def sort(self) -> None:
         self.jobs.sort(
             key=lambda j: j.priority,
             reverse=True,
@@ -36,7 +36,7 @@ class Scheduler:
 
     # ----------------------------------------------------
 
-    def best(self):
+    def best(self) -> Job | None:
         if not self.jobs:
             return None
         self.sort()
@@ -44,7 +44,7 @@ class Scheduler:
 
     # ----------------------------------------------------
 
-    def assign(self):
+    def assign(self) -> tuple[Job | None, list[Job]]:
         self.sort()
         farmer = None
         hands = []
@@ -61,5 +61,5 @@ class Scheduler:
 
     # ----------------------------------------------------
 
-    def clear(self):
+    def clear(self) -> None:
         self.jobs.clear()

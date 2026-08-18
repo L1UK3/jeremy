@@ -55,10 +55,10 @@ class Market:
     def expensive(self, item: str) -> bool:
         return self.normalized_price(item) >= 0.80
 
-    def cheap(self, item):
+    def cheap(self, item: str) -> bool:
         return self.normalized_price(item) <= 0.20
 
-    def sell_score(self, item):
+    def sell_score(self, item: str) -> float:
         if self.state.inventory(item) == 0:
             return -999999.0
         score = float(self.price(item))
@@ -66,7 +66,7 @@ class Market:
         score += self.normalized_price(item) * 100.0
         return score
 
-    def best_item_to_sell(self):
+    def best_item_to_sell(self) -> str | None:
         best = None
         best_score = -1e9
         for item in self.state.shed.keys():
