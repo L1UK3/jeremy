@@ -120,7 +120,7 @@ class ActionBuilder:
         for a in actions:
             if a.score > result.score:
                 result.score = a.score
-            if a.farmer != ["PASS"]:
+            if a.farmer != ["PASS"] and result.farmer == ["PASS"]:
                 result.farmer = a.farmer
             result.market.extend(a.market)
             result.hands.extend(a.hands)
