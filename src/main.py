@@ -3,8 +3,7 @@ Main agent entrypoint.
 Integrates the rule-based heuristics planner.
 """
 
-from planner import Planner
-
+from agent.planner import Planner
 from environment.state import GameState
 
 
