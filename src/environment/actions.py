@@ -103,9 +103,9 @@ class ActionBuilder:
         return a
 
     @staticmethod
-    def buy_land(score: float = 0.0) -> Action:
+    def buy_land(x: int, y: int, score: float = 0.0) -> Action:
         a = Action(score=score)
-        a.market.append(["BUY_LAND"])
+        a.market.append(["BUY_LAND", x, y])
         return a
 
     @staticmethod

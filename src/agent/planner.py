@@ -82,6 +82,16 @@ class Planner:
 
     # ----------------------------------------------------
 
+    def evaluate_expansion(self) -> None:
+        target = self.board.nearest(self.board.expandable())
+
+        if self.eco.should_expand() and not target:
+            self.add(10, self.move_to(target))
+        else:
+            self.add(100, ActionBuilder.buy_land(target.x, target.y))
+
+    # ----------------------------------------------------
+
     def move_to(self, tile) -> Action:
         fx, fy = self.state.farmer
         if fx > tile.x:
@@ -108,6 +118,7 @@ class Planner:
         self.evaluate_current_tile()
         self.evaluate_planting()
         self.evaluate_movement()
+        self.evaluate_expansion()
         self.search.dump()
 
         return self.choose()
