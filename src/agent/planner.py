@@ -83,12 +83,12 @@ class Planner:
     # ----------------------------------------------------
 
     def evaluate_expansion(self) -> None:
-        target = self.board.nearest(self.board.expandable())
+        target = self.board.nearest(self.board.empty_tiles())
 
-        if self.eco.should_expand() and not target:
-            self.add(10, self.move_to(target))
-        else:
-            self.add(100, ActionBuilder.buy_land(target.x, target.y))
+        if not self.eco.should_expand() or target is None:
+            return
+
+        self.add(100, ActionBuilder.buy_land(target.x, target.y))
 
     # ----------------------------------------------------
 
