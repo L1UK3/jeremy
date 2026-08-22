@@ -10,12 +10,22 @@ Output
 submission.py
 """
 
+import argparse
 import re
+import tarfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "src"
 OUTPUT = ROOT / "submission.py"
+OUTPUT_TAR = ROOT / "submission.tar.gz"
+
+FILES = [
+    "agent",
+    "environment",
+    "main.py",
+]
+
 
 MODULES = [
     "environment/state.py",
@@ -93,7 +103,9 @@ def build_submission() -> Path:
                 seen_imports.add(imp)
                 all_imports.append(imp)
 
-        all_body.append(f"\n# ===================== {module_rel} =====================\n")
+        all_body.append(
+            f"\n# ===================== {module_rel} =====================\n"
+        )
         all_body.extend(body)
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -110,6 +122,41 @@ def build_submission() -> Path:
     return OUTPUT
 
 
-if __name__ == "__main__":
-    build_submission()
+def bundle_submission() -> None:
+    """Build submission.tar.gz."""
+    OUTPUT_TAR.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(OUTPUT_TAR, "w:gz") as tar:
+        for file in FILES:
+            path = SRC_DIR / file
+            if path.exists():
+                tar.add(
+                    path,
+                    arcname=file,
+                    filter=lambda ti: None if "__pycache__" in ti.name else ti,
+                )
 
+    print(f"  Output Archive : {OUTPUT_TAR}")
+    print(f"  Created        : {OUTPUT_TAR.stat().st_mtime}")
+    print(f"  Archive Size   : {OUTPUT_TAR.stat().st_size:,} bytes")
+
+
+if __name__ == "__main__":
+    args = argparse.ArgumentParser()
+
+    args.add_argument(
+        "--build",
+        action="store_true",
+        help="Build submission.py from agent and environment modules",
+    )
+    args.add_argument(
+        "--bundle",
+        action="store_true",
+        help="Bundle agent source files into submission.tar.gz",
+    )
+
+    parsed_args = args.parse_args()
+
+    if parsed_args.build:
+        build_submission()
+    if parsed_args.bundle:
+        bundle_submission()
