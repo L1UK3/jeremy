@@ -1,12 +1,18 @@
 from dataclasses import dataclass
 from typing import Any
 
+from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
+
 
 @dataclass(slots=True)
 class Tile:
     x: int
     y: int
     data: Any
+
+    @property
+    def pos(self) -> tuple[int, int]:
+        return (self.x, self.y)
 
     @property
     def empty(self) -> bool:
@@ -43,6 +49,19 @@ class Tile:
         if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
             return self.data.get("planted_day")
         return None
+
+    def age(self, current_day: int) -> int:
+        if self.planted_day is None:
+            return 0
+        return current_day - self.planted_day
+
+    def is_ripe(self, current_day: int) -> bool:
+        if not self.is_plant or self.yield_units <= 0:
+            return False
+        if self.crop and self.crop in CROPS:
+            max_yield_day = CROPS[self.crop].get("max_yield_day", 0)
+            return self.age(current_day) >= max_yield_day
+        return True
 
     def distance(self, x: int, y: int) -> int:
         return abs(self.x - x) + abs(self.y - y)
@@ -82,7 +101,7 @@ class Board:
     def harvestable(self, crop: str | None = None):
         tiles = self.crops(crop) if crop else self.plants()
         for tile in tiles:
-            if tile.yield_units > 0:
+            if tile.is_ripe(self.state.day):
                 yield tile
 
     def needs_water(self, crop: str | None = None):
@@ -92,9 +111,7 @@ class Board:
                 yield tile
 
     def nearest(self, tiles):
-
         fx, fy = self.state.farmer
-
         best = None
         best_dist = 10**9
 
@@ -105,3 +122,9 @@ class Board:
                 best = tile
 
         return best
+
+    def nearest_other(self, tiles):
+        """Find the nearest tile excluding the farmer's current coordinates."""
+        fx, fy = self.state.farmer
+        other_tiles = (t for t in tiles if t.pos != (fx, fy))
+        return self.nearest(other_tiles)

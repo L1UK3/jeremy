@@ -87,22 +87,19 @@ class Planner:
     def evaluate_movement(self) -> None:
         crop = self.config.target_crop
 
-        # Move to harvestable crop
-        target = self.board.nearest(self.board.harvestable(crop))
-        if target:
+        # Move to ripe harvestable crop
+        if target := self.board.nearest_other(self.board.harvestable(crop)):
             self.add(40, self.move_to(target))
             return
 
         # Move to thirsty crop
-        target = self.board.nearest(self.board.needs_water(crop))
-        if target:
+        if target := self.board.nearest_other(self.board.needs_water(crop)):
             self.add(30, self.move_to(target))
             return
 
-        # Move to empty tile if seeds are available
+        # Move to empty soil for planting
         if self.state.has_seed(crop):
-            target = self.board.nearest(self.board.empty_tiles())
-            if target:
+            if target := self.board.nearest_other(self.board.empty_tiles()):
                 self.add(20, self.move_to(target))
 
     # ----------------------------------------------------
