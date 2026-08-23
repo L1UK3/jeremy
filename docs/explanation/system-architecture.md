@@ -34,6 +34,7 @@ graph TB
 
     subgraph Agent Layer [src/agent]
         PLANNER[Planner]
+        HEURISTICS[Heuristics & Evaluators]
         SEARCH[Search & Scored Nodes]
         SCHED[Scheduler & Jobs]
     end
@@ -44,7 +45,8 @@ graph TB
     GS --> MKT
 
     BOARD & ECO & MKT --> PLANNER
-    PLANNER -->|Scored Actions| SEARCH
+    PLANNER --> HEURISTICS
+    HEURISTICS -->|Scored Actions| SEARCH
     SEARCH -->|Top Candidates| AB
     AB -->|Merged Action| ACT
 ```
@@ -60,7 +62,8 @@ graph TB
 * **`ActionBuilder`**: Enforces correct payload syntax for all 18 discrete engine actions, providing `merge()` to combine concurrent farmer moves, hand dispatches, and market orders.
 
 ### 2. The Decision Layer (`src/agent`)
-* **`Planner`**: Coordinates turn evaluation. It divides decision-making into independent phases (`evaluate_market`, `evaluate_current_tile`, `evaluate_planting`, `evaluate_movement`), enabling modular development and tuning.
+* **`Planner`**: Coordinates turn evaluation, invoking domain-specific heuristic evaluators and selecting the merged action.
+* **`heuristics`**: Modular pure functions (`evaluate_farming`, `evaluate_movement`, `evaluate_market`, `evaluate_expansion`) and calibration constants in `scores.py`.
 * **`Search`**: A prioritized candidate pool. Rather than committing immediately to the first valid action, the planner registers multiple potential actions with numerical utility weights.
 * **`Scheduler`**: An extensible priority job queue for assigning non-overlapping tasks across the farmer and multiple hired hands.
 

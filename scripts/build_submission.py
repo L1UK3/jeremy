@@ -37,6 +37,12 @@ MODULES = [
     "agent/config.py",
     "agent/search.py",
     "agent/scheduler.py",
+    "agent/heuristics/scores.py",
+    "agent/heuristics/market.py",
+    "agent/heuristics/farming.py",
+    "agent/heuristics/movement.py",
+    "agent/heuristics/expansion.py",
+    "agent/heuristics/__init__.py",
     "agent/planner.py",
     "main.py",
 ]

@@ -15,7 +15,8 @@ This document tracks the implementation, integration status, and development roa
 | [`src/environment/actions.py`](src/environment/actions.py) | <font color="green">**100%**</font> | <font color="orange">**45% (Moderate)**</font> | Action factory (`move`, `harvest`, `water`, `plant`, `dig`, `sell`, `buy_seed`, `buy_land`, `merge` actively used)                             |
 | [`src/agent/config.py`](src/agent/config.py)               | <font color="green">**100%**</font> |   <font color="green">**100% (Full)**</font>   | Strategy configuration dataclass (`target_crop`, `sell_threshold`, `seed_target`, `expand_land`, `max_hires_per_day`)                          |
 | [`src/agent/search.py`](src/agent/search.py)               | <font color="green">**100%**</font> |   <font color="green">**100% (Full)**</font>   | Scored candidate action pool (`Node`), top-$k$ sorting, decision selection                                                                     |
-| [`src/agent/planner.py`](src/agent/planner.py)             | <font color="green">**100%**</font> |   <font color="green">**100% (Full)**</font>   | Turn decision coordinator (evaluates market, current tile, planting, movement, expansion)                                                      |
+| [`src/agent/planner.py`](src/agent/planner.py)             | <font color="green">**100%**</font> |   <font color="green">**100% (Full)**</font>   | Turn decision coordinator (orchestrates pure function heuristic evaluators)                                                                    |
+| [`src/agent/heuristics/`](src/agent/heuristics/)           | <font color="green">**100%**</font> |   <font color="green">**100% (Full)**</font>   | Modular evaluator functions (`evaluate_farming`, `evaluate_movement`, `evaluate_market`, `evaluate_expansion`, `scores.py`)                   |
 | [`src/environment/market.py`](src/environment/market.py)   | <font color="green">**100%**</font> |    <font color="red">**0% (Unused)**</font>    | Rolling 20-turn price history, trend indicators, normalized prices, `sell_score`, `best_item_to_sell`                                          |
 | [`src/agent/scheduler.py`](src/agent/scheduler.py)         | <font color="green">**100%**</font> |    <font color="red">**0% (Unused)**</font>    | Multi-unit spatial task dispatching for farmer + hired farmhands (`Job`, `add_job`, `assign`)                                                  |
 | [`tests/`](tests/) (Test Suite)                            | <font color="orange">**20%**</font> |      <font color="red">**Broken**</font>       | Unit test suite (legacy fixture structure requires overhaul for `GameState`, `Board`, `Economy`, `Market`, `Actions`, `Planner`)               |
@@ -104,6 +105,20 @@ This document tracks the implementation, integration status, and development roa
 | `Search.best()`, `Search.choose()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Returns best scoring node / action                       |
 | `Search.clear()`, `Search.empty()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Pool lifecycle management between decision turns         |
 | `Search.dump()`                    | <font color="green">Yes</font> |  <font color="red">No</font>   | Debug utility for printing top candidate actions         |
+
+---
+
+### Heuristics & Evaluators (`src/agent/heuristics/`)
+
+**Status**: <font color="green">Fully Integrated (100%)</font>
+
+| Feature / Function                       |          Implemented           |           In Planner           | Notes / Action                                                      |
+| :--------------------------------------- | :----------------------------: | :----------------------------: | :------------------------------------------------------------------ |
+| `scores.py` constants                    | <font color="green">Yes</font> | <font color="green">Yes</font> | Calibrated scoring constants eliminating magic numbers              |
+| `evaluate_market(planner)`               | <font color="green">Yes</font> | <font color="green">Yes</font> | Evaluates crop selling and seed purchases against config thresholds |
+| `evaluate_farming(planner)`              | <font color="green">Yes</font> | <font color="green">Yes</font> | Tile actions: harvest ripe crop, dig weed underfoot, water, plant   |
+| `evaluate_movement(planner)`, `move_to`  | <font color="green">Yes</font> | <font color="green">Yes</font> | Directional pathing toward harvest, water, and empty targets        |
+| `evaluate_expansion(planner)`            | <font color="green">Yes</font> | <font color="green">Yes</font> | Land quadrant expansion evaluation                                  |
 
 ---
 
