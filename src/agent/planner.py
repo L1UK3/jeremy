@@ -61,7 +61,7 @@ class Planner:
 
             # Harvest when crop reaches maximum yield day and has yield
             if age >= self.config.max_yield_day and yield_units > 0:
-                value = yield_units * self.eco.price(crop)
+                value = yield_units * self.eco.price(self.config.target_crop)
                 self.add(100 + value, ActionBuilder.harvest())
                 return
 
