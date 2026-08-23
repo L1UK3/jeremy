@@ -26,7 +26,7 @@ from pathlib import Path
 import requests
 
 HERE = Path(__file__).parent
-OUT_DIR = HERE.parent / "out"
+OUT_DIR = HERE.parent / ".out"
 RAW = OUT_DIR / "raw"
 STATE = OUT_DIR / "state.json"
 LIST_URL = "https://www.kaggle.com/api/i/competitions.EpisodeService/ListEpisodes"

@@ -16,7 +16,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).parent
-OUT_DIR = HERE.parent / "out"
+OUT_DIR = HERE.parent / ".out"
 RAW_DIR = OUT_DIR / "raw"
 WORK = OUT_DIR / "replays.parquet"
 STAGE = OUT_DIR / "episodes_dataset" / "replays.parquet"

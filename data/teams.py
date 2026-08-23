@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).parent
-OUT_DIR = HERE.parent / "out"
+OUT_DIR = HERE.parent / ".out"
 OUT = OUT_DIR / "teams.csv"
 
 
