@@ -1,9 +1,11 @@
-from agent.heuristics.scores import (
+from heuristics.scores import (
     SCORE_DIG_WEED,
+    SCORE_FERTILIZER,
     SCORE_HARVEST_BASE,
     SCORE_PLANT_BASE,
     SCORE_WATER,
 )
+
 from environment.actions import ActionBuilder
 
 
@@ -45,4 +47,8 @@ def evaluate_farming(planner) -> None:
 
         if not tile.get("watered_today", False):
             planner.add(SCORE_WATER, ActionBuilder.water())
+            return
+
+        if tile.get("fertilized_until_day") < planner.state.day and planner.state.has_fertilizer():
+            planner.add(SCORE_FERTILIZER, ActionBuilder.fertilize())
             return

@@ -66,6 +66,12 @@ class Tile:
     def distance(self, x: int, y: int) -> int:
         return abs(self.x - x) + abs(self.y - y)
 
+    def is_fertilized(self, current_day: int) -> bool:
+        if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
+            fertilized_until_day = self.data.get("fertilized_until_day")
+            return fertilized_until_day is not None and fertilized_until_day >= current_day
+        return False
+
 
 class Board:
     def __init__(self, state):
