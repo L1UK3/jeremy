@@ -29,15 +29,45 @@ class AgentConfig:
 
 ---
 
+## Module: `agent.heuristics`
+
+Subpackage containing modular decision evaluator functions that operate directly on a `Planner` instance, along with calibrated scoring constants.
+
+### Module: `agent.heuristics.scores`
+Utility score constants adhering to the Score Calibration Hierarchy:
+* `SCORE_HARVEST_BASE: float = 100.0`
+* `SCORE_BUY_LAND: float = 100.0`
+* `SCORE_DIG_WEED: float = 90.0`
+* `SCORE_WATER: float = 80.0`
+* `SCORE_PLANT_BASE: float = 60.0`
+* `SCORE_SELL: float = 50.0`
+* `SCORE_BUY_SEED: float = 40.0`
+* `SCORE_MOVE_HARVEST: float = 40.0`
+* `SCORE_MOVE_WATER: float = 30.0`
+* `SCORE_MOVE_EMPTY: float = 20.0`
+
+### Evaluator Functions
+* **`evaluate_market(planner)`**: Evaluates seed purchasing (`SCORE_BUY_SEED`) and produce selling (`SCORE_SELL`) against config thresholds.
+* **`evaluate_farming(planner)`**: Evaluates tile-level actions: harvest (`SCORE_HARVEST_BASE + value`), weed clearing (`SCORE_DIG_WEED`), watering (`SCORE_WATER`), and planting (`SCORE_PLANT_BASE + ROI`).
+* **`evaluate_movement(planner)`**: Evaluates directional movement toward nearest harvestable (`SCORE_MOVE_HARVEST`), thirsty (`SCORE_MOVE_WATER`), or empty soil (`SCORE_MOVE_EMPTY`) targets.
+* **`evaluate_expansion(planner)`**: Evaluates land expansion (`SCORE_BUY_LAND`).
+* **`move_to(planner, tile) -> Action`**: Directional Manhattan navigation helper.
+
+---
+
 ## Module: `agent.planner`
 
 ### `class Planner`
 
-Main heuristic planning coordinator that inspects game state, invokes domain evaluations, queues candidate actions in `Search`, and produces the final merged action for the turn.
+Main planning coordinator that holds turn state and coordinates the evaluator functions.
 
 ```python
 class Planner:
-    def __init__(self, state: GameState, config: AgentConfig | None = None) -> None: ...
+    def __init__(
+        self,
+        state: GameState,
+        config: AgentConfig | None = None,
+    ) -> None: ...
 ```
 
 #### Instance Attributes
@@ -46,6 +76,7 @@ class Planner:
 * `board: Board` — Spatial grid manager.
 * `eco: Economy` — ROI and cost calculator.
 * `search: Search` — Priority candidate action queue.
+* `heuristics: list[Heuristic]` — Ordered evaluation pipeline (defaults to `DEFAULT_HEURISTICS`).
 
 #### Methods
 
@@ -53,24 +84,16 @@ class Planner:
 Pushes a candidate action with an assigned numerical utility score to `self.search`.
 
 ##### `evaluate_market() -> None`
-Evaluates market sales and purchases:
-- Queues `SELL` if target crop inventory exists and market price meets or exceeds `config.sell_threshold`.
-- Queues `BUY_SEED` if holding fewer than `config.seed_target` seeds and balance is sufficient.
-
+Delegates to `MarketHeuristic().evaluate(...)`.
 
 ##### `evaluate_current_tile() -> None`
-Inspects `self.state.current_tile`:
-- If tile is a mature crop (`yield_units > 0`), queues `HARVEST` with score `100 + (units * price)`.
-- If tile is an unwatered crop, queues `WATER` with score `80`.
-
-##### `evaluate_planting() -> None`
-Checks if `self.state.current_tile` is `None` (empty unlocked tile). If seeds for the highest-ROI crop are in storage, queues `PLANT <crop>` with score `60 + ROI`.
+Delegates to `FarmingHeuristic().evaluate(...)`.
 
 ##### `evaluate_movement() -> None`
-Finds nearest objective target on the board in priority order:
-1. Harvestable plant (`score = 40`)
-2. Plant needing water (`score = 30`)
-3. Empty unlocked tile (`score = 20`)
+Delegates to `MovementHeuristic().evaluate(...)`.
+
+##### `evaluate_expansion() -> None`
+Delegates to `ExpansionHeuristic().evaluate(...)`.
 
 ##### `move_to(tile: Tile) -> Action`
 Computes a single Manhattan step (`NORTH`, `SOUTH`, `EAST`, or `WEST`) from farmer position `(fx, fy)` toward `(tile.x, tile.y)`. Returns `ActionBuilder.pass_turn()` if already at destination.
@@ -79,7 +102,7 @@ Computes a single Manhattan step (`NORTH`, `SOUTH`, `EAST`, or `WEST`) from farm
 Merges all candidate nodes in `self.search` using `ActionBuilder.merge()`.
 
 ##### `play() -> Action`
-Runs the evaluation cycle (`evaluate_market`, `evaluate_current_tile`, `evaluate_planting`, `evaluate_movement`), dumps the top search candidates to stdout, and returns the merged `Action`.
+Iterates through `self.heuristics`, evaluates candidate actions into `self.search`, and returns the merged `Action`.
 
 ---
 
