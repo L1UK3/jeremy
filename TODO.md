@@ -28,7 +28,7 @@ This document tracks the implementation, integration status, and development roa
 
 **Status**: <font color="green">Fully Integrated (100%)</font>
 
-| Feature / Method                     |          Implemented           |             In Planner              | Notes / Action Item                                              |
+| Feature / Method                     |          Implemented           |             In Planner              | Notes / Action                                              |
 | :----------------------------------- | :----------------------------: | :---------------------------------: | :--------------------------------------------------------------- |
 | `GameState.from_obs(obs)`            | <font color="green">Yes</font> |   <font color="green">Yes</font>    | Factory method parsing raw observation dict into `GameState`     |
 | `x`, `y`                             | <font color="green">Yes</font> |   <font color="green">Yes</font>    | Property aliases for farmer coordinates `farmer[0]`, `farmer[1]` |
