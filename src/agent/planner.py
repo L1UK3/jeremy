@@ -1,12 +1,17 @@
+from agent.config import DEFAULT_CONFIG, AgentConfig
 from agent.search import Search
 from environment.actions import Action, ActionBuilder
 from environment.board import Board
 from environment.economy import Economy
+from environment.state import GameState
 
 
 class Planner:
-    def __init__(self, state):
+    def __init__(
+        self, state: GameState, config: AgentConfig | None = None
+    ) -> None:
         self.state = state
+        self.config = config or DEFAULT_CONFIG
         self.board = Board(state)
         self.eco = Economy(state)
         self.search = Search()
@@ -19,15 +24,18 @@ class Planner:
     # ----------------------------------------------------
 
     def evaluate_market(self) -> None:
-        crop = self.eco.best_crop()
-        if crop is None:
-            return
+        crop = self.config.target_crop
+        inventory = self.eco.inventory(crop)
 
-        if self.eco.should_sell(crop):
-            self.add(50, ActionBuilder.sell(crop, self.eco.inventory(crop)))
+        if inventory > 0 and self.eco.should_sell(
+            crop, threshold=self.config.sell_threshold
+        ):
+            self.add(50, ActionBuilder.sell(crop, inventory))
 
-        if self.eco.should_buy_seed(crop):
-            self.add(40, ActionBuilder.buy_seed(crop, 1))
+        if self.eco.should_buy_seed(crop, target_count=self.config.seed_target):
+            amount = self.config.seed_target - self.state.seed_count(crop)
+            if amount > 0:
+                self.add(40, ActionBuilder.buy_seed(crop, amount))
 
     # ----------------------------------------------------
 
@@ -36,16 +44,30 @@ class Planner:
         if not isinstance(tile, dict):
             return
 
-        if tile.get("kind") != "PLANT":
+        kind = tile.get("kind")
+
+        if kind == "WEED":
+            self.add(90, ActionBuilder.dig())
             return
 
-        if tile["yield_units"] > 0:
-            value = tile["yield_units"] * self.eco.price(tile["crop"])
-            self.add(100 + value, ActionBuilder.harvest())
+        if kind != "PLANT":
             return
 
-        if not tile["watered_today"]:
-            self.add(80, ActionBuilder.water())
+        crop = tile.get("crop")
+        if crop == self.config.target_crop:
+            planted_day = tile.get("planted_day")
+            age = self.state.day - planted_day if planted_day is not None else 0
+            yield_units = tile.get("yield_units", 0)
+
+            # Harvest when crop reaches maximum yield day and has yield
+            if age >= self.config.max_yield_day and yield_units > 0:
+                value = yield_units * self.eco.price(crop)
+                self.add(100 + value, ActionBuilder.harvest())
+                return
+
+            if not tile.get("watered_today", False):
+                self.add(80, ActionBuilder.water())
+                return
 
     # ----------------------------------------------------
 
@@ -53,10 +75,7 @@ class Planner:
         if self.state.current_tile is not None:
             return
 
-        crop = self.eco.best_crop()
-        if crop is None:
-            return
-
+        crop = self.config.target_crop
         if not self.state.has_seed(crop):
             return
 
@@ -66,25 +85,33 @@ class Planner:
     # ----------------------------------------------------
 
     def evaluate_movement(self) -> None:
-        target = self.board.nearest(self.board.harvestable())
+        crop = self.config.target_crop
+
+        # Move to harvestable crop
+        target = self.board.nearest(self.board.harvestable(crop))
         if target:
             self.add(40, self.move_to(target))
             return
 
-        target = self.board.nearest(self.board.needs_water())
+        # Move to thirsty crop
+        target = self.board.nearest(self.board.needs_water(crop))
         if target:
             self.add(30, self.move_to(target))
             return
 
-        target = self.board.nearest(self.board.empty_tiles())
-        if target:
-            self.add(20, self.move_to(target))
+        # Move to empty tile if seeds are available
+        if self.state.has_seed(crop):
+            target = self.board.nearest(self.board.empty_tiles())
+            if target:
+                self.add(20, self.move_to(target))
 
     # ----------------------------------------------------
 
     def evaluate_expansion(self) -> None:
-        target = self.board.nearest(self.board.empty_tiles())
+        if not self.config.expand_land:
+            return
 
+        target = self.board.nearest(self.board.empty_tiles())
         if not self.eco.should_expand() or target is None:
             return
 
@@ -119,6 +146,5 @@ class Planner:
         self.evaluate_planting()
         self.evaluate_movement()
         self.evaluate_expansion()
-        self.search.dump()
 
         return self.choose()
