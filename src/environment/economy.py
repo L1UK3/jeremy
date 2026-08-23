@@ -60,9 +60,12 @@ class Economy:
     # SELL
     # ----------------------------
 
-    def should_sell(self, item: str) -> bool:
+    def should_sell(self, item: str, threshold: int | None = None) -> bool:
         if self.inventory(item) == 0:
             return False
+
+        if threshold is not None:
+            return self.price(item) >= threshold
 
         return self.price(item) > self.crop_cost(item)
 
@@ -70,8 +73,8 @@ class Economy:
     # BUY SEED
     # ----------------------------
 
-    def should_buy_seed(self, crop: str) -> bool:
-        if self.seeds(crop) > 0:
+    def should_buy_seed(self, crop: str, target_count: int = 1) -> bool:
+        if self.seeds(crop) >= target_count:
             return False
 
         return self.state.can_afford(self.crop_cost(crop))
