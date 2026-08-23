@@ -18,8 +18,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "src"
-OUTPUT = ROOT / "submission.py"
-OUTPUT_TAR = ROOT / "submission.tar.gz"
+OUTPUT = ROOT / "out" / "submission.py"
+OUTPUT_TAR = ROOT / "out" / "submission.tar.gz"
 
 FILES = [
     "agent",
