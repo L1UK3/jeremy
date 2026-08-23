@@ -9,12 +9,14 @@ This document tracks the implementation and integration status of all modules, c
 | Module | Implementation | Decision Loop Integration | Responsibility & Notes |
 | :--- | :---: | :---: | :--- |
 | [`src/environment/state.py`](src/environment/state.py) | <font color="green">**100%**</font> | <font color="green">**100% (Full)**</font> | Observation wrapper, coordinate getters (`x`, `y`), price & inventory queries |
-| [`src/environment/board.py`](src/environment/board.py) | <font color="green">**100%**</font> | <font color="green">**85% (High)**</font> | Spatial grid, tile generators (`empty_tiles`, `harvestable`, `needs_water`), Manhattan distance search |
-| [`src/environment/economy.py`](src/environment/economy.py) | <font color="green">**100%**</font> | <font color="green">**75% (High)**</font> | ROI calculations, crop selection, `should_sell`, `should_buy_seed`, `should_expand` |
+| [`src/environment/board.py`](src/environment/board.py) | <font color="green">**100%**</font> | <font color="green">**90% (High)**</font> | Spatial grid, tile generators (`empty_tiles`, `harvestable`, `needs_water`, `weeds`), Manhattan distance search |
+| [`src/environment/economy.py`](src/environment/economy.py) | <font color="green">**100%**</font> | <font color="green">**80% (High)**</font> | ROI calculations, crop selection, `should_sell` (threshold-aware), `should_buy_seed`, `should_expand` |
+| [`src/agent/config.py`](src/agent/config.py) | <font color="green">**100%**</font> | <font color="green">**100% (Full)**</font> | High-level strategy constants and hyperparameters (`target_crop`, `sell_threshold`, `seed_target`) |
 | [`src/agent/search.py`](src/agent/search.py) | <font color="green">**100%**</font> | <font color="green">**100% (Full)**</font> | Scored candidate action pool, top-$k$ sorting, decision selection |
-| [`src/environment/actions.py`](src/environment/actions.py) | <font color="green">**100%**</font> | <font color="orange">**45% (Partial)**</font> | Action factory (`move`, `harvest`, `water`, `plant`, `sell`, `buy_seed`, `buy_land`, `merge` used) |
+| [`src/environment/actions.py`](src/environment/actions.py) | <font color="green">**100%**</font> | <font color="green">**50% (Moderate)**</font> | Action factory (`move`, `harvest`, `water`, `plant`, `dig`, `sell`, `buy_seed`, `buy_land`, `merge` used) |
 | [`src/environment/market.py`](src/environment/market.py) | <font color="green">**100%**</font> | <font color="red">**0% (Unused)**</font> | 20-turn price history, trend calculation, normalization, `sell_score` |
 | [`src/agent/scheduler.py`](src/agent/scheduler.py) | <font color="green">**100%**</font> | <font color="red">**0% (Unused)**</font> | Multi-unit spatial task dispatching for farmer + hired farmhands |
+
 
 ---
 
@@ -41,12 +43,13 @@ This document tracks the implementation and integration status of all modules, c
 
 | Feature / Method | Implemented | In Planner | Notes / Action Item |
 | :--- | :---: | :---: | :--- |
-| `Tile` properties (`empty`, `is_plant`, `crop`, `watered`, `yield_units`, `planted_day`) | <font color="green">Yes</font> | <font color="green">Yes</font> | Encapsulates single tile attributes |
+| `Tile` properties (`empty`, `is_plant`, `is_weed`, `crop`, `watered`, `yield_units`, `planted_day`) | <font color="green">Yes</font> | <font color="green">Yes</font> | Encapsulates single tile attributes |
 | `Tile.distance(x, y)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Manhattan distance calculation |
-| `all_tiles()`, `empty_tiles()`, `plants()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Grid generators |
-| `harvestable()`, `needs_water()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Target generators for immediate farm tasks |
+| `all_tiles()`, `empty_tiles()`, `plants()`, `weeds()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Grid generators |
+| `harvestable(crop)`, `needs_water(crop)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Target generators with optional crop filtering |
 | `nearest(tiles)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Finds closest matching tile to the farmer |
-| `crops(crop)` | <font color="green">Yes</font> | <font color="red">No</font> | Filter tiles by specific crop type |
+| `crops(crop)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Filter tiles by specific crop type |
+
 
 ---
 
@@ -68,6 +71,19 @@ This document tracks the implementation and integration status of all modules, c
 
 ---
 
+### Agent Configuration (`src/agent/config.py`)
+- **Status**: <font color="green">Fully Integrated (100%)</font>
+- **Purpose**: High-level strategy constants and parameters (target crop, sell price thresholds, seed reserves, expansion flags).
+
+| Feature / Method | Implemented | In Planner | Notes / Action Item |
+| :--- | :---: | :---: | :--- |
+| `AgentConfig` dataclass | <font color="green">Yes</font> | <font color="green">Yes</font> | Stores `target_crop`, `sell_threshold`, `seed_target`, `expand_land`, `max_hires_per_day` |
+| `seed_cost`, `max_yield_day` | <font color="green">Yes</font> | <font color="green">Yes</font> | Derived directly from `CROPS` metadata table |
+| `DEFAULT_CONFIG` | <font color="green">Yes</font> | <font color="green">Yes</font> | Default single-crop maximizer configuration instance |
+
+---
+
+
 ### Actions (`src/environment/actions.py`)
 - **Status**: <font color="orange">Partially Integrated (~45%)</font>
 - **Purpose**: Standardized action builders for all game interactions.
@@ -80,7 +96,8 @@ This document tracks the implementation and integration status of all modules, c
 | **Farming** | `harvest()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Harvest mature crop (`score = 100 + value`) |
 | | `water()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Water unwatered plant (`score = 80`) |
 | | `plant(crop)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Plant highest-ROI seed (`score = 60 + roi`) |
-| | `dig()` | <font color="green">Yes</font> | <font color="red">No</font> | **TODO**: Clear weeds on current tile (`score = 90`) |
+| | `dig()` | <font color="green">Yes</font> | <font color="green">Yes</font> | Clear weeds on current tile (`score = 90`) |
+
 | | `fertilize()` | <font color="green">Yes</font> | <font color="red">No</font> | **TODO**: Apply fertilizer for yield bonus |
 | **Market Orders** | `sell(item, amount)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Sell produce (`score = 50`) |
 | | `buy_seed(crop, amount)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Buy seeds (`score = 40`) |
