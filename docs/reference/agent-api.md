@@ -4,6 +4,31 @@ This document provides the technical specification and API reference for the dec
 
 ---
 
+## Module: `agent.config`
+
+### `class AgentConfig`
+
+Dataclass storing high-level policy constants and hyperparameters controlling agent behavior.
+
+```python
+@dataclass(slots=True)
+class AgentConfig:
+    target_crop: str = "MELON"
+    sell_threshold: int = 200
+    seed_target: int = 1
+    expand_land: bool = False
+    max_hires_per_day: int = 0
+```
+
+#### Properties
+* `seed_cost: int` — Looked up from `CROPS[target_crop]["seed"]`.
+* `max_yield_day: int` — Looked up from `CROPS[target_crop]["max_yield_day"]`.
+
+#### Global Instance
+* `DEFAULT_CONFIG: AgentConfig` — Default configuration initialized with standard single-crop maximizing defaults.
+
+---
+
 ## Module: `agent.planner`
 
 ### `class Planner`
@@ -12,11 +37,12 @@ Main heuristic planning coordinator that inspects game state, invokes domain eva
 
 ```python
 class Planner:
-    def __init__(self, state: GameState) -> None: ...
+    def __init__(self, state: GameState, config: AgentConfig | None = None) -> None: ...
 ```
 
 #### Instance Attributes
 * `state: GameState` — Current turn game state wrapper.
+* `config: AgentConfig` — Active agent configuration (defaults to `DEFAULT_CONFIG`).
 * `board: Board` — Spatial grid manager.
 * `eco: Economy` — ROI and cost calculator.
 * `search: Search` — Priority candidate action queue.
@@ -28,8 +54,9 @@ Pushes a candidate action with an assigned numerical utility score to `self.sear
 
 ##### `evaluate_market() -> None`
 Evaluates market sales and purchases:
-- Queues `SELL` if best crop inventory exists and price exceeds seed cost.
-- Queues `BUY_SEED` if holding 0 seeds and balance is sufficient.
+- Queues `SELL` if target crop inventory exists and market price meets or exceeds `config.sell_threshold`.
+- Queues `BUY_SEED` if holding fewer than `config.seed_target` seeds and balance is sufficient.
+
 
 ##### `evaluate_current_tile() -> None`
 Inspects `self.state.current_tile`:
