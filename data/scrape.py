@@ -4,13 +4,13 @@
 Crawls the public episode graph: seed submission ids -> ListEpisodes ->
 new episode ids + opponents' submission ids -> replay JSONs from the CDN.
 
-State lives next to this script:
-  state.json          known submission ids + fetched episode ids
-  raw/{id}.json.gz    full replays, working copy (packed into replays.parquet for upload)
-  episodes.csv        one row per episode (times, type, banks, ratings)
-  agents.csv          one row per (episode, agent)
-  teams.csv           team id -> team name + current ladder score
-  episode_features.csv  per-seat behavior features parsed out of every replay
+State and outputs live in ../out/:
+    state.json          known submission ids + fetched episode ids
+    raw/{id}.json.gz    full replays, working copy (packed into replays.parquet for upload)
+    episodes.csv        one row per episode (times, type, banks, ratings)
+    agents.csv          one row per (episode, agent)
+    teams.csv           team id -> team name + current ladder score
+    episode_features.csv  per-seat behavior features parsed out of every replay
 
 Run: python scrape.py [--max-new N]   (polite: ~1 req/sec)
 """
@@ -26,8 +26,9 @@ from pathlib import Path
 import requests
 
 HERE = Path(__file__).parent
-RAW = HERE / "raw"
-STATE = HERE / "state.json"
+OUT_DIR = HERE.parent / "out"
+RAW = OUT_DIR / "raw"
+STATE = OUT_DIR / "state.json"
 LIST_URL = "https://www.kaggle.com/api/i/competitions.EpisodeService/ListEpisodes"
 REPLAY_URL = "https://www.kaggleusercontent.com/episodes/{id}.json"
 
@@ -78,6 +79,7 @@ def main():
     ap.add_argument("--budget-min", type=int, default=45, help="minutes for the metadata crawl")
     args = ap.parse_args()
 
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     RAW.mkdir(exist_ok=True)
     state = load_state()
     subs = list(dict.fromkeys(state["submissions"]))
@@ -125,8 +127,8 @@ def main():
     # 2. Download missing replays (completed episodes only).
     import pyarrow.parquet as _pq
     have_pq = set()
-    if (HERE / "replays.parquet").exists():
-        have_pq = set(_pq.read_table(HERE / "replays.parquet",
+    if (OUT_DIR / "replays.parquet").exists():
+        have_pq = set(_pq.read_table(OUT_DIR / "replays.parquet",
                                      columns=["episode_id"])["episode_id"].to_pylist())
     # Newest first: with a backlog, insertion order starves the freshest days.
     missing = sorted(
@@ -149,7 +151,7 @@ def main():
     print(f"replays downloaded this run: {got}")
 
     # 3. Flat tables.
-    with open(HERE / "episodes.csv", "w", newline="") as f:
+    with open(OUT_DIR / "episodes.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["episode_id", "create_time", "end_time", "type", "state",
                     "sub_0", "team_0", "bank_0", "rating_0",
@@ -162,7 +164,7 @@ def main():
                 row += [a.get("submissionId"), a.get("teamId"),
                         a.get("reward"), a.get("updatedScore")]
             w.writerow(row)
-    with open(HERE / "agents.csv", "w", newline="") as f:
+    with open(OUT_DIR / "agents.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["episode_id", "agent_index", "submission_id", "team_id",
                     "final_bank", "rating_after"])
