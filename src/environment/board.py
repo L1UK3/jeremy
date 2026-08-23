@@ -17,6 +17,10 @@ class Tile:
         return isinstance(self.data, dict) and self.data.get("kind") == "PLANT"
 
     @property
+    def is_weed(self) -> bool:
+        return isinstance(self.data, dict) and self.data.get("kind") == "WEED"
+
+    @property
     def crop(self) -> str | None:
         if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
             return self.data.get("crop")
@@ -65,18 +69,25 @@ class Board:
             if tile.is_plant:
                 yield tile
 
-    def crops(self, crop):
+    def weeds(self):
+        for tile in self.all_tiles():
+            if tile.is_weed:
+                yield tile
+
+    def crops(self, crop: str):
         for tile in self.plants():
             if tile.crop == crop:
                 yield tile
 
-    def harvestable(self):
-        for tile in self.plants():
+    def harvestable(self, crop: str | None = None):
+        tiles = self.crops(crop) if crop else self.plants()
+        for tile in tiles:
             if tile.yield_units > 0:
                 yield tile
 
-    def needs_water(self):
-        for tile in self.plants():
+    def needs_water(self, crop: str | None = None):
+        tiles = self.crops(crop) if crop else self.plants()
+        for tile in tiles:
             if not tile.watered:
                 yield tile
 
