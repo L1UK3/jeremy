@@ -3,13 +3,17 @@ from collections import deque
 
 class Market:
     HISTORY_LEN = 20
+    _history: dict[str, deque] = {}
 
-    def __init__(self, state):
+    def __init__(self, state, history: dict[str, deque] | None = None):
         self.state = state
-        if not hasattr(Market, "_history"):
-            Market._history = {}
-        self.history = Market._history
+        self.history = Market._history if history is None else history
         self._update()
+
+    @classmethod
+    def reset_history(cls) -> None:
+        """Clear cached market history across episodes/matches."""
+        cls._history.clear()
 
     def _update(self) -> None:
         for item, price in self.state.prices.items():
