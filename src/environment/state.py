@@ -77,3 +77,6 @@ class GameState:
 
     def can_afford(self, amount: int) -> bool:
         return self.money >= amount
+
+    def has_fertilizer(self) -> bool:
+        return self.inventory("fertilizer") > 0
