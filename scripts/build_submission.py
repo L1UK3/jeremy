@@ -34,11 +34,13 @@ MODULES = [
     "environment/actions.py",
     "environment/economy.py",
     "environment/market.py",
+    "agent/config.py",
     "agent/search.py",
     "agent/scheduler.py",
     "agent/planner.py",
     "main.py",
 ]
+
 
 HEADER = """\
 # ==========================================================
