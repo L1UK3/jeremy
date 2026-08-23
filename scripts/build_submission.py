@@ -42,7 +42,6 @@ MODULES = [
     "agent/heuristics/farming.py",
     "agent/heuristics/movement.py",
     "agent/heuristics/expansion.py",
-    "agent/heuristics/__init__.py",
     "agent/planner.py",
     "main.py",
 ]
@@ -72,28 +71,34 @@ def clean_source(
     """Separate external imports from module body and remove internal imports."""
     from_imports: dict[str, set[str]] = {}
     direct_imports: set[str] = set()
-    body = []
+    body: list[str] = []
 
-    for line in text.splitlines():
-        # Match 'from <module> import ...'
-        if line.startswith("from "):
-            m = re.match(r"from\s+([a-zA-Z0-9_.]+)\s+import\s+(.+)", line)
-            if m:
+    lines = iter(text.splitlines())
+    for line in lines:
+        if line.startswith("from ") or line.startswith("import "):
+            statement = line
+            if "(" in statement and ")" not in statement:
+                for next_line in lines:
+                    statement += " " + next_line.strip()
+                    if ")" in next_line:
+                        break
+
+            clean_stmt = re.sub(r"[()]", "", statement.split("#")[0]).strip()
+
+            if m := re.match(r"from\s+([\w.]+)\s+import\s+(.+)", clean_stmt):
                 mod_name, names_str = m.group(1), m.group(2)
-                if is_internal_import(mod_name):
-                    continue
-                names = [n.strip() for n in names_str.split(",") if n.strip()]
-                from_imports.setdefault(mod_name, set()).update(names)
+                if not is_internal_import(mod_name):
+                    names = [
+                        n.strip() for n in names_str.split(",") if n.strip()
+                    ]
+                    from_imports.setdefault(mod_name, set()).update(names)
                 continue
 
-        # Match 'import <module>'
-        if line.startswith("import "):
-            m = re.match(r"import\s+([a-zA-Z0-9_.]+)", line)
-            if m:
-                mod_name = m.group(1)
-                if is_internal_import(mod_name):
-                    continue
-                direct_imports.add(line.strip())
+            if m := re.match(r"import\s+(.+)", clean_stmt):
+                for item in m.group(1).split(","):
+                    item = item.strip()
+                    if item and not is_internal_import(item):
+                        direct_imports.add(f"import {item}")
                 continue
 
         body.append(line)
