@@ -14,7 +14,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).parent
-OUT_DIR = HERE.parent / "out"
+OUT_DIR = HERE.parent / ".out"
 PARQUET = OUT_DIR / "replays.parquet"
 OUT = OUT_DIR / "episode_features.csv"
 HASH_OUT = OUT_DIR / "stream_hashes.csv"
