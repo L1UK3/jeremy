@@ -16,13 +16,16 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).parent
-WORK = HERE / "replays.parquet"
-STAGE = HERE.parent / "episodes_dataset" / "replays.parquet"
-TMP = HERE / "replays_new.parquet"
+OUT_DIR = HERE.parent / "out"
+RAW_DIR = OUT_DIR / "raw"
+WORK = OUT_DIR / "replays.parquet"
+STAGE = OUT_DIR / "episodes_dataset" / "replays.parquet"
+TMP = OUT_DIR / "replays_new.parquet"
 BATCH = 20
 SCHEMA = pa.schema([("episode_id", pa.int64()), ("replay_json", pa.string())])
 
-files = sorted(glob.glob(str(HERE / "raw" / "*.json.gz")))
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+files = sorted(glob.glob(str(RAW_DIR / "*.json.gz")))
 raw_ids = {int(os.path.basename(f).split(".")[0]) for f in files}
 writer = pq.ParquetWriter(TMP, SCHEMA, compression="zstd", compression_level=10)
 carried = 0
@@ -45,6 +48,7 @@ try:
 finally:
     writer.close()
 TMP.replace(WORK)
+STAGE.parent.mkdir(parents=True, exist_ok=True)
 shutil.copy(WORK, STAGE)
 total = pq.ParquetFile(WORK).metadata.num_rows
 print(f"replays.parquet: {carried} carried + {len(files)} from raw = {total} rows, "

@@ -14,9 +14,10 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).parent
-PARQUET = HERE / "replays.parquet"
-OUT = HERE / "episode_features.csv"
-HASH_OUT = HERE / "stream_hashes.csv"
+OUT_DIR = HERE.parent / "out"
+PARQUET = OUT_DIR / "replays.parquet"
+OUT = OUT_DIR / "episode_features.csv"
+HASH_OUT = OUT_DIR / "stream_hashes.csv"
 
 # Turns at which the action-stream hash is snapshotted. Proposed by destbreso in the
 # dataset discussion (topic 734833) together with this exact normalisation: canonical
@@ -100,6 +101,7 @@ def features(episode_id, replay):
 
 
 def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     have = {}
     if OUT.exists():        # incremental: keep rows for episodes already done
         old = pd.read_csv(OUT)
@@ -181,4 +183,4 @@ def write_daily_stats(here):
 
 if __name__ == "__main__":
     main()
-    write_daily_stats(HERE)
+    write_daily_stats(OUT_DIR)
