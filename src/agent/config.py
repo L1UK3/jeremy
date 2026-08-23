@@ -13,7 +13,7 @@ from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 class AgentConfig:
     target_crop: str = "MELON"
     sell_threshold: int = 200
-    seed_target: int = 1
+    seed_target: int = 4
     expand_land: bool = False
     max_hires_per_day: int = 0
 
