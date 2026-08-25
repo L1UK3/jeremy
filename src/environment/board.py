@@ -72,6 +72,15 @@ class Tile:
             return fertilized_until_day is not None and fertilized_until_day >= current_day
         return False
 
+    def is_unlocked(self, unlocked_quadrants: list[str]) -> bool:
+        if self.x < 5 and self.y < 5:
+            return "NW" in unlocked_quadrants
+        if self.x >= 5 and self.y < 5:
+            return "NE" in unlocked_quadrants
+        if self.x < 5 and self.y >= 5:
+            return "SW" in unlocked_quadrants
+        return "SE" in unlocked_quadrants
+
 
 class Board:
     def __init__(self, state):
@@ -84,20 +93,22 @@ class Board:
             for x in range(self.size):
                 yield Tile(x, y, self.tiles[y][x])
 
-    def empty_tiles(self):
+    def empty_tiles(self, only_unlocked: bool = True):
         for tile in self.all_tiles():
             if tile.empty:
-                yield tile
+                if not only_unlocked or tile.is_unlocked(self.state.unlocked_quadrants):
+                    yield tile
 
     def plants(self):
         for tile in self.all_tiles():
             if tile.is_plant:
                 yield tile
 
-    def weeds(self):
+    def weeds(self, only_unlocked: bool = True):
         for tile in self.all_tiles():
             if tile.is_weed:
-                yield tile
+                if not only_unlocked or tile.is_unlocked(self.state.unlocked_quadrants):
+                    yield tile
 
     def crops(self, crop: str):
         for tile in self.plants():
@@ -116,21 +127,23 @@ class Board:
             if not tile.watered:
                 yield tile
 
-    def nearest(self, tiles):
-        fx, fy = self.state.farmer
+    def nearest_to(self, x: int, y: int, tiles, exclude_pos: tuple[int, int] | None = None) -> Tile | None:
         best = None
         best_dist = 10**9
-
         for tile in tiles:
-            d = tile.distance(fx, fy)
+            if exclude_pos and tile.pos == exclude_pos:
+                continue
+            d = tile.distance(x, y)
             if d < best_dist:
                 best_dist = d
                 best = tile
-
         return best
+
+    def nearest(self, tiles):
+        fx, fy = self.state.farmer
+        return self.nearest_to(fx, fy, tiles)
 
     def nearest_other(self, tiles):
         """Find the nearest tile excluding the farmer's current coordinates."""
         fx, fy = self.state.farmer
-        other_tiles = (t for t in tiles if t.pos != (fx, fy))
-        return self.nearest(other_tiles)
+        return self.nearest_to(fx, fy, tiles, exclude_pos=(fx, fy))

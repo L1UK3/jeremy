@@ -12,10 +12,11 @@ from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 @dataclass(slots=True)
 class AgentConfig:
     target_crop: str = "MELON"
-    sell_threshold: int = 200
-    seed_target: int = 4
-    expand_land: bool = False
-    max_hires_per_day: int = 0
+    sell_threshold: int = 180
+    seed_target: int = 12
+    expand_land: bool = True
+    max_hires_per_day: int = 3
+    dynamic_crops: bool = True
 
     @property
     def seed_cost(self) -> int:
