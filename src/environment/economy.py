@@ -65,8 +65,8 @@ class Economy:
     # BUY SEED
     # ----------------------------
 
-    def should_buy_seed(self, crop: str, target_count: int = 1) -> bool:
-        if self.seeds(crop) >= target_count:
+    def should_buy_seed(self, crop: str | None, target_count: int = 1) -> bool:
+        if not crop or self.seeds(crop) >= target_count:
             return False
 
         return self.state.can_afford(self.crop_cost(crop))

@@ -6,8 +6,6 @@ that can be overridden or controlled by higher-level models.
 
 from dataclasses import dataclass
 
-from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
-
 
 @dataclass(slots=True)
 class AgentConfig:
@@ -15,16 +13,10 @@ class AgentConfig:
     seed_target: int = 12
     expand_land: bool = True
     max_hires_per_day: int = 3
-    dynamic_crops: bool = True
-    max_quadrants: int = 2
+    max_quadrants: int = 1
 
-    def get_crop(self, eco) -> str:
-        """Resolve the target crop dynamically using live ROI if enabled."""
-        if self.dynamic_crops:
-            return eco.best_crop() or self.target_crop
-        return self.target_crop
+    def get_crop(self, eco) -> str | None:
+        return eco.best_crop()
 
 
-# Default global configuration instance
 DEFAULT_CONFIG = AgentConfig()
-

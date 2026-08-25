@@ -24,7 +24,7 @@ def evaluate_market(planner) -> None:
             planner.add(SELL, ActionBuilder.sell(item, sell_amount))
 
     # Seed Purchases
-    if planner.eco.should_buy_seed(
+    if crop and planner.eco.should_buy_seed(
         crop, target_count=planner.config.seed_target
     ):
         amount = planner.config.seed_target - planner.state.seed_count(crop)
