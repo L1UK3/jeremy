@@ -1,11 +1,11 @@
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 from agent.heuristics.scores import (
-    SCORE_DIG_WEED,
-    SCORE_FERTILIZER,
-    SCORE_HARVEST_BASE,
-    SCORE_PLANT_BASE,
-    SCORE_WATER,
+    DIG_WEED,
+    FERTILIZER,
+    HARVEST_BASE,
+    PLANT_BASE,
+    WATER,
 )
 from environment.actions import ActionBuilder
 
@@ -18,7 +18,7 @@ def evaluate_farming(planner) -> None:
     if tile is None:
         if target_crop and planner.state.has_seed(target_crop):
             roi = planner.eco.crop_roi(target_crop)
-            planner.add(SCORE_PLANT_BASE + roi, ActionBuilder.plant(target_crop))
+            planner.add(PLANT_BASE + roi, ActionBuilder.plant(target_crop))
         return
 
     if not isinstance(tile, dict):
@@ -27,7 +27,7 @@ def evaluate_farming(planner) -> None:
     kind = tile.get("kind")
 
     if kind == "WEED":
-        planner.add(SCORE_DIG_WEED, ActionBuilder.dig())
+        planner.add(DIG_WEED, ActionBuilder.dig())
         return
 
     if kind != "PLANT":
@@ -42,16 +42,16 @@ def evaluate_farming(planner) -> None:
     # Harvest mature crops immediately
     if age >= max_yield_day and yield_units > 0:
         value = yield_units * planner.eco.price(crop or target_crop)
-        planner.add(SCORE_HARVEST_BASE + value, ActionBuilder.harvest())
+        planner.add(HARVEST_BASE + value, ActionBuilder.harvest())
         return
 
     # Water thirsty plants
     if not tile.get("watered_today", False):
-        planner.add(SCORE_WATER, ActionBuilder.water())
+        planner.add(WATER, ActionBuilder.water())
         return
 
     # Apply fertilizer if unfertilized and available
     fert_until = tile.get("fertilized_until_day")
     if (fert_until is None or fert_until < planner.state.day) and planner.state.has_fertilizer():
-        planner.add(SCORE_FERTILIZER, ActionBuilder.fertilize())
+        planner.add(FERTILIZER, ActionBuilder.fertilize())
         return

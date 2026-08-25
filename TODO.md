@@ -99,10 +99,10 @@ This document tracks the implementation, integration status, and development roa
 
 | Feature / Generator                      |          Implemented           |           In Planner           | Description                                                                                     |
 | :--------------------------------------- | :----------------------------: | :----------------------------: | :---------------------------------------------------------------------------------------------- |
-| `harvest_jobs(planner, crop)`            | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `HARVEST` jobs scored by `SCORE_HARVEST_BASE + (yield * price)`                       |
-| `water_jobs(planner, crop)`              | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `WATER` jobs for thirsty plants scored by `SCORE_WATER`                               |
-| `weed_jobs(planner, crop)`               | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `DIG` jobs for weeds on unlocked tiles scored by `SCORE_DIG_WEED`                     |
-| `plant_jobs(planner, crop)`              | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `PLANT` jobs for empty unlocked tiles scored by `SCORE_PLANT_BASE + ROI`              |
+| `harvest_jobs(planner, crop)`            | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `HARVEST` jobs scored by `HARVEST_BASE + (yield * price)`                       |
+| `water_jobs(planner, crop)`              | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `WATER` jobs for thirsty plants scored by `WATER`                               |
+| `weed_jobs(planner, crop)`               | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `DIG` jobs for weeds on unlocked tiles scored by `DIG_WEED`                     |
+| `plant_jobs(planner, crop)`              | <font color="green">Yes</font> | <font color="green">Yes</font> | Generates `PLANT` jobs for empty unlocked tiles scored by `PLANT_BASE + ROI`              |
 | `DEFAULT_JOB_PIPELINE`                   | <font color="green">Yes</font> | <font color="green">Yes</font> | Composable tuple of active job generators                                                       |
 | `schedule_jobs(planner, crop, pipeline)` | <font color="green">Yes</font> | <font color="green">Yes</font> | Clears scheduler, executes generator pipeline, and populates `scheduler.jobs` in `Planner.play` |
 
