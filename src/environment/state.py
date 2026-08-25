@@ -63,10 +63,6 @@ class GameState:
     def current_tile(self) -> Any:
         return self.tiles[self.y][self.x]
 
-    @property
-    def total_shed_inventory(self) -> int:
-        """Sum of all stored non-seed items in shed."""
-        return sum(self.shed.values())
 
     def is_quadrant_unlocked(self, quadrant: str) -> bool:
         return quadrant in self.unlocked_quadrants

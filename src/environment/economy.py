@@ -62,19 +62,6 @@ class Economy:
         return best
 
     # ----------------------------
-    # SELL
-    # ----------------------------
-
-    def should_sell(self, item: str, threshold: int | None = None) -> bool:
-        if self.inventory(item) == 0:
-            return False
-
-        if threshold is not None:
-            return self.price(item) >= threshold
-
-        return self.price(item) > self.crop_cost(item)
-
-    # ----------------------------
     # BUY SEED
     # ----------------------------
 
