@@ -24,7 +24,7 @@ class Planner:
         self.board = Board(state)
         self.eco = Economy(state)
         self.market = Market(state)
-        self.scheduler = Scheduler(state, self.board, self.eco)
+        self.scheduler = Scheduler(state)
         self.search = Search()
 
     def add(self, score: float, action: Action) -> None:
