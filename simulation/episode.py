@@ -92,13 +92,23 @@ class Episode:
             self.result.replay_path = str(path.resolve())
         return path
 
+
 if __name__ == "__main__":
     episode = Episode(agent1=".out/submission.py", agent2="starter", debug=True)
     result = episode.run()
 
+    final_inventory = (
+        episode.env.steps[-1][episode.seat]
+        .observation.get("private", {})
+        .get("shed", {})
+    )
+
     print(f"Challenger Bank : ${result.score_challenger:,.2f}")
     print(f"Baseline Bank   : ${result.score_baseline:,.2f}")
-    print(f"Winner          : {result.winner + 1 if result.winner >= 0 else 'Tie'}")
+    print(
+        f"Winner          : {result.winner + 1 if result.winner >= 0 else 'Tie'}"
+    )
+    print(f"Final Inventory : {final_inventory}")
 
     # Save full replay JSON
     episode.save_replay(".out/replays/match.json")
