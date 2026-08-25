@@ -17,6 +17,7 @@ from agent.heuristics import (
     evaluate_movement,
     move_to,
 )
+from agent.jobs import schedule_jobs
 from agent.planner import Planner
 from agent.scheduler import Job, Scheduler
 from agent.search import Node, Search
@@ -45,4 +46,5 @@ __all__ = [
     "evaluate_movement",
     "heuristics",
     "move_to",
+    "schedule_jobs",
 ]

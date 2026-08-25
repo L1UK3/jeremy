@@ -17,6 +17,7 @@ class AgentConfig:
     expand_land: bool = True
     max_hires_per_day: int = 3
     dynamic_crops: bool = True
+    max_hires_per_day: int = 3
 
     @property
     def seed_cost(self) -> int:

@@ -1,11 +1,10 @@
 from agent.config import DEFAULT_CONFIG, AgentConfig
 from agent.heuristics import (
     evaluate_expansion,
-    evaluate_farming,
     evaluate_market,
-    evaluate_movement,
     move_to,
 )
+from agent.jobs import schedule_jobs
 from agent.scheduler import Scheduler
 from agent.search import Search
 from environment.actions import Action, ActionBuilder
@@ -40,7 +39,14 @@ class Planner:
 
     def play(self) -> Action:
         evaluate_market(self)
-        evaluate_farming(self)
-        evaluate_movement(self)
         evaluate_expansion(self)
-        return self.choose()
+        market_action = self.choose()
+
+        schedule_jobs(self)
+        farmer_act, hands_acts = self.scheduler.assign()
+
+        return Action(
+            farmer=farmer_act,
+            hands=hands_acts,
+            market=market_action.market,
+        )
