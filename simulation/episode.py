@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -75,21 +74,21 @@ class Episode:
         )
         return self.result
 
-    def save_replay(self, output_path: str | Path | None = None) -> Path:
-        """Save episode replay JSON file."""
+    def save_replay(self) -> Path:
+        """Save episode replay HTML file."""
         if self.env is None:
             raise RuntimeError("Cannot save replay before running the match.")
 
-        path = Path(
-            output_path or f"replays/replay_ep{self.episode_idx + 1}.json"
-        )
+        i = 1
+        while (path := Path(f".out/replays/replay_ep{i}.html")).exists():
+            i += 1
+
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(self.env.toJSON(), indent=2), encoding="utf-8"
-        )
+        path.write_text(self.env.render(mode="html"), encoding="utf-8")
 
         if self.result:
             self.result.replay_path = str(path.resolve())
+
         return path
 
 
@@ -110,5 +109,4 @@ if __name__ == "__main__":
     )
     print(f"Final Inventory : {final_inventory}")
 
-    # Save full replay JSON
-    episode.save_replay(".out/replays/match.json")
+    episode.save_replay()
