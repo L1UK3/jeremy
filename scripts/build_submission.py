@@ -42,6 +42,7 @@ MODULES = [
     "agent/heuristics/market.py",
     "agent/heuristics/expansion.py",
     "agent/scheduler.py",
+    "agent/jobs.py",
     "agent/planner.py",
     "main.py",
 ]

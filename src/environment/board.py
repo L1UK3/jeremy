@@ -4,6 +4,24 @@ from typing import Any
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 
+def manhattan_distance(x1: int, y1: int, x2: int, y2: int) -> int:
+    """Compute Manhattan distance between two points."""
+    return abs(x1 - x2) + abs(y1 - y2)
+
+
+def step_toward(fx: int, fy: int, tx: int, ty: int) -> str:
+    """Compute single cardinal step direction from (fx, fy) toward (tx, ty)."""
+    if fx > tx:
+        return "WEST"
+    if fx < tx:
+        return "EAST"
+    if fy > ty:
+        return "NORTH"
+    if fy < ty:
+        return "SOUTH"
+    return "PASS"
+
+
 @dataclass(slots=True)
 class Tile:
     x: int
@@ -64,7 +82,7 @@ class Tile:
         return True
 
     def distance(self, x: int, y: int) -> int:
-        return abs(self.x - x) + abs(self.y - y)
+        return manhattan_distance(self.x, self.y, x, y)
 
     def is_fertilized(self, current_day: int) -> bool:
         if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":

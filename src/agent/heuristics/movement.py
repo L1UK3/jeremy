@@ -5,28 +5,20 @@ from agent.heuristics.scores import (
     SCORE_MOVE_WEED,
 )
 from environment.actions import Action, ActionBuilder
+from environment.board import step_toward
 
-
-def move_step(from_x: int, from_y: int, to_x: int, to_y: int) -> str:
-    """Compute cardinal step direction between two coordinates."""
-    if from_x > to_x:
-        return "WEST"
-    if from_x < to_x:
-        return "EAST"
-    if from_y > to_y:
-        return "NORTH"
-    if from_y < to_y:
-        return "SOUTH"
-    return "PASS"
+# Backward compatibility alias
+move_step = step_toward
 
 
 def move_to(planner, tile) -> Action:
     """Compute a single Manhattan cardinal step from farmer to target tile."""
     fx, fy = planner.state.farmer
-    step = move_step(fx, fy, tile.x, tile.y)
+    step = step_toward(fx, fy, tile.x, tile.y)
     if step != "PASS":
         return ActionBuilder.move(step)
     return ActionBuilder.pass_turn()
+
 
 
 def evaluate_movement(planner) -> None:

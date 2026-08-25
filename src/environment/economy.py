@@ -112,5 +112,11 @@ class Economy:
     # FARMHAND
     # ----------------------------
 
-    def should_hire(self) -> bool:
-        return self.state.money > 10000
+    def hire_cost(self) -> int:
+        fibonacci = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+        return fibonacci[self.state.hires_today]
+
+    def should_hire(self, max_hires_per_day: int = 3) -> bool:
+        if self.state.hires_today >= max_hires_per_day:
+            return False
+        return self.state.money >= self.hire_cost()
