@@ -35,22 +35,22 @@ Subpackage containing modular decision evaluator functions that operate directly
 
 ### Module: `agent.heuristics.scores`
 Utility score constants adhering to the Score Calibration Hierarchy:
-* `SCORE_HARVEST_BASE: float = 100.0`
-* `SCORE_BUY_LAND: float = 100.0`
-* `SCORE_DIG_WEED: float = 90.0`
-* `SCORE_WATER: float = 80.0`
-* `SCORE_PLANT_BASE: float = 60.0`
-* `SCORE_SELL: float = 50.0`
-* `SCORE_BUY_SEED: float = 40.0`
-* `SCORE_MOVE_HARVEST: float = 40.0`
-* `SCORE_MOVE_WATER: float = 30.0`
-* `SCORE_MOVE_EMPTY: float = 20.0`
+* `HARVEST_BASE: float = 100.0`
+* `BUY_LAND: float = 100.0`
+* `DIG_WEED: float = 90.0`
+* `WATER: float = 80.0`
+* `PLANT_BASE: float = 60.0`
+* `SELL: float = 50.0`
+* `BUY_SEED: float = 40.0`
+* `MOVE_HARVEST: float = 40.0`
+* `MOVE_WATER: float = 30.0`
+* `MOVE_EMPTY: float = 20.0`
 
 ### Evaluator Functions
-* **`evaluate_market(planner)`**: Evaluates seed purchasing (`SCORE_BUY_SEED`) and produce selling (`SCORE_SELL`) against config thresholds.
-* **`evaluate_farming(planner)`**: Evaluates tile-level actions: harvest (`SCORE_HARVEST_BASE + value`), weed clearing (`SCORE_DIG_WEED`), watering (`SCORE_WATER`), and planting (`SCORE_PLANT_BASE + ROI`).
-* **`evaluate_movement(planner)`**: Evaluates directional movement toward nearest harvestable (`SCORE_MOVE_HARVEST`), thirsty (`SCORE_MOVE_WATER`), or empty soil (`SCORE_MOVE_EMPTY`) targets.
-* **`evaluate_expansion(planner)`**: Evaluates land expansion (`SCORE_BUY_LAND`).
+* **`evaluate_market(planner)`**: Evaluates seed purchasing (`BUY_SEED`) and produce selling (`SELL`) against config thresholds.
+* **`evaluate_farming(planner)`**: Evaluates tile-level actions: harvest (`HARVEST_BASE + value`), weed clearing (`DIG_WEED`), watering (`WATER`), and planting (`PLANT_BASE + ROI`).
+* **`evaluate_movement(planner)`**: Evaluates directional movement toward nearest harvestable (`MOVE_HARVEST`), thirsty (`MOVE_WATER`), or empty soil (`MOVE_EMPTY`) targets.
+* **`evaluate_expansion(planner)`**: Evaluates land expansion (`BUY_LAND`).
 * **`move_to(planner, tile) -> Action`**: Directional Manhattan navigation helper.
 
 ---

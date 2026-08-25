@@ -1,8 +1,8 @@
 from agent.heuristics.scores import (
-    SCORE_DIG_WEED,
-    SCORE_HARVEST_BASE,
-    SCORE_PLANT_BASE,
-    SCORE_WATER,
+    DIG_WEED,
+    HARVEST_BASE,
+    PLANT_BASE,
+    WATER,
 )
 from agent.scheduler import Job
 
@@ -11,7 +11,7 @@ def harvest_jobs(planner, crop: str) -> list[Job]:
     """Generate harvest jobs for all ripe plants matching active crop."""
     return [
         Job(
-            priority=SCORE_HARVEST_BASE
+            priority=HARVEST_BASE
             + (tile.yield_units * planner.eco.price(tile.crop)),
             action="HARVEST",
             target=tile.pos,
@@ -25,7 +25,7 @@ def water_jobs(planner, crop: str) -> list[Job]:
     """Generate watering jobs for thirsty crops."""
     return [
         Job(
-            priority=SCORE_WATER,
+            priority=WATER,
             action="WATER",
             target=tile.pos,
         )
@@ -37,7 +37,7 @@ def weed_jobs(planner, crop: str) -> list[Job]:
     """Generate weed clearing jobs on unlocked farm tiles."""
     return [
         Job(
-            priority=SCORE_DIG_WEED,
+            priority=DIG_WEED,
             action="DIG",
             target=tile.pos,
         )
@@ -52,7 +52,7 @@ def plant_jobs(planner, crop: str) -> list[Job]:
     roi = planner.eco.crop_roi(crop)
     return [
         Job(
-            priority=SCORE_PLANT_BASE + roi,
+            priority=PLANT_BASE + roi,
             action="PLANT",
             target=tile.pos,
             item=crop,

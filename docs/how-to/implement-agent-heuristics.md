@@ -29,7 +29,7 @@ Write a standalone function taking `planner`. Use score constants from [`agent.h
 
 ```python
 from agent.heuristics.movement import move_to
-from agent.heuristics.scores import SCORE_DIG_WEED, SCORE_MOVE_EMPTY
+from agent.heuristics.scores import DIG_WEED, MOVE_EMPTY
 from environment.actions import ActionBuilder
 
 
@@ -37,7 +37,7 @@ def evaluate_weed_patrol(planner) -> None:
     """Clear weeds underfoot or seek out nearest weeds on farm."""
     tile = planner.state.current_tile
     if isinstance(tile, dict) and tile.get("kind") == "WEED":
-        planner.add(SCORE_DIG_WEED, ActionBuilder.dig())
+        planner.add(DIG_WEED, ActionBuilder.dig())
         return
 
     # Move toward nearest weed if idle
@@ -47,7 +47,7 @@ def evaluate_weed_patrol(planner) -> None:
         if isinstance(t.data, dict) and t.data.get("kind") == "WEED"
     ]
     if nearest_weed := planner.board.nearest(weeds):
-        planner.add(SCORE_MOVE_EMPTY - 5.0, move_to(planner, nearest_weed))
+        planner.add(MOVE_EMPTY - 5.0, move_to(planner, nearest_weed))
 ```
 
 ---

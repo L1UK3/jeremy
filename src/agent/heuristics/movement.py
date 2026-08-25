@@ -1,8 +1,8 @@
 from agent.heuristics.scores import (
-    SCORE_MOVE_EMPTY,
-    SCORE_MOVE_HARVEST,
-    SCORE_MOVE_WATER,
-    SCORE_MOVE_WEED,
+    MOVE_EMPTY,
+    MOVE_HARVEST,
+    MOVE_WATER,
+    MOVE_WEED,
 )
 from environment.actions import Action, ActionBuilder
 from environment.board import step_toward
@@ -27,20 +27,20 @@ def evaluate_movement(planner) -> None:
 
     # Move to ripe harvestable crop
     if target := planner.board.nearest_other(planner.board.harvestable(target_crop)):
-        planner.add(SCORE_MOVE_HARVEST, move_to(planner, target))
+        planner.add(MOVE_HARVEST, move_to(planner, target))
         return
 
     # Move to thirsty crop
     if target := planner.board.nearest_other(planner.board.needs_water(target_crop)):
-        planner.add(SCORE_MOVE_WATER, move_to(planner, target))
+        planner.add(MOVE_WATER, move_to(planner, target))
         return
 
     # Move to clear weed on unlocked tile
     if target := planner.board.nearest_other(planner.board.weeds(only_unlocked=True)):
-        planner.add(SCORE_MOVE_WEED, move_to(planner, target))
+        planner.add(MOVE_WEED, move_to(planner, target))
         return
 
     # Move to empty soil for planting
     if target_crop and planner.state.has_seed(target_crop):
         if target := planner.board.nearest_other(planner.board.empty_tiles(only_unlocked=True)):
-            planner.add(SCORE_MOVE_EMPTY, move_to(planner, target))
+            planner.add(MOVE_EMPTY, move_to(planner, target))

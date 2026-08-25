@@ -1,4 +1,4 @@
-from agent.heuristics.scores import SCORE_BUY_LAND
+from agent.heuristics.scores import BUY_LAND
 from environment.actions import ActionBuilder
 
 
@@ -17,4 +17,4 @@ def evaluate_expansion(planner) -> None:
     if len(planner.state.unlocked_quadrants) >= planner.config.max_quadrants:
         return
 
-    planner.add(SCORE_BUY_LAND, ActionBuilder.buy_land(target[0], target[1]))
+    planner.add(BUY_LAND, ActionBuilder.buy_land(target[0], target[1]))
