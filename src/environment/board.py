@@ -69,7 +69,10 @@ class Tile:
     def is_fertilized(self, current_day: int) -> bool:
         if isinstance(self.data, dict) and self.data.get("kind") == "PLANT":
             fertilized_until_day = self.data.get("fertilized_until_day")
-            return fertilized_until_day is not None and fertilized_until_day >= current_day
+            return (
+                fertilized_until_day is not None
+                and fertilized_until_day >= current_day
+            )
         return False
 
     def is_unlocked(self, unlocked_quadrants: list[str]) -> bool:
@@ -85,49 +88,69 @@ class Tile:
 class Board:
     def __init__(self, state):
         self.state = state
-        self.tiles = state.tiles
         self.size = state.board_size
+        self._tiles: tuple[Tile, ...] = tuple(
+            Tile(x, y, cell)
+            for y, row in enumerate(state.tiles)
+            for x, cell in enumerate(row)
+        )
+
+    def get_tile(self, x: int, y: int) -> Tile | None:
+        if 0 <= x < self.size and 0 <= y < self.size:
+            return self._tiles[y * self.size + x]
+        return None
 
     def all_tiles(self):
-        for y in range(self.size):
-            for x in range(self.size):
-                yield Tile(x, y, self.tiles[y][x])
+        yield from self._tiles
 
     def empty_tiles(self, only_unlocked: bool = True):
-        for tile in self.all_tiles():
+        for tile in self._tiles:
             if tile.empty:
-                if not only_unlocked or tile.is_unlocked(self.state.unlocked_quadrants):
+                if not only_unlocked or tile.is_unlocked(
+                    self.state.unlocked_quadrants
+                ):
                     yield tile
 
     def plants(self):
-        for tile in self.all_tiles():
+        for tile in self._tiles:
             if tile.is_plant:
                 yield tile
 
     def weeds(self, only_unlocked: bool = True):
-        for tile in self.all_tiles():
+        for tile in self._tiles:
             if tile.is_weed:
-                if not only_unlocked or tile.is_unlocked(self.state.unlocked_quadrants):
+                if not only_unlocked or tile.is_unlocked(
+                    self.state.unlocked_quadrants
+                ):
                     yield tile
 
     def crops(self, crop: str):
-        for tile in self.plants():
-            if tile.crop == crop:
+        for tile in self._tiles:
+            if tile.is_plant and tile.crop == crop:
                 yield tile
 
     def harvestable(self, crop: str | None = None):
-        tiles = self.crops(crop) if crop else self.plants()
-        for tile in tiles:
-            if tile.is_ripe(self.state.day):
+        day = self.state.day
+        for tile in self._tiles:
+            if (
+                tile.is_plant
+                and (crop is None or tile.crop == crop)
+                and tile.is_ripe(day)
+            ):
                 yield tile
 
     def needs_water(self, crop: str | None = None):
-        tiles = self.crops(crop) if crop else self.plants()
-        for tile in tiles:
-            if not tile.watered:
+        for tile in self._tiles:
+            if (
+                tile.is_plant
+                and (crop is None or tile.crop == crop)
+                and not tile.watered
+            ):
                 yield tile
 
-    def nearest_to(self, x: int, y: int, tiles, exclude_pos: tuple[int, int] | None = None) -> Tile | None:
+    def nearest_to(
+        self, x: int, y: int, tiles, exclude_pos: tuple[int, int] | None = None
+    ) -> Tile | None:
         best = None
         best_dist = 10**9
         for tile in tiles:
@@ -140,10 +163,9 @@ class Board:
         return best
 
     def nearest(self, tiles):
-        fx, fy = self.state.farmer
-        return self.nearest_to(fx, fy, tiles)
+        return self.nearest_to(self.state.x, self.state.y, tiles)
 
     def nearest_other(self, tiles):
-        """Find the nearest tile excluding the farmer's current coordinates."""
-        fx, fy = self.state.farmer
-        return self.nearest_to(fx, fy, tiles, exclude_pos=(fx, fy))
+        return self.nearest_to(
+            self.state.x, self.state.y, tiles, exclude_pos=self.state.farmer
+        )
