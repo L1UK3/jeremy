@@ -4,7 +4,8 @@ from environment.actions import ActionBuilder
 
 def evaluate_market(planner) -> None:
     """Evaluate market sell orders, seed purchases, and worker hiring."""
-    crop = planner.config.target_crop
+    crop = planner.config.get_crop(planner.eco)
+    market = planner.market
 
     # Farmhand Hiring
     if planner.eco.should_hire(
@@ -13,8 +14,12 @@ def evaluate_market(planner) -> None:
         planner.add(HIRE_HAND, ActionBuilder.hire_hand())
 
     # Always sell available produce in inventory (up to 10 units)
-    for item, count in planner.state.shed.items():
-        if count > 0 and item != "fertilizer" and item != "seed":
+    if (
+        (item := market.best_item_to_sell())
+        and item != "fertilizer"
+        and item != "seed"
+    ):
+        if count := planner.state.inventory(item):
             sell_amount = min(10, count)
             planner.add(SELL, ActionBuilder.sell(item, sell_amount))
 
