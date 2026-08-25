@@ -3,11 +3,10 @@ from collections import deque
 
 class Market:
     HISTORY_LEN = 20
-    _history: dict[str, deque] = {}
 
     def __init__(self, state, history: dict[str, deque] | None = None):
         self.state = state
-        self.history = Market._history if history is None else history
+        self.history: dict[str, deque] = {}
         self._update()
 
     @classmethod
