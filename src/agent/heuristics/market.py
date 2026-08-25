@@ -3,20 +3,22 @@ from environment.actions import ActionBuilder
 
 
 def evaluate_market(planner) -> None:
-    """Evaluate market sell orders and seed purchases."""
+    """Evaluate market sell orders, seed purchases, and worker hiring."""
     crop = planner.config.target_crop
-    inventory = planner.eco.inventory(crop)
 
+    # Farmhand Hiring
     if planner.eco.should_hire(
         max_hires_per_day=planner.config.max_hires_per_day
     ):
         planner.add(HIRE_HAND, ActionBuilder.hire_hand())
 
-    if inventory > 0 and planner.eco.should_sell(
-        crop, threshold=planner.config.sell_threshold
-    ):
-        planner.add(SELL, ActionBuilder.sell(crop, inventory))
+    # Always sell available produce in inventory (up to 10 units)
+    for item, count in planner.state.shed.items():
+        if count > 0 and item != "fertilizer" and item != "seed":
+            sell_amount = min(10, count)
+            planner.add(SELL, ActionBuilder.sell(item, sell_amount))
 
+    # Seed Purchases
     if planner.eco.should_buy_seed(
         crop, target_count=planner.config.seed_target
     ):
