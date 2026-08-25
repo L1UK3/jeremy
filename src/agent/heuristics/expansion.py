@@ -14,4 +14,7 @@ def evaluate_expansion(planner) -> None:
     if target is None:
         return
 
+    if len(planner.state.unlocked_quadrants) >= planner.config.max_quadrants:
+        return
+
     planner.add(SCORE_BUY_LAND, ActionBuilder.buy_land(target[0], target[1]))
