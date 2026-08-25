@@ -17,7 +17,6 @@ class AgentConfig:
     expand_land: bool = True
     max_hires_per_day: int = 3
     dynamic_crops: bool = True
-    max_hires_per_day: int = 6
     max_quadrants: int = 2
 
     @property
@@ -28,6 +27,13 @@ class AgentConfig:
     def max_yield_day(self) -> int:
         return CROPS[self.target_crop]["max_yield_day"]
 
+    def get_crop(self, eco) -> str:
+        """Resolve the target crop dynamically using live ROI if enabled."""
+        if self.dynamic_crops:
+            return eco.best_crop() or self.target_crop
+        return self.target_crop
+
 
 # Default global configuration instance
 DEFAULT_CONFIG = AgentConfig()
+

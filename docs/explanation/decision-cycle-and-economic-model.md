@@ -86,3 +86,41 @@ Market sale prices fluctuate dynamically with global market supply $I$ relative 
 - When market supply $I > I_0$ (glut), prices fall toward the $1 floor.
 - Goods with steep price curves (Melon, Strawberry, Milk, Wool) experience rapid price collapse during oversupply, whereas staples (Wheat, Carrot) absorb market volume more smoothly.
 - Town center and unlocked town shops consume product inventory from the market on fixed turn intervals, creating natural demand sinks.
+
+---
+
+## 5. Multi-Unit Spatial Scheduling & Dispatching
+
+The multi-unit coordination architecture decouples **Task Generation** from **Spatial Assignment**:
+
+```mermaid
+flowchart LR
+    A["Job Pipeline (jobs.py)"] -->|Generates Jobs| B["Scheduler Queue"]
+    B -->|Greedy Utility Assignment| C["Farmer Action"]
+    B -->|Non-overlapping Coords| D["Farmhand Actions"]
+```
+
+### Spatial Utility Function
+For any unit located at $(x_u, y_u)$ evaluating a task candidate $j$:
+
+$$\text{Utility}(j, u) = \text{Priority}(j) - 2.0 \times \text{ManhattanDistance}\big((x_u, y_u), \text{target}(j)\big)$$
+
+The scheduler greedily matches units to candidates maximizing utility, ensuring that no two workers target the same $(x, y)$ coordinate concurrently.
+
+---
+
+## 6. Dynamic Crop Selection & End-Game Horizon
+
+When `dynamic_crops` is enabled in `AgentConfig`, the agent does not statically lock onto a single crop. Instead, `Economy.best_crop()` evaluates ROI dynamically each turn and enforces a **maturity horizon filter**:
+
+$$\text{Days Remaining} = 30 - \text{Day}$$
+
+$$\text{Eligible Crops} = \big\{ c \in \text{CROPS} \;\big|\; \text{max\_yield\_day}(c) \le \text{Days Remaining} \big\}$$
+
+$$\text{Active Crop} = \arg\max_{c \in \text{Eligible Crops}} \text{ROI}(c)$$
+
+### Horizon Strategy:
+* **Days 0–25**: Selects highest ROI compounding crops (Melon, Strawberry).
+* **Days 26–28**: Automatically pivots away from slow-maturing 4-day crops to 2-day Carrots and 1-day Wheat so late plantings mature before turn 720.
+* **Day 29**: Suppresses seed purchases entirely to maximize liquid cash and final harvest cycles.
+

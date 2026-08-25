@@ -122,6 +122,15 @@ Each cell in `farm["tiles"][y][x]` contains one of:
 
 ## Module: `environment.board`
 
+### Spatial Navigation Functions
+
+* **`manhattan_distance(x1: int, y1: int, x2: int, y2: int) -> int`**:
+  Calculates the Manhattan distance $|x_1 - x_2| + |y_1 - y_2|$.
+* **`step_toward(fx: int, fy: int, tx: int, ty: int) -> str | None`**:
+  Calculates a single cardinal step (`"NORTH"`, `"SOUTH"`, `"EAST"`, `"WEST"`) from `(fx, fy)` toward `(tx, ty)`. Resolves horizontal axis first. Returns `None` if already at destination.
+
+---
+
 ### `class Tile`
 Encapsulates a grid coordinate and its state object.
 
@@ -139,7 +148,11 @@ class Tile:
 * `watered -> bool`: `True` if watered today.
 * `yield_units -> int`: Current unharvested yield units on tile.
 * `planted_day -> int | None`: In-game day planted.
-* `distance(x: int, y: int) -> int`: Manhattan distance `|self.x - x| + |self.y - y|`.
+* `distance(x: int, y: int) -> int`: Manhattan distance to target coordinates (delegates to `manhattan_distance`).
+* `age(current_day: int) -> int`: Days elapsed since planting.
+* `is_ripe(current_day: int) -> bool`: Checks if plant age $\ge$ `max_yield_day` and `yield_units > 0`.
+* `is_fertilized(current_day: int) -> bool`: Checks if tile has active fertilizer coverage for current day.
+* `is_unlocked(unlocked_quadrants: list[str]) -> bool`: Validates whether tile resides in an unlocked quadrant.
 
 ---
 
@@ -152,12 +165,15 @@ class Board:
 ```
 
 * `all_tiles() -> Generator[Tile]`: Yields all tiles across `board_size * board_size`.
-* `empty_tiles() -> Generator[Tile]`: Yields empty unlocked tiles (`data is None`).
+* `empty_tiles(only_unlocked: bool = True) -> Generator[Tile]`: Yields empty unlocked tiles (`data is None`).
 * `plants() -> Generator[Tile]`: Yields all plant tiles.
 * `crops(crop: str) -> Generator[Tile]`: Yields plants matching specific crop string.
-* `harvestable() -> Generator[Tile]`: Yields plants with `yield_units > 0`.
-* `needs_water() -> Generator[Tile]`: Yields unwatered plants (`watered_today == False`).
+* `weeds(only_unlocked: bool = True) -> Generator[Tile]`: Yields weed tiles on unlocked quadrants.
+* `harvestable(crop: str | None = None) -> Generator[Tile]`: Yields mature plants with `is_ripe(state.day) == True`.
+* `needs_water(crop: str | None = None) -> Generator[Tile]`: Yields unwatered, growing plants (`watered == False` and not yet ripe).
 * `nearest(tiles: Iterable[Tile]) -> Tile | None`: Returns tile from iterator minimizing Manhattan distance to farmer.
+* `nearest_other(tiles: Iterable[Tile]) -> Tile | None`: Finds closest tile excluding the farmer's current coordinates.
+* `nearest_to(x: int, y: int, tiles: Iterable[Tile], exclude_pos: tuple[int, int] | None = None) -> Tile | None`: General distance minimizer from arbitrary coordinate $(x, y)$.
 
 ---
 
@@ -171,19 +187,22 @@ class Economy:
     def __init__(self, state: GameState) -> None: ...
 ```
 
-* `price(item: str) -> int`: Current price in market.
+* `price(item: str) -> int`: Current market price.
 * `inventory(item: str) -> int`: Item count in player shed.
 * `seeds(crop: str) -> int`: Seed count in player storage.
 * `crop_cost(crop: str) -> int`: Cost of single seed from `CROPS` configuration.
 * `crop_grow_days(crop: str) -> int`: Max yield growth duration in days.
 * `crop_revenue(crop: str) -> int`: Current market value per harvested unit.
 * `crop_profit(crop: str) -> float`: `revenue - seed_cost`.
-* `crop_roi(crop: str) -> float`: `profit / max(1, grow_days)`.
-* `best_crop() -> str | None`: Returns crop string with highest current ROI.
-* `should_sell(item: str) -> bool`: Returns `True` if inventory > 0 and price > cost.
-* `should_buy_seed(crop: str) -> bool`: Returns `True` if holding 0 seeds and balance >= cost.
-* `should_expand() -> bool`: Returns `True` if `money > 5000`.
-* `should_hire() -> bool`: Returns `True` if `money > 10000`.
+* `crop_roi(crop: str) -> float`: Profit per grow day ($(\text{revenue} - \text{cost}) / \text{grow\_days}$).
+* `best_crop() -> str | None`: Returns crop string with highest live ROI, filtering out crops that cannot mature within the remaining days ($30 - \text{day}$).
+* `should_sell(item: str, threshold: int = 180) -> bool`: Returns `True` if inventory > 0 and price $\ge$ threshold.
+* `should_buy_seed(crop: str, target_count: int = 12) -> bool`: Returns `True` if holding fewer than `target_count` seeds and affordable.
+* `expansion_cost() -> int`: Cost to unlock next quadrant based on `len(unlocked_quadrants)`.
+* `next_quadrant_target() -> tuple[int, int] | None`: Coordinates inside the next quadrant to buy.
+* `should_expand() -> bool`: Returns `True` if `money >= expansion_cost() + 300` and unbought quadrants remain.
+* `hire_cost() -> int`: Fibonacci daily hiring cost based on `hires_today`.
+* `should_hire(max_hires_per_day: int = 3) -> bool`: Returns `True` if `hires_today < max_hires_per_day` and affordable.
 
 ---
 
@@ -205,8 +224,8 @@ class Market:
 * `normalized_price(item: str) -> float`: Price percentile `(now - min) / (max - min)` in `[0.0, 1.0]`.
 * `expensive(item: str) -> bool`: Returns `True` if `normalized_price >= 0.80`.
 * `cheap(item: str) -> bool`: Returns `True` if `normalized_price <= 0.20`.
-* `sell_score(item: str) -> float`: Composite score combining price, trend, and percentile.
-* `best_item_to_sell() -> str | None`: Identifies shed item with highest sell score.
+* `sell_score(item: str) -> float`: Composite score combining price, trend, and percentile: $\text{price} + \text{trend} + (\text{normalized\_price} \times 100)$.
+* `best_item_to_sell() -> str | None`: Identifies shed produce item with highest sell score.
 
 ---
 

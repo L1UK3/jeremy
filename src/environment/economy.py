@@ -49,7 +49,12 @@ class Economy:
     def best_crop(self) -> str | None:
         best: str | None = None
         best_roi = -1e9
-        for crop in CROPS.keys():
+        days_remaining = 30 - self.state.day
+
+        for crop, data in CROPS.items():
+            if data["max_yield_day"] > days_remaining:
+                continue
+
             roi = self.crop_roi(crop)
             if roi > best_roi:
                 best_roi = roi
