@@ -7,8 +7,11 @@ def evaluate_expansion(planner) -> None:
     if not planner.config.expand_land:
         return
 
-    target = planner.board.nearest(planner.board.empty_tiles())
-    if not planner.eco.should_expand() or target is None:
+    if not planner.eco.should_expand():
         return
 
-    planner.add(SCORE_BUY_LAND, ActionBuilder.buy_land(target.x, target.y))
+    target = planner.eco.next_quadrant_target()
+    if target is None:
+        return
+
+    planner.add(SCORE_BUY_LAND, ActionBuilder.buy_land(target[0], target[1]))

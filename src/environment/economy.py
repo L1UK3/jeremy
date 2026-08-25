@@ -83,8 +83,30 @@ class Economy:
     # LAND
     # ----------------------------
 
+    def expansion_cost(self) -> int | None:
+        num_unlocked = len(self.state.unlocked_quadrants)
+        if num_unlocked == 1:
+            return 1000
+        if num_unlocked == 2:
+            return 2000
+        if num_unlocked == 3:
+            return 4000
+        return None
+
+    def next_quadrant_target(self) -> tuple[int, int] | None:
+        if "NE" not in self.state.unlocked_quadrants:
+            return (5, 0)
+        if "SW" not in self.state.unlocked_quadrants:
+            return (0, 5)
+        if "SE" not in self.state.unlocked_quadrants:
+            return (5, 5)
+        return None
+
     def should_expand(self) -> bool:
-        return self.state.money > 5000
+        cost = self.expansion_cost()
+        if cost is None:
+            return False
+        return self.state.money >= (cost + 300)
 
     # ----------------------------
     # FARMHAND

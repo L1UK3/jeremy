@@ -6,10 +6,12 @@ from agent.heuristics import (
     evaluate_movement,
     move_to,
 )
+from agent.scheduler import Scheduler
 from agent.search import Search
 from environment.actions import Action, ActionBuilder
 from environment.board import Board
 from environment.economy import Economy
+from environment.market import Market
 from environment.state import GameState
 
 
@@ -21,6 +23,8 @@ class Planner:
         self.config = config or DEFAULT_CONFIG
         self.board = Board(state)
         self.eco = Economy(state)
+        self.market = Market(state)
+        self.scheduler = Scheduler(state, self.board, self.eco)
         self.search = Search()
 
     def add(self, score: float, action: Action) -> None:

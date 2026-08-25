@@ -2,39 +2,53 @@ from agent.heuristics.scores import (
     SCORE_MOVE_EMPTY,
     SCORE_MOVE_HARVEST,
     SCORE_MOVE_WATER,
+    SCORE_MOVE_WEED,
 )
 from environment.actions import Action, ActionBuilder
+
+
+def move_step(from_x: int, from_y: int, to_x: int, to_y: int) -> str:
+    """Compute cardinal step direction between two coordinates."""
+    if from_x > to_x:
+        return "WEST"
+    if from_x < to_x:
+        return "EAST"
+    if from_y > to_y:
+        return "NORTH"
+    if from_y < to_y:
+        return "SOUTH"
+    return "PASS"
 
 
 def move_to(planner, tile) -> Action:
     """Compute a single Manhattan cardinal step from farmer to target tile."""
     fx, fy = planner.state.farmer
-    if fx > tile.x:
-        return ActionBuilder.move("WEST")
-    if fx < tile.x:
-        return ActionBuilder.move("EAST")
-    if fy > tile.y:
-        return ActionBuilder.move("NORTH")
-    if fy < tile.y:
-        return ActionBuilder.move("SOUTH")
+    step = move_step(fx, fy, tile.x, tile.y)
+    if step != "PASS":
+        return ActionBuilder.move(step)
     return ActionBuilder.pass_turn()
 
 
 def evaluate_movement(planner) -> None:
-    """Evaluate directional movement toward nearest harvestable, thirsty, or empty tile."""
-    crop = planner.config.target_crop
+    """Evaluate directional movement toward nearest harvestable, thirsty, weed, or empty tile."""
+    target_crop = getattr(planner, "active_crop", planner.config.target_crop)
 
     # Move to ripe harvestable crop
-    if target := planner.board.nearest_other(planner.board.harvestable(crop)):
+    if target := planner.board.nearest_other(planner.board.harvestable(target_crop)):
         planner.add(SCORE_MOVE_HARVEST, move_to(planner, target))
         return
 
     # Move to thirsty crop
-    if target := planner.board.nearest_other(planner.board.needs_water(crop)):
+    if target := planner.board.nearest_other(planner.board.needs_water(target_crop)):
         planner.add(SCORE_MOVE_WATER, move_to(planner, target))
         return
 
+    # Move to clear weed on unlocked tile
+    if target := planner.board.nearest_other(planner.board.weeds(only_unlocked=True)):
+        planner.add(SCORE_MOVE_WEED, move_to(planner, target))
+        return
+
     # Move to empty soil for planting
-    if planner.state.has_seed(crop):
-        if target := planner.board.nearest_other(planner.board.empty_tiles()):
+    if target_crop and planner.state.has_seed(target_crop):
+        if target := planner.board.nearest_other(planner.board.empty_tiles(only_unlocked=True)):
             planner.add(SCORE_MOVE_EMPTY, move_to(planner, target))
