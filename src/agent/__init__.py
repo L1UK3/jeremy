@@ -1,22 +1,30 @@
-from agent import heuristics
+from agent import evaluators, jobs, scores
 from agent.config import DEFAULT_CONFIG, AgentConfig
-from agent.heuristics import (
+from agent.evaluators import evaluate_expansion, evaluate_market
+from agent.jobs import (
+    harvest_jobs,
+    plant_jobs,
+    schedule_jobs,
+    water_jobs,
+    weed_jobs,
+)
+from agent.planner import Planner
+from agent.scheduler import Job, Scheduler
+from agent.scores import (
     BUY_LAND,
     BUY_SEED,
     DIG_WEED,
+    FERTILIZER,
     HARVEST_BASE,
+    HIRE_HAND,
     MOVE_EMPTY,
     MOVE_HARVEST,
     MOVE_WATER,
+    MOVE_WEED,
     PLANT_BASE,
     SELL,
     WATER,
-    evaluate_expansion,
-    evaluate_market,
 )
-from agent.jobs import schedule_jobs
-from agent.planner import Planner
-from agent.scheduler import Job, Scheduler
 from agent.search import Node, Search
 
 __all__ = [
@@ -24,10 +32,13 @@ __all__ = [
     "BUY_SEED",
     "DEFAULT_CONFIG",
     "DIG_WEED",
+    "FERTILIZER",
     "HARVEST_BASE",
+    "HIRE_HAND",
     "MOVE_EMPTY",
     "MOVE_HARVEST",
     "MOVE_WATER",
+    "MOVE_WEED",
     "PLANT_BASE",
     "SELL",
     "WATER",
@@ -39,6 +50,12 @@ __all__ = [
     "Search",
     "evaluate_expansion",
     "evaluate_market",
-    "heuristics",
+    "evaluators",
+    "harvest_jobs",
+    "jobs",
+    "plant_jobs",
     "schedule_jobs",
+    "scores",
+    "water_jobs",
+    "weed_jobs",
 ]

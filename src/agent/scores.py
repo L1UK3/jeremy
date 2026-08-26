@@ -1,4 +1,4 @@
-"""Score constants for hueristic evaluation of actions."""
+"""Score constants for heuristic evaluation of actions and task utilities."""
 
 # Top Physical Priorities
 HARVEST_BASE: float = 150.0
@@ -20,3 +20,20 @@ MOVE_HARVEST: float = 40.0
 MOVE_WATER: float = 35.0
 MOVE_WEED: float = 30.0
 MOVE_EMPTY: float = 20.0
+
+__all__ = [
+    "BUY_LAND",
+    "BUY_SEED",
+    "DIG_WEED",
+    "FERTILIZER",
+    "HARVEST_BASE",
+    "HIRE_HAND",
+    "MOVE_EMPTY",
+    "MOVE_HARVEST",
+    "MOVE_WATER",
+    "MOVE_WEED",
+    "PLANT_BASE",
+    "SELL",
+    "WATER",
+]
+

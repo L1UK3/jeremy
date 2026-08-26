@@ -1,36 +1,38 @@
 # How-To: Implement Agent Heuristics
 
-This guide explains how to add and customize decision-making heuristics in the agent planner using the modular `src/agent/heuristics/` pipeline, search queue, board queries, and action builders.
+This guide explains how to add and customize decision-making heuristics in the agent planner using the modular `src/agent/` pipeline, pure evaluators, candidate search pool, board queries, and action builders.
 
 ---
 
 ## The Decision Pipeline
 
-The agent executes a pipeline of registered `Heuristic` evaluators on each turn:
+The agent executes a pipeline of registered evaluators and task generators on each turn:
 
 ```mermaid
 flowchart TD
     A[Observation Callback agent obs] --> B[GameState.from_obs]
     B --> C[Planner.play]
-    C --> D[MarketHeuristic]
-    C --> E[FarmingHeuristic]
-    C --> F[MovementHeuristic]
-    C --> G[ExpansionHeuristic]
-    D & E & F & G --> H[Search candidate priority queue]
-    H --> I[ActionBuilder.merge top candidates]
-    I --> J[Return Action Dict to Kaggle Engine]
+    C --> D[evaluate_market]
+    C --> E[evaluate_expansion]
+    C --> F[generate_jobs: harvest, water, weed, plant]
+    D & E --> G[Search candidate pool]
+    G --> H[ActionBuilder.merge top market orders]
+    F --> I[Scheduler.assign]
+    H & I --> J[Synthesize Action farmer + hands + market]
 ```
 
 ---
 
-## Step 1: Defining a Custom Heuristic Function
+## Step 1: Defining a Custom Evaluator Function
 
-Write a standalone function taking `planner`. Use score constants from [`agent.heuristics.scores`](file:///c:/Users/Luke%20Enness/Projects/jeremy/src/agent/heuristics/scores.py) to avoid magic numbers.
+Write a pure function taking explicit state models. Use score constants from [`agent.scores`](file:///c:/Users/Luke%20Enness/Projects/jeremy/src/agent/scores.py) to avoid magic numbers.
 
 ```python
-from agent.heuristics.movement import move_to
-from agent.heuristics.scores import DIG_WEED, MOVE_EMPTY
-from environment.actions import ActionBuilder
+from agent.scores import DIG_WEED, MOVE_EMPTY
+from environment.actions import Action, ActionBuilder
+from environment.board import Board
+from environment.state import GameState
+
 
 
 def evaluate_weed_patrol(planner) -> None:

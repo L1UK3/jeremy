@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from environment.actions import ActionBuilder
 from environment.board import manhattan_distance, step_toward
+from environment.state import GameState
 
 
 @dataclass(slots=True)
@@ -51,7 +52,7 @@ def job_to_action(job: Job, x: int, y: int) -> list[str]:
 class Scheduler:
     def __init__(
         self,
-        state,
+        state: GameState,
         scorer: Callable[[Job, int, int], float] = default_utility_scorer,
     ) -> None:
         self.state = state

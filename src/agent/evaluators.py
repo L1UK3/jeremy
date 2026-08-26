@@ -1,11 +1,10 @@
-from agent.heuristics.scores import BUY_SEED, HIRE_HAND, SELL
+from agent.scores import BUY_LAND, BUY_SEED, HIRE_HAND, SELL
 from environment.actions import ActionBuilder
 
 
 def evaluate_market(planner) -> None:
     """Evaluate market sell orders, seed purchases, and worker hiring."""
     crop = planner.config.get_crop(planner.eco)
-    market = planner.market
 
     # Farmhand Hiring
     if planner.eco.should_hire(
@@ -15,7 +14,7 @@ def evaluate_market(planner) -> None:
 
     # Sell produce
     if (
-        (item := market.best_item_to_sell())
+        (item := planner.market.best_item_to_sell())
         and item != "fertilizer"
         and item != "seed"
     ):
@@ -25,9 +24,7 @@ def evaluate_market(planner) -> None:
 
     # Seed Purchases
     empty_tiles = sum(1 for _ in planner.board.empty_tiles())
-    target = min(
-        planner.config.seed_target, empty_tiles
-    )
+    target = min(planner.config.seed_target, empty_tiles)
     if crop and planner.eco.should_buy_seed(crop, target):
         planner.add(
             BUY_SEED,
@@ -35,3 +32,19 @@ def evaluate_market(planner) -> None:
                 crop, target - planner.state.seed_count(crop)
             ),
         )
+
+
+def evaluate_expansion(planner) -> None:
+    """Evaluate purchasing adjacent land quadrants."""
+    if not planner.config.expand_land or not planner.eco.should_expand():
+        return
+
+    target = planner.eco.next_quadrant_target()
+    if (
+        target is None
+        or len(planner.state.unlocked_quadrants)
+        >= planner.config.max_quadrants
+    ):
+        return
+
+    planner.add(BUY_LAND, ActionBuilder.buy_land(target[0], target[1]))

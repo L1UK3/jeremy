@@ -32,18 +32,18 @@ Consult these documents in [`docs/`](docs/index.md) before designing or changing
 | [`src/environment/market.py`](src/environment/market.py) | **Rolling market stats**. 20-turn price window, trend tracking, and composite `sell_score()`. |
 | [`src/environment/actions.py`](src/environment/actions.py) | **Action factory**. Static `ActionBuilder` methods and `ActionBuilder.merge()` logic. |
 | [`src/simulation/episode.py`](src/simulation/episode.py) | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs. |
-| [`src/utils/build.py`](src/utils/build.py) | **Packager**. Bundles `agent/`, `environment/`, and `main.py` into root of `submission.tar.gz`. |
+| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles `agent/`, `environment/`, and `main.py` into root of `submission.tar.gz` and builds `submission.py`. |
 
 ---
 
 ## 3. Mandatory Agent Rules & Constraints
 
 1. **Never write raw action dictionaries**: Always use [`ActionBuilder`](docs/reference/environment-api.md#class-actionbuilder) static methods (`ActionBuilder.water()`, `ActionBuilder.plant(crop)`, `ActionBuilder.sell(item, n)`).
-2. **Never hardcode movements**: Use `Planner.move_to(tile)` or `Board.nearest()` Manhattan distance queries.
+2. **Never hardcode movements**: Use `Board.nearest()` Manhattan distance queries or scheduler task dispatch.
 3. **Action Merging**: The engine processes 1 farmer action + up to 10 market orders per turn concurrently. Use `ActionBuilder.merge(*actions)` to combine them.
 4. **Passability on Locked Tiles**: Units can walk across locked quadrants to access other areas or the shed. Only tile actions (`PLANT`, `WATER`, `DIG`, `BUILD_*`) no-op on locked tiles.
 5. **Shed Adjacency**: Shed interaction coordinates are `(4,4)`, `(5,4)`, `(4,5)`, and `(5,5)` on the $10 \times 10$ board.
-6. **No bytecode in packages**: `build.py` excludes all `__pycache__` and `.pyc` files.
+6. **No bytecode in packages**: `build_submission.py` excludes all `__pycache__` and `.pyc` files.
 
 ---
 
@@ -102,9 +102,11 @@ assert res.status_challenger == 'DONE'
 "
 
 # 2. Build and verify submission package
-python src/utils/build.py
+python scripts/build_submission.py --build
+python scripts/build_submission.py --bundle
 
 # 3. Format and lint
 ruff check .
 ruff format .
 ```
+
