@@ -35,15 +35,15 @@ MODULES = [
     "environment/economy.py",
     "environment/market.py",
     "agent/config.py",
+    "agent/scores.py",
     "agent/search.py",
-    "agent/heuristics/scores.py",
-    "agent/heuristics/market.py",
-    "agent/heuristics/expansion.py",
+    "agent/evaluators.py",
     "agent/scheduler.py",
     "agent/jobs.py",
     "agent/planner.py",
     "main.py",
 ]
+
 
 
 HEADER = """\

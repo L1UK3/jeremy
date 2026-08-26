@@ -1,3 +1,5 @@
+"""UNUSED MODULE: Tree search data structure"""
+
 from dataclasses import dataclass
 from typing import Any
 
