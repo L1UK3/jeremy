@@ -10,9 +10,9 @@ from dataclasses import dataclass
 @dataclass(slots=True)
 class AgentConfig:
     target_crop: str = "MELON"
-    seed_target: int = 12
+    seed_target: int = 4
     expand_land: bool = True
-    max_hires_per_day: int = 3
+    max_hires_per_day: int = 8
     max_quadrants: int = 1
 
     def get_crop(self, eco) -> str | None:
