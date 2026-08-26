@@ -13,7 +13,7 @@ def evaluate_market(planner) -> None:
     ):
         planner.add(HIRE_HAND, ActionBuilder.hire_hand())
 
-    # Always sell available produce in inventory (up to 10 units)
+    # Sell produce
     if (
         (item := market.best_item_to_sell())
         and item != "fertilizer"
@@ -24,9 +24,14 @@ def evaluate_market(planner) -> None:
             planner.add(SELL, ActionBuilder.sell(item, sell_amount))
 
     # Seed Purchases
-    if crop and planner.eco.should_buy_seed(
-        crop, target_count=planner.config.seed_target
-    ):
-        amount = planner.config.seed_target - planner.state.seed_count(crop)
-        if amount > 0:
-            planner.add(BUY_SEED, ActionBuilder.buy_seed(crop, amount))
+    empty_tiles = sum(1 for _ in planner.board.empty_tiles())
+    target = min(
+        planner.config.seed_target, empty_tiles
+    )
+    if crop and planner.eco.should_buy_seed(crop, target):
+        planner.add(
+            BUY_SEED,
+            ActionBuilder.buy_seed(
+                crop, target - planner.state.seed_count(crop)
+            ),
+        )
