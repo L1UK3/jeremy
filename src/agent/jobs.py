@@ -2,7 +2,7 @@ from agent.scheduler import Job
 from agent.scores import DIG_WEED, HARVEST_BASE, PLANT_BASE, WATER
 
 
-def harvest_jobs(planner, crop: str) -> list[Job]:
+def harvest_jobs(planner) -> list[Job]:
     """Generate harvest jobs for all ripe plants matching active crop."""
     return [
         Job(
@@ -12,12 +12,12 @@ def harvest_jobs(planner, crop: str) -> list[Job]:
             target=tile.pos,
             item=tile.crop,
         )
-        for tile in planner.board.harvestable(crop)
+        for tile in planner.board.harvestable()
         if tile.is_ripe(planner.state.day)
     ]
 
 
-def water_jobs(planner, crop: str) -> list[Job]:
+def water_jobs(planner) -> list[Job]:
     """Generate watering jobs for thirsty crops."""
     return [
         Job(
@@ -25,11 +25,11 @@ def water_jobs(planner, crop: str) -> list[Job]:
             action="WATER",
             target=tile.pos,
         )
-        for tile in planner.board.needs_water(crop)
+        for tile in planner.board.needs_water()
     ]
 
 
-def weed_jobs(planner, crop: str) -> list[Job]:
+def weed_jobs(planner) -> list[Job]:
     """Generate weed clearing jobs on unlocked farm tiles."""
     return [
         Job(
@@ -60,7 +60,7 @@ def plant_jobs(planner, crop: str) -> list[Job]:
 def schedule_jobs(planner, target_crop: str | None = None) -> None:
     planner.scheduler.clear()
     crop = target_crop or planner.config.get_crop(planner.eco)
-    planner.scheduler.extend_jobs(harvest_jobs(planner, crop))
-    planner.scheduler.extend_jobs(water_jobs(planner, crop))
-    planner.scheduler.extend_jobs(weed_jobs(planner, crop))
+    planner.scheduler.extend_jobs(harvest_jobs(planner))
+    planner.scheduler.extend_jobs(water_jobs(planner))
+    planner.scheduler.extend_jobs(weed_jobs(planner))
     planner.scheduler.extend_jobs(plant_jobs(planner, crop))

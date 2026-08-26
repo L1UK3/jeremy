@@ -164,15 +164,9 @@ class Board:
             ):
                 yield tile
 
-    def needs_water(self, crop: str | None = None):
-        day = self.state.day
+    def needs_water(self):
         for tile in self._tiles:
-            if (
-                tile.is_plant
-                and (crop is None or tile.crop == crop)
-                and not tile.watered
-                and not tile.is_ripe(day)
-            ):
+            if tile.is_plant and not tile.watered:
                 yield tile
 
     def nearest_to(
