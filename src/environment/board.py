@@ -74,12 +74,19 @@ class Tile:
         return current_day - self.planted_day
 
     def is_ripe(self, current_day: int) -> bool:
-        if not self.is_plant or self.yield_units <= 0:
+        if not (
+            self.is_plant
+            and self.yield_units > 0
+            and (data := CROPS.get(self.crop))
+        ):
             return False
-        if self.crop and self.crop in CROPS:
-            max_yield_day = CROPS[self.crop].get("max_yield_day", 0)
-            return self.age(current_day) >= max_yield_day
-        return True
+        if (age := self.age(current_day)) < data.get("first_yield_day", 0):
+            return False
+        return (
+            data.get("ongoing", False)
+            or self.yield_units >= data.get("max_yield", 0)
+            or age >= data.get("max_yield_day", 0)
+        )
 
     def distance(self, x: int, y: int) -> int:
         return manhattan_distance(self.x, self.y, x, y)

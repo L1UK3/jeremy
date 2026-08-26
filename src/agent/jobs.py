@@ -18,6 +18,7 @@ def harvest_jobs(planner, crop: str) -> list[Job]:
             item=tile.crop,
         )
         for tile in planner.board.harvestable(crop)
+        if tile.is_ripe(planner.state.day)
     ]
 
 
@@ -74,4 +75,3 @@ def schedule_jobs(
     crop = target_crop or planner.config.get_crop(planner.eco)
     for generator in pipeline:
         planner.scheduler.extend_jobs(generator(planner, crop))
-
