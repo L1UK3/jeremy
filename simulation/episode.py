@@ -93,7 +93,7 @@ class Episode:
 
 
 if __name__ == "__main__":
-    episode = Episode(agent1=".out/submission.py", agent2="starter", debug=True)
+    episode = Episode(agent1="src/main.py", agent2="starter", debug=True)
     result = episode.run()
 
     final_inventory = (
