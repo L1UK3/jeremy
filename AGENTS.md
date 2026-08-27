@@ -20,19 +20,21 @@ Consult these documents in [`docs/`](docs/index.md) before designing or changing
 
 ## 2. Core Architecture & File Responsibilities
 
-| File | Role & Invariants |
-| :--- | :--- |
-| [`src/main.py`](src/main.py) | **Top-level entrypoint**. Exports `def agent(obs: dict) -> dict:`. Wraps `obs` in `GameState`, executes `Planner(state).play().to_dict()`. |
-| [`src/agent/planner.py`](src/agent/planner.py) | **Decision loop**. Evaluates market, current tile, planting, and movement. Pushes scored candidate actions into `Search`. |
-| [`src/agent/search.py`](src/agent/search.py) | **Candidate pool**. Stores `Node(score, action)`. `topk()` and `best()` prioritize actions. |
-| [`src/agent/scheduler.py`](src/agent/scheduler.py) | **Multi-unit task dispatcher**. Allocates non-overlapping spatial jobs to farmer and hired farmhands. |
-| [`src/environment/state.py`](src/environment/state.py) | **State wrapper**. Typed `GameState.from_obs(obs)` dataclass for fast attribute access. |
-| [`src/environment/board.py`](src/environment/board.py) | **Spatial grid manager**. Yields `Tile` generators (`harvestable()`, `needs_water()`, `empty_tiles()`) and Manhattan `nearest()`. |
-| [`src/environment/economy.py`](src/environment/economy.py) | **Financial calculator**. Calculates `crop_roi()`, `best_crop()`, and checks affordability. |
-| [`src/environment/market.py`](src/environment/market.py) | **Rolling market stats**. 20-turn price window, trend tracking, and composite `sell_score()`. |
-| [`src/environment/actions.py`](src/environment/actions.py) | **Action factory**. Static `ActionBuilder` methods and `ActionBuilder.merge()` logic. |
-| [`src/simulation/episode.py`](src/simulation/episode.py) | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs. |
-| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles `agent/`, `environment/`, and `main.py` into root of `submission.tar.gz` and builds `submission.py`. |
+| File                                                         | Role & Invariants                                                                                                                          |
+| :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| [`src/main.py`](src/main.py)                                 | **Top-level entrypoint**. Exports `def agent(obs: dict) -> dict:`. Wraps `obs` in `GameState`, executes `Planner(state).play().to_dict()`. |
+| [`src/agent/planner.py`](src/agent/planner.py)               | **Decision loop**. Evaluates market, current tile, planting, and movement. Pushes scored candidate actions into `Search`.                  |
+| [`src/agent/search.py`](src/agent/search.py)                 | **Candidate pool**. Stores `Node(score, action)`. `topk()` and `best()` prioritize actions.                                                |
+| [`src/agent/scheduler.py`](src/agent/scheduler.py)           | **Multi-unit task dispatcher**. Allocates non-overlapping spatial jobs to farmer and hired farmhands.                                      |
+| [`src/agent/opening.py`](src/agent/opening.py)               | **Opening trajectory**. Scripted action trace for Days 1–2 (Turns 1–48) extracted from top ladder replays.                                 |
+| [`src/agent/expanse.py`](src/agent/expanse.py)               | **Expansion trajectory**. Scripted action trace for Day 8 (Steps 169–192) and Day 12 (Steps 265–288).                                      |
+| [`src/environment/state.py`](src/environment/state.py)       | **State wrapper**. Typed `GameState.from_obs(obs)` dataclass for fast attribute access.                                                    |
+| [`src/environment/board.py`](src/environment/board.py)       | **Spatial grid manager**. Yields `Tile` generators (`harvestable()`, `needs_water()`, `empty_tiles()`) and Manhattan `nearest()`.          |
+| [`src/environment/economy.py`](src/environment/economy.py)   | **Financial calculator**. Calculates `crop_roi()`, `best_crop()`, and checks affordability.                                                |
+| [`src/environment/market.py`](src/environment/market.py)     | **Rolling market stats**. 20-turn price window, trend tracking, and composite `sell_score()`.                                              |
+| [`src/environment/actions.py`](src/environment/actions.py)   | **Action factory**. Static `ActionBuilder` methods and `ActionBuilder.merge()` logic.                                                      |
+| [`src/simulation/episode.py`](src/simulation/episode.py)     | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs.                                                   |
+| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles `agent/`, `environment/`, and `main.py` into root of `submission.tar.gz` and builds `submission.py`.                 |
 
 ---
 
@@ -109,4 +111,3 @@ python scripts/build_submission.py --bundle
 ruff check .
 ruff format .
 ```
-

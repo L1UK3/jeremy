@@ -71,11 +71,11 @@ from simulation.episode import Episode
 
 # Initialize a match between your agent and the built-in random agent
 episode = Episode(
-    agent1="src/main.py",      # Your agent entrypoint
-    agent2="random",           # Baseline opponent ("random", "pass", or "starter")
+    agent1="src/main.py",  # Your agent entrypoint
+    agent2="random",  # Baseline opponent ("random", "pass", or "starter")
     episode_idx=0,
-    seat=0,                    # 0: Your agent is Seat 0 (P0); 1: Seat 1 (P1)
-    debug=True
+    seat=0,  # 0: Your agent is Seat 0 (P0); 1: Seat 1 (P1)
+    debug=True,
 )
 
 print("Starting match simulation (720 turns)...")

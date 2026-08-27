@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from agent import evaluators, jobs, scores
+from agent import evaluators, expansion, jobs, scores
 from agent.config import DEFAULT_CONFIG, AgentConfig
 from agent.evaluators import evaluate_expansion, evaluate_market
+from agent.expansion import EXPANSION_TRACE
 from agent.jobs import (
     harvest_jobs,
     plant_jobs,
@@ -10,6 +11,7 @@ from agent.jobs import (
     water_jobs,
     weed_jobs,
 )
+from agent.opening import OPENING_TRACE
 from agent.planner import Planner
 from agent.scheduler import Job, Scheduler
 from agent.scores import (
@@ -34,6 +36,7 @@ __all__ = [
     "BUY_SEED",
     "DEFAULT_CONFIG",
     "DIG_WEED",
+    "EXPANSION_TRACE",
     "FERTILIZER",
     "HARVEST_BASE",
     "HIRE_HAND",
@@ -41,6 +44,7 @@ __all__ = [
     "MOVE_HARVEST",
     "MOVE_WATER",
     "MOVE_WEED",
+    "OPENING_TRACE",
     "PLANT_BASE",
     "SELL",
     "WATER",
@@ -53,6 +57,7 @@ __all__ = [
     "evaluate_expansion",
     "evaluate_market",
     "evaluators",
+    "expansion",
     "harvest_jobs",
     "jobs",
     "plant_jobs",

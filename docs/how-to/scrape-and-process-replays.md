@@ -97,9 +97,13 @@ sample_id = int(top_episodes.iloc[0]["episode_id"])
 
 # Query Parquet stream without loading entire file into memory
 dataset = pads.dataset("src/archive/replays.parquet", format="parquet")
-scanner = dataset.scanner(filter=pads.field("episode_id") == sample_id, batch_size=1)
+scanner = dataset.scanner(
+    filter=pads.field("episode_id") == sample_id, batch_size=1
+)
 raw_json = scanner.head(1).column("replay_json")[0].as_py()
 replay_data = json.loads(raw_json)
 
-print(f"Loaded Replay {sample_id} containing {len(replay_data['steps'])} turns.")
+print(
+    f"Loaded Replay {sample_id} containing {len(replay_data['steps'])} turns."
+)
 ```

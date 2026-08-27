@@ -3,12 +3,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from agent.scheduler import Job
-from agent.scores import DIG_WEED, HARVEST_BASE, PLANT_BASE, WATER
+from agent.scores import (
+    CARE,
+    COLLECT_FERTILIZER,
+    DIG_WEED,
+    FEED,
+    FEED_URGENT,
+    HARVEST_BASE,
+    PLANT_BASE,
+    WATER,
+)
 
 if TYPE_CHECKING:
     from agent.planner import Planner
 
 __all__ = [
+    "care_jobs",
+    "collect_fertilizer_jobs",
+    "feed_jobs",
     "harvest_jobs",
     "plant_jobs",
     "schedule_jobs",
@@ -16,19 +28,85 @@ __all__ = [
     "weed_jobs",
 ]
 
+ANIMAL_PRODUCT: dict[str, str] = {
+    "COW": "MILK",
+    "SHEEP": "WOOL",
+    "GOOSE": "EGG",
+}
+
 
 def harvest_jobs(planner: Planner) -> list[Job]:
-    """Generate harvest jobs for all ripe plants matching active crop."""
+    """Generate harvest jobs for all ripe plants and productive animals."""
     prices = planner.state.prices
+    jobs: list[Job] = []
+    for tile in planner.board.harvestable():
+        if tile.is_animal and tile.animal:
+            prod = ANIMAL_PRODUCT.get(tile.animal, tile.animal)
+            jobs.append(
+                Job(
+                    priority=HARVEST_BASE
+                    + (tile.yield_units * prices.get(prod, 0)),
+                    action="HARVEST",
+                    target=tile.pos,
+                    item=prod,
+                )
+            )
+        elif tile.crop:
+            jobs.append(
+                Job(
+                    priority=HARVEST_BASE
+                    + (tile.yield_units * prices.get(tile.crop, 0)),
+                    action="HARVEST",
+                    target=tile.pos,
+                    item=tile.crop,
+                )
+            )
+    return jobs
+
+
+def feed_jobs(planner: Planner) -> list[Job]:
+    """Generate feeding jobs for unfed animals if wheat is available in shed."""
+    wheat_count = planner.state.inventory("WHEAT")
+    if wheat_count <= 0:
+        return []
+
+    jobs: list[Job] = []
+    for tile in planner.board.needs_feed():
+        priority = FEED_URGENT if tile.consecutive_unfed >= 1 else FEED
+        jobs.append(
+            Job(
+                priority=priority,
+                action="FEED",
+                target=tile.pos,
+                item=tile.animal,
+            )
+        )
+    return jobs[:wheat_count]
+
+
+def care_jobs(planner: Planner) -> list[Job]:
+    """Generate care/petting jobs for animals that have not been cared for today."""
     return [
         Job(
-            priority=HARVEST_BASE
-            + (tile.yield_units * prices.get(tile.crop, 0)),
-            action="HARVEST",
+            priority=CARE,
+            action="CARE",
             target=tile.pos,
-            item=tile.crop,
+            item=tile.animal,
         )
-        for tile in planner.board.harvestable()
+        for tile in planner.board.needs_care()
+    ]
+
+
+def collect_fertilizer_jobs(planner: Planner) -> list[Job]:
+    """Generate fertilizer collection jobs for animal tiles with ready fertilizer."""
+    return [
+        Job(
+            priority=COLLECT_FERTILIZER,
+            action="COLLECT_FERTILIZER",
+            target=tile.pos,
+            item="FERTILIZER",
+        )
+        for tile in planner.board.has_fertilizer_tiles()
     ]
 
 
@@ -79,4 +157,3 @@ def schedule_jobs(planner: Planner, target_crop: str | None = None) -> None:
     planner.scheduler.extend_jobs(water_jobs(planner))
     planner.scheduler.extend_jobs(weed_jobs(planner))
     planner.scheduler.extend_jobs(plant_jobs(planner, crop))
-

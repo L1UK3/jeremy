@@ -41,7 +41,10 @@ MODULES = [
     "agent/search.py",
     "agent/evaluators.py",
     "agent/scheduler.py",
+    "agent/manage_livestock.py",
     "agent/jobs.py",
+    "agent/opening.py",
+    "agent/expanse.py",
     "agent/planner.py",
     "main.py",
 ]
@@ -118,9 +121,7 @@ def format_with_ruff(file_path: Path) -> None:
     subprocess.run(
         [*cmd, "check", "--fix", str(file_path)], capture_output=True
     )
-    subprocess.run(
-        [*cmd, "format", str(file_path)], capture_output=True
-    )
+    subprocess.run([*cmd, "format", str(file_path)], capture_output=True)
 
     print("  Formatted with ruff")
 

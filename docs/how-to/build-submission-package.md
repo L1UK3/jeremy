@@ -86,7 +86,9 @@ with tempfile.TemporaryDirectory() as tmp_dir:
 
     print(f"Status: {challenger_status}")
     print(f"Reward: ${challenger_reward:,.2f}")
-    assert challenger_status == "DONE", f"Agent failed with status {challenger_status}"
+    assert challenger_status == "DONE", (
+        f"Agent failed with status {challenger_status}"
+    )
     print("Smoke test passed successfully!")
 ```
 

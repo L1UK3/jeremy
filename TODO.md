@@ -146,9 +146,9 @@ This document tracks the implementation, integration status, and development roa
 |                     | `buy_animal(animal, amount)` | <font color="green">Yes</font> |  <font color="red">No</font>   | Buy Goose / Cow / Sheep                                  |
 | **Animals & Coops** | `build_coop()`               | <font color="green">Yes</font> |  <font color="red">No</font>   | Construct coop structure                                 |
 |                     | `build_pasture()`            | <font color="green">Yes</font> |  <font color="red">No</font>   | Construct pasture structure                              |
-|                     | `feed()`                     | <font color="green">Yes</font> |  <font color="red">No</font>   | Feed animal with wheat                                   |
-|                     | `care()`                     | <font color="green">Yes</font> |  <font color="red">No</font>   | Pet / care for animal                                    |
-|                     | `collect_fertilizer()`       | <font color="green">Yes</font> |  <font color="red">No</font>   | Collect animal byproduct                                 |
+|                     | `feed()`                     | <font color="green">Yes</font> | <font color="green">Yes</font> | Feed animal with wheat via `feed_jobs`                   |
+|                     | `care()`                     | <font color="green">Yes</font> | <font color="green">Yes</font> | Pet / care for animal via `care_jobs`                    |
+|                     | `collect_fertilizer()`       | <font color="green">Yes</font> | <font color="green">Yes</font> | Collect animal byproduct via `collect_fertilizer_jobs`   |
 | **Shed Transfer**   | `pickup(item, amount)`       | <font color="green">Yes</font> |  <font color="red">No</font>   | Withdraw items from shed                                 |
 |                     | `place(item, amount)`        | <font color="green">Yes</font> |  <font color="red">No</font>   | Place animal or inventory                                |
 |                     | `drop()`                     | <font color="green">Yes</font> |  <font color="red">No</font>   | Dump carried items into shed                             |

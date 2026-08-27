@@ -100,3 +100,16 @@ class GameState:
 
     def has_fertilizer(self) -> bool:
         return self.inventory("fertilizer") > 0
+
+    def worker_inventory(self, idx: int = 0) -> dict[str, int]:
+        invs = self.private.get("inventories", [])
+        if (
+            isinstance(invs, list)
+            and idx < len(invs)
+            and isinstance(invs[idx], dict)
+        ):
+            return invs[idx]
+        return {}
+
+    def is_shed_adjacent(self, x: int, y: int) -> bool:
+        return (x, y) in {(4, 4), (4, 5), (5, 4), (5, 5)}

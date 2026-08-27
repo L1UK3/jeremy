@@ -53,33 +53,39 @@ The raw observation dictionary provided to `agent(obs)` by the Kaggle engine:
 
 ```python
 {
-    "player": int,           # 0 or 1
-    "step":   int,           # 0-indexed overall turn (0..719)
-    "day":    int,           # 0-indexed day (0..29)
-    "hour":   int,           # 0-indexed hour (0..23)
+    "player": int,  # 0 or 1
+    "step": int,  # 0-indexed overall turn (0..719)
+    "day": int,  # 0-indexed day (0..29)
+    "hour": int,  # 0-indexed hour (0..23)
     "farms": [
         {
-            "money":              float,
-            "tiles":              list[list[Any]],  # tiles[y][x] 10x10 grid
-            "farmer":             [int, int],       # [x, y] coordinates
-            "hands":              list[list[int]],  # [[x, y], ...] for active hired hands
-            "unlocked_quadrants": list[str],        # Subset of ["NW", "NE", "SW", "SE"]
-            "hires_today":        int,              # Hires made today (determines next HIRE cost)
+            "money": float,
+            "tiles": list[list[Any]],  # tiles[y][x] 10x10 grid
+            "farmer": [int, int],  # [x, y] coordinates
+            "hands": list[list[int]],  # [[x, y], ...] for active hired hands
+            "unlocked_quadrants": list[
+                str
+            ],  # Subset of ["NW", "NE", "SW", "SE"]
+            "hires_today": int,  # Hires made today (determines next HIRE cost)
         },
-        ... # Player 1 farm
+        ...,  # Player 1 farm
     ],
     "market": {
         "inventory": dict[str, int],  # Current market item supply
-        "prices":    dict[str, int],  # Current dynamic selling price
+        "prices": dict[str, int],  # Current dynamic selling price
     },
     "town": {
-        "unlocked_shops": list[str],  # Active shop names (e.g. ["BAKERY", "PET_CAFE"])
+        "unlocked_shops": list[
+            str
+        ],  # Active shop names (e.g. ["BAKERY", "PET_CAFE"])
     },
     "private": {
-        "shed":        dict[str, int],  # Storage inventory (non-seeds, max 100)
-        "seeds":       dict[str, int],  # Seed storage (uncapped)
-        "inventories": list[dict[str, int]], # [main_farmer_inv, hand1_inv, ...]
-    }
+        "shed": dict[str, int],  # Storage inventory (non-seeds, max 100)
+        "seeds": dict[str, int],  # Seed storage (uncapped)
+        "inventories": list[
+            dict[str, int]
+        ],  # [main_farmer_inv, hand1_inv, ...]
+    },
 }
 ```
 
@@ -92,29 +98,29 @@ Each cell in `farm["tiles"][y][x]` contains one of:
 3. **Plant Dict**:
    ```python
    {
-       "kind":                 "PLANT",
-       "crop":                 str,   # "WHEAT" | "CARROT" | "TOMATO" | "STRAWBERRY" | "MELON"
-       "planted_day":          int,
-       "watered_today":        bool,  # Resets to False at end-of-day
-       "consecutive_unwatered":int,   # >=2 converts tile to WEED
-       "yield_units":          int,   # Unharvested units on tile
-       "max_lifespan_step":    int,   # Step when decay begins (-1 for ongoing crops)
-       "fertilized_until_day": int,   # Last day fertilizer applies (-1 if none)
+       "kind": "PLANT",
+       "crop": str,  # "WHEAT" | "CARROT" | "TOMATO" | "STRAWBERRY" | "MELON"
+       "planted_day": int,
+       "watered_today": bool,  # Resets to False at end-of-day
+       "consecutive_unwatered": int,  # >=2 converts tile to WEED
+       "yield_units": int,  # Unharvested units on tile
+       "max_lifespan_step": int,  # Step when decay begins (-1 for ongoing crops)
+       "fertilized_until_day": int,  # Last day fertilizer applies (-1 if none)
    }
    ```
 4. **Weed Dict**: `{"kind": "WEED"}`
 5. **Animal Structure Dict**:
    ```python
    {
-       "kind":                 str,   # "COOP" | "PASTURE"
-       "animal":               str | None, # "GOOSE" | "COW" | "SHEEP" | None
-       "placed_day":           int,
-       "yield_units":          int,
-       "fed_today":            bool,
-       "consecutive_unfed":    int,   # >=2 causes animal escape
-       "cared_today":          bool,
+       "kind": str,  # "COOP" | "PASTURE"
+       "animal": str | None,  # "GOOSE" | "COW" | "SHEEP" | None
+       "placed_day": int,
+       "yield_units": int,
+       "fed_today": bool,
+       "consecutive_unfed": int,  # >=2 causes animal escape
+       "cared_today": bool,
        "fertilizer_available": bool,  # 1 available at end-of-day; cleared by COLLECT_FERTILIZER
-       "pending_care_bonus":   int,   # Banked bonus for next scheduled yield
+       "pending_care_bonus": int,  # Banked bonus for next scheduled yield
    }
    ```
 
@@ -216,6 +222,7 @@ Statistical price tracker and trend detector across turns.
 ```python
 class Market:
     HISTORY_LEN = 20
+
     def __init__(self, state: GameState) -> None: ...
 ```
 

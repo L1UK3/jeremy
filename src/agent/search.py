@@ -41,4 +41,3 @@ class Search:
     def choose(self) -> Action | None:
         node = self.best()
         return node.action if node is not None else None
-

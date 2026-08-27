@@ -34,7 +34,6 @@ from environment.board import Board
 from environment.state import GameState
 
 
-
 def evaluate_weed_patrol(planner) -> None:
     """Clear weeds underfoot or seek out nearest weeds on farm."""
     tile = planner.state.current_tile

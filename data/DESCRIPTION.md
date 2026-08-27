@@ -19,10 +19,14 @@ Pull one replay (ids in `episode_features.csv` are guaranteed to have one):
 
 ```python
 import pandas as pd, json, pyarrow.dataset as pads
+
 base = "/kaggle/input/kaggriculture-episodes"
 eid = pd.read_csv(f"{base}/episode_features.csv").episode_id.iloc[-1]
-row = pads.dataset(f"{base}/replays.parquet").scanner(
-    filter=pads.field("episode_id") == int(eid), batch_size=1).head(1)
+row = (
+    pads.dataset(f"{base}/replays.parquet")
+    .scanner(filter=pads.field("episode_id") == int(eid), batch_size=1)
+    .head(1)
+)
 replay = json.loads(row.column("replay_json")[0].as_py())
 ```
 

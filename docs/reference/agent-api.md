@@ -17,15 +17,14 @@ class AgentConfig:
     sell_threshold: int = 180
     seed_target: int = 12
     expand_land: bool = True
-    max_hires_per_day: int = 3
-    dynamic_crops: bool = True
-    max_quadrants: int = 2
+    max_hires_per_day: int = 8
+    expand_land: bool = True
+    max_quadrants: int = 3
 ```
 
 #### Properties & Methods
-* `seed_cost: int` — Looked up from `CROPS[target_crop]["seed"]`.
-* `max_yield_day: int` — Looked up from `CROPS[target_crop]["max_yield_day"]`.
-* `get_crop(eco: Economy) -> str` — Resolves the target crop dynamically using live ROI and end-game maturity horizon if `dynamic_crops` is enabled; otherwise returns `self.target_crop`.
+* `get_crop(eco: Economy) -> str | None` — Resolves the target crop dynamically using live ROI and end-game maturity horizon.
+* `get_max_hires(state: GameState) -> int` — Dynamically scales the daily hiring limit based on in-game day (early vs peak vs end-game), unlocked quadrants, and available coin reserves.
 
 #### Global Instance
 * `DEFAULT_CONFIG: AgentConfig` — Default configuration initialized with standard production defaults.
@@ -78,14 +77,15 @@ Pure decision evaluator functions that inspect environment state models and retu
 Pure task generation pipeline that populates the `Scheduler` with spatial jobs.
 
 ### Task Generators
-* **`harvest_jobs(board: Board, eco: Economy, day: int, crop: str) -> list[Job]`**: Yields harvest jobs for all ripe plants on the board. Score: $\text{HARVEST\_BASE} + (\text{yield} \times \text{price})$.
-* **`water_jobs(board: Board, crop: str) -> list[Job]`**: Yields watering jobs for thirsty crops that are not yet ripe. Score: $\text{WATER}$.
-* **`weed_jobs(board: Board) -> list[Job]`**: Yields weeding jobs for obstacles on unlocked quadrants. Score: $\text{DIG\_WEED}$.
-* **`plant_jobs(board: Board, eco: Economy, state: GameState, crop: str) -> list[Job]`**: Yields planting jobs for empty unlocked tiles when seeds are in inventory. Score: $\text{PLANT\_BASE} + \text{ROI}$.
-
-### Pipeline Assembly
-* **`generate_jobs(board: Board, eco: Economy, state: GameState, config: AgentConfig, target_crop: str | None = None) -> list[Job]`**: Generates the complete list of spatial farm jobs across all categories.
-* **`schedule_jobs(planner, target_crop: str | None = None, pipeline=DEFAULT_JOB_PIPELINE) -> None`**: Helper populating `planner.scheduler` from `generate_jobs`.
+* **`harvest_jobs(planner: Planner) -> list[Job]`**: Yields harvest jobs for all ripe plants and productive animals. Score: $\text{HARVEST\_BASE} + (\text{yield} \times \text{price})$.
+* **`feed_jobs(planner: Planner) -> list[Job]`**: Yields feeding jobs for unfed animals when wheat is available in shed. Score: $\text{FEED\_URGENT}$ (if `consecutive_unfed >= 1`) or $\text{FEED}$.
+* **`water_jobs(planner: Planner) -> list[Job]`**: Yields watering jobs for thirsty crops that are not yet ripe. Score: $\text{WATER}$.
+* **`collect_fertilizer_jobs(planner: Planner) -> list[Job]`**: Yields fertilizer collection jobs on animal tiles with ready fertilizer. Score: $\text{COLLECT\_FERTILIZER}$.
+* **`care_jobs(planner: Planner) -> list[Job]`**: Yields caring/petting jobs for animals not cared for today. Score: $\text{CARE}$.
+* **`weed_jobs(planner: Planner) -> list[Job]`**: Yields weeding jobs for obstacles on unlocked quadrants. Score: $\text{DIG\_WEED}$.
+* **`plant_jobs(planner: Planner, crop: str) -> list[Job]`**: Yields planting jobs for empty unlocked tiles when seeds are in inventory. Score: $\text{PLANT\_BASE} + \text{ROI}$.
+* **`schedule_jobs(planner: Planner, target_crop: str | None = None) -> None`**: Helper populating `planner.scheduler` with all active spatial crop jobs.
+* **`manage_livestock(planner: Planner, worker_idx: int = 0, worker_pos: tuple[int, int] | None = None) -> list[str] | None`**: High-priority morning chore state machine managing physical shed pickup of wheat, livestock feeding, petting/caring, byproduct harvesting, and depositing collected yield/fertilizer at the shed.
 
 ---
 
@@ -115,7 +115,9 @@ Multi-unit task allocation queue for assigning non-overlapping spatial tasks acr
 
 ```python
 class Scheduler:
-    def __init__(self, state: GameState, scorer: Callable = default_utility_scorer) -> None: ...
+    def __init__(
+        self, state: GameState, scorer: Callable = default_utility_scorer
+    ) -> None: ...
 ```
 
 #### Methods
@@ -159,11 +161,29 @@ class Search:
 
 ---
 
+## Module: `agent.opening`
+
+### `OPENING_TRACE: dict[int, dict]`
+
+Deterministic action trace covering initial turns (Days 1–2, turns 1–48) extracted from top-performing competitive replays to establish baseline animal husbandry, farmhand hiring, and crop rotation.
+
+---
+
+## Module: `agent.expanse`
+
+### `EXPANSION_TRACE: dict[int, dict]`
+
+Deterministic expansion action trace covering quadrant expansion milestones:
+* **Day 8 (Steps 169–192)**: First expansion into Northeast quadrant (`NE`), building pastures, seeding strawberries, and placing sheep and cows.
+* **Day 12 (Steps 265–288)**: Second expansion into Southwest quadrant (`SW`), building additional pastures, melon/strawberry crop planting, and managing a 14-worker crew.
+
+---
+
 ## Module: `agent.planner`
 
 ### `class Planner`
 
-Turn decision coordinator orchestrating market evaluation, multi-unit scheduling, and action synthesis.
+Turn decision coordinator orchestrating opening/expansion execution, market evaluation, multi-unit scheduling, and action synthesis.
 
 ```python
 class Planner:
@@ -176,11 +196,14 @@ class Planner:
 
 #### Execution Loop (`Planner.play() -> Action`)
 
-1. **Stage 1 — Market & Strategy**:
+1. **Stage 1 — Deterministic Traces**:
+   Checks `if step in OPENING_TRACE` or `if step in EXPANSION_TRACE` to execute optimal multi-unit trajectories for opening and land expansion.
+2. **Stage 2 — Market & Strategy**:
    Evaluates market and expansion candidates via `evaluate_market` and `evaluate_expansion`, populating `self.search`. Extracts merged market transactions via `self.choose()`.
-2. **Stage 2 — Multi-Unit Job Scheduling**:
-   Calls `generate_jobs(...)` to create active farm tasks and populates `self.scheduler`. Executes `self.scheduler.assign()` to dispatch non-overlapping actions to the farmer and all hired farmhands.
-3. **Stage 3 — Action Synthesis**:
+3. **Stage 3 — Multi-Unit Job Scheduling**:
+   Calls `schedule_jobs(...)` to create active farm tasks and populates `self.scheduler`. Executes `self.scheduler.assign()` to dispatch non-overlapping actions to the farmer and all hired farmhands.
+4. **Stage 4 — Action Synthesis**:
    Synthesizes and returns `Action(farmer=farmer_act, hands=hands_acts, market=market_action.market)`.
+
 
 
