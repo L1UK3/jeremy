@@ -3,6 +3,7 @@ from __future__ import annotations
 from agent.config import DEFAULT_CONFIG, AgentConfig
 from agent.evaluators import evaluate_expansion, evaluate_market
 from agent.expansion import EXPANSION_TRACE
+from agent.explosion import explosion
 from agent.jobs import schedule_jobs
 from agent.manage_livestock import manage_livestock
 from agent.opening import OPENING_TRACE
@@ -54,6 +55,9 @@ class Planner:
                 hands=act.get("hands", []),
                 market=act.get("market", []),
             )
+
+        if step >= (720 - 8):
+            return explosion(self)
 
         evaluate_market(self)
         evaluate_expansion(self)
