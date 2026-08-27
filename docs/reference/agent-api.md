@@ -205,5 +205,14 @@ class Planner:
 4. **Stage 4 — Action Synthesis**:
    Synthesizes and returns `Action(farmer=farmer_act, hands=hands_acts, market=market_action.market)`.
 
+---
 
+## Module: `agent.explosion`
 
+### `explosion(planner: Planner) -> Action`
+
+Final 8-turn liquidation controller (turns 712–719, Day 30 hours 16–23).
+Maximizes final coin balance before step 720 game termination through coordinated harvest routes, shed deposits, and aggressive glut-weighted market liquidations:
+1. **Same-Turn Shed Deposit Projections**: Identifies all workers executing `DROP` at shed-adjacent tiles on the current turn, adding their carried goods into projected shed stock for same-turn market liquidation.
+2. **Glut-Weighted Market Liquidation**: Liquidates all available produce across 9 sellable goods (`MELON`, `WOOL`, `MILK`, `STRAWBERRY`, `EGG`, `TOMATO`, `CARROT`, `WHEAT`, `FERTILIZER`) ordered by market impact and value.
+3. **Reachability-Bounded Worker Routing**: Validates complete round-trips ($\text{dist}(worker, crop) + \text{harvest} + \text{dist}(crop, shed) + \text{drop} \le \text{turns\_left}$) before assigning harvest tasks, with urgent shed-return overrides when carrying inventory near match end.
