@@ -20,3 +20,5 @@ src/archive/*.parquet
 src/archive/*.json
 raw/
 submission.py
+
+base/
