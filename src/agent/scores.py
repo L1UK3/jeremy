@@ -2,10 +2,10 @@
 
 # Top Physical Priorities
 HARVEST_BASE: float = 150.0
-FEED_URGENT: float = 140.0
+FEED_URGENT: float = 1000.0
 WATER: float = 120.0
-FEED: float = 110.0
-CARE: float = 85.0
+FEED: float = 500.0
+CARE: float = 500.0
 COLLECT_FERTILIZER: float = 65.0
 
 # Top Market Orders

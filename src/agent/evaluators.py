@@ -51,17 +51,41 @@ def evaluate_market(planner: Planner) -> None:
                 hire_act.market.append(["HIRE"])
             planner.add(HIRE_HAND, hire_act)
 
-    # Sell produce
-    if (
-        (item := planner.market.best_item_to_sell())
-        and item != "fertilizer"
-        and item != "seed"
-    ):
-        if count := planner.state.inventory(item):
-            reserved = len(animals) * 2 if (animals and item == "WHEAT") else 0
-            sell_amount = min(10, count - reserved)
-            if sell_amount > 0:
-                planner.add(SELL, ActionBuilder.sell(item, sell_amount))
+    # Sell produce intelligently across all inventory items
+    shed_total = sum(planner.state.shed.values())
+    for item, count in list(planner.state.shed.items()):
+        if not count or count <= 0 or item in ("seed", "fertilizer_seed"):
+            continue
+
+        # Wheat: reserve 2-day buffer for livestock
+        if item == "WHEAT" and animals:
+            sellable = max(0, count - len(animals) * 2)
+        else:
+            sellable = count
+
+        if sellable <= 0:
+            continue
+
+        cur_price = planner.state.price(item)
+        score = planner.market.sell_score(item)
+        batch_size = min(10, sellable)
+
+        should_sell = False
+        if planner.state.day >= 26:
+            should_sell = True
+        elif shed_total >= 50:
+            should_sell = True
+        elif item in ("MILK", "WOOL", "EGG", "FERTILIZER"):
+            should_sell = True
+        elif item == "MELON":
+            # Sell melons in high-price windows or when stock builds up
+            if cur_price >= 160 or score >= 200 or sellable >= 15:
+                should_sell = True
+        elif cur_price >= 80:
+            should_sell = True
+
+        if should_sell:
+            planner.add(SELL, ActionBuilder.sell(item, batch_size))
 
     # Seed Purchases
     empty_tiles = planner.board.empty_tiles_count
