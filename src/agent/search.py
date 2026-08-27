@@ -1,85 +1,44 @@
-"""UNUSED MODULE: Tree search data structure"""
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
-from environment.actions import Action
-from environment.state import GameState
+if TYPE_CHECKING:
+    from environment.actions import Action
+
+__all__ = ["Node", "Search"]
 
 
 @dataclass(slots=True)
 class Node:
     score: float
     action: Action
-    state: GameState | None = None
-    parent: Any = None
 
 
 class Search:
+    """Candidate action pool for evaluating and ranking candidate moves and market orders."""
+
     def __init__(self) -> None:
         self.nodes: list[Node] = []
-
-    # --------------------------------------------------
 
     def clear(self) -> None:
         self.nodes.clear()
 
-    # --------------------------------------------------
-
-    def add(
-        self,
-        score: float,
-        action: Action,
-        state: GameState | None = None,
-        parent: Any = None,
-    ) -> None:
-
-        self.nodes.append(
-            Node(
-                score=score,
-                action=action,
-                state=state,
-                parent=parent,
-            )
-        )
-
-    # --------------------------------------------------
+    def add(self, score: float, action: Action) -> None:
+        self.nodes.append(Node(score=score, action=action))
 
     def empty(self) -> bool:
         return len(self.nodes) == 0
 
-    # --------------------------------------------------
-
     def best(self) -> Node | None:
-        if self.empty():
+        if not self.nodes:
             return None
-        return max(
-            self.nodes,
-            key=lambda n: n.score,
-        )
-
-    # --------------------------------------------------
+        return max(self.nodes, key=lambda n: n.score)
 
     def topk(self, k: int = 5) -> list[Node]:
-        return sorted(
-            self.nodes,
-            key=lambda n: n.score,
-            reverse=True,
-        )[:k]
-
-    # --------------------------------------------------
+        return sorted(self.nodes, key=lambda n: n.score, reverse=True)[:k]
 
     def choose(self) -> Action | None:
         node = self.best()
-        if node is None:
-            return None
-        return node.action
+        return node.action if node is not None else None
 
-    # --------------------------------------------------
-
-    def dump(self) -> None:
-        for n in self.topk():
-            print(
-                f"{n.score:8.2f}",
-                n.action,
-            )

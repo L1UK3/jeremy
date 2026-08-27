@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from environment.actions import Action, ActionBuilder
 from environment.board import Board, Tile, manhattan_distance, step_toward
 from environment.economy import Economy

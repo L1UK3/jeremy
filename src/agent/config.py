@@ -1,10 +1,12 @@
-"""
-Configuration parameters for the rule-based heuristic agent.
-Defines high-level strategy constants (e.g. target crop, sell threshold)
-that can be overridden or controlled by higher-level models.
-"""
+from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from environment.economy import Economy
+
+__all__ = ["DEFAULT_CONFIG", "AgentConfig"]
 
 
 @dataclass(slots=True)
@@ -15,7 +17,7 @@ class AgentConfig:
     max_hires_per_day: int = 8
     max_quadrants: int = 2
 
-    def get_crop(self, eco) -> str | None:
+    def get_crop(self, eco: Economy) -> str | None:
         return eco.best_crop()
 
 

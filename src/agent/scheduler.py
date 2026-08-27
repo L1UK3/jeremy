@@ -1,9 +1,15 @@
-from collections.abc import Callable
-from dataclasses import dataclass
+from __future__ import annotations
 
-from environment.actions import ActionBuilder
-from environment.board import manhattan_distance, step_toward
-from environment.state import GameState
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from environment.board import step_toward
+
+if TYPE_CHECKING:
+    from environment.state import GameState
+
+__all__ = ["Job", "Scheduler", "default_utility_scorer", "job_to_action"]
 
 
 @dataclass(slots=True)
@@ -20,33 +26,29 @@ def default_utility_scorer(
 ) -> float:
     """Distance-discounted utility from an actor position (x, y)."""
     return job.priority - (
-        dist_penalty * manhattan_distance(x, y, job.target[0], job.target[1])
+        dist_penalty * (abs(x - job.target[0]) + abs(y - job.target[1]))
     )
 
 
 def job_to_action(job: Job, x: int, y: int) -> list[str]:
     """Convert a job into a movement step or tile action for actor at (x, y)."""
-    if (x, y) == job.target:
-        if job.action == "PLANT":
-            return (
-                ActionBuilder.plant(job.item).farmer if job.item else ["PLANT"]
-            )
-        if job.action == "HARVEST":
-            return ActionBuilder.harvest().farmer
-        if job.action == "WATER":
-            return ActionBuilder.water().farmer
-        if job.action == "DIG":
-            return ActionBuilder.dig().farmer
-        if job.action == "FERTILIZE":
-            return ActionBuilder.fertilize().farmer
-        return [job.action]
+    tx, ty = job.target
+    if (x, y) == (tx, ty):
+        act = job.action
+        if act == "PLANT":
+            return ["PLANT", job.item] if job.item else ["PLANT"]
+        if act == "HARVEST":
+            return ["HARVEST"]
+        if act == "WATER":
+            return ["WATER"]
+        if act == "DIG":
+            return ["DIG"]
+        if act == "FERTILIZE":
+            return ["FERTILIZE"]
+        return [act]
 
-    step = step_toward(x, y, job.target[0], job.target[1])
-    return (
-        ActionBuilder.move(step).farmer
-        if step != "PASS"
-        else ActionBuilder.pass_turn().farmer
-    )
+    step = step_toward(x, y, tx, ty)
+    return [step] if step != "PASS" else ["PASS"]
 
 
 class Scheduler:
@@ -78,25 +80,46 @@ class Scheduler:
             )
         )
 
-    def extend_jobs(self, jobs: list[Job]) -> None:
+    def extend_jobs(self, jobs: Sequence[Job]) -> None:
         self.jobs.extend(jobs)
 
     def _assign_one(
         self, x: int, y: int, used: set[tuple[int, int]]
     ) -> list[str]:
+        if self.scorer is default_utility_scorer:
+            best_job = None
+            best_score = -1e9
+            for j in self.jobs:
+                if j.target not in used:
+                    score = j.priority - 2.0 * (
+                        abs(x - j.target[0]) + abs(y - j.target[1])
+                    )
+                    if score > best_score:
+                        best_score = score
+                        best_job = j
+            if best_job is not None:
+                used.add(best_job.target)
+                return job_to_action(best_job, x, y)
+            return ["PASS"]
+
         available = (j for j in self.jobs if j.target not in used)
         if best := max(
             available, key=lambda j: self.scorer(j, x, y), default=None
         ):
             used.add(best.target)
             return job_to_action(best, x, y)
-        return ActionBuilder.pass_turn().farmer
+        return ["PASS"]
 
     def assign(self) -> tuple[list[str], list[list[str]]]:
-        actors = [self.state.farmer, *(tuple(h) for h in self.state.hands)]
+        farmer_pos = self.state.farmer
+        hands = self.state.hands
         used: set[tuple[int, int]] = set()
-        actions = [self._assign_one(x, y, used) for x, y in actors]
-        return actions[0], actions[1:]
+
+        farmer_act = self._assign_one(farmer_pos[0], farmer_pos[1], used)
+        hands_acts = [self._assign_one(h[0], h[1], used) for h in hands]
+        return farmer_act, hands_acts
 
     def clear(self) -> None:
         self.jobs.clear()
+
+
