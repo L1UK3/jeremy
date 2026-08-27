@@ -1,11 +1,17 @@
-from collections import deque
+from __future__ import annotations
 
-from environment.state import GameState
+from collections import deque
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from environment.state import GameState
+
+__all__ = ["Market"]
 
 
 class Market:
-    HISTORY_LEN = 20
-    _history: dict[str, deque[int]] = {}
+    HISTORY_LEN: int = 20
+    _history: ClassVar[dict[str, deque[int]]] = {}
 
     def __init__(self, state: GameState) -> None:
         self.state = state
@@ -24,7 +30,6 @@ class Market:
 
     def price(self, item: str) -> int:
         return self.state.price(item)
-
 
     def minimum(self, item: str) -> int:
         h = self._history.get(item)
@@ -55,13 +60,18 @@ class Market:
     def sell_score(self, item: str) -> float:
         if self.state.inventory(item) == 0:
             return -999999.0
-        score = float(self.price(item))
-        score += float(self.trend(item))
-        score += self.normalized_price(item) * 100.0
-        return score
+        now = self.price(item)
+        h = self._history.get(item)
+        if not h:
+            return float(now) + 50.0
+        low = min(h)
+        high = max(h)
+        trend = (h[-1] - h[0]) if len(h) >= 2 else 0
+        norm = 0.5 if high == low else (now - low) / (high - low)
+        return float(now) + float(trend) + (norm * 100.0)
 
     def best_item_to_sell(self) -> str | None:
-        best = None
+        best: str | None = None
         best_score = -1e9
         for item in self.state.shed.keys():
             s = self.sell_score(item)

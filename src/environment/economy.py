@@ -1,8 +1,23 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
+
+if TYPE_CHECKING:
+    from environment.state import GameState
+
+__all__ = ["Economy"]
+
+CROP_PROPERTIES: dict[str, tuple[int, int]] = {
+    crop: (data.get("seed", 0), data.get("max_yield_day", 1))
+    for crop, data in CROPS.items()
+}
+FIBONACCI: tuple[int, ...] = (1, 1, 2, 3, 5, 8, 13, 21, 34, 55)
 
 
 class Economy:
-    def __init__(self, state):
+    def __init__(self, state: GameState) -> None:
         self.state = state
 
     # ----------------------------
@@ -50,12 +65,15 @@ class Economy:
         best: str | None = None
         best_roi = -1e9
         days_remaining = 30 - self.state.day
+        prices = self.state.prices
 
-        for crop, data in CROPS.items():
-            if data["max_yield_day"] > days_remaining:
+        for crop, (seed_cost, max_yield_day) in CROP_PROPERTIES.items():
+            if max_yield_day > days_remaining:
                 continue
 
-            roi = self.crop_roi(crop)
+            revenue = prices.get(crop, 0)
+            grow = max_yield_day if max_yield_day > 0 else 1
+            roi = (revenue - seed_cost) / grow
             if roi > best_roi:
                 best_roi = roi
                 best = crop
@@ -76,7 +94,7 @@ class Economy:
     # ----------------------------
 
     def expansion_cost(self) -> int | None:
-        num_unlocked = len(self.state.unlocked_quadrants)
+        num_unlocked = len(self.state.unlocked_quadrants_set)
         if num_unlocked == 1:
             return 1000
         if num_unlocked == 2:
@@ -86,11 +104,12 @@ class Economy:
         return None
 
     def next_quadrant_target(self) -> tuple[int, int] | None:
-        if "NE" not in self.state.unlocked_quadrants:
+        unlocked = self.state.unlocked_quadrants_set
+        if "NE" not in unlocked:
             return (5, 0)
-        if "SW" not in self.state.unlocked_quadrants:
+        if "SW" not in unlocked:
             return (0, 5)
-        if "SE" not in self.state.unlocked_quadrants:
+        if "SE" not in unlocked:
             return (5, 5)
         return None
 
@@ -105,8 +124,10 @@ class Economy:
     # ----------------------------
 
     def hire_cost(self) -> int:
-        fibonacci = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
-        return fibonacci[self.state.hires_today]
+        idx = self.state.hires_today
+        if idx < len(FIBONACCI):
+            return FIBONACCI[idx]
+        return 55
 
     def should_hire(self, max_hires_per_day: int = 3) -> bool:
         if self.state.hires_today >= max_hires_per_day:

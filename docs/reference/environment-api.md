@@ -157,23 +157,25 @@ class Tile:
 ---
 
 ### `class Board`
-Spatial query generator over the farm grid.
+Spatial query manager and categorized tile index over the farm grid.
 
 ```python
 class Board:
     def __init__(self, state: GameState) -> None: ...
 ```
 
-* `all_tiles() -> Generator[Tile]`: Yields all tiles across `board_size * board_size`.
-* `empty_tiles(only_unlocked: bool = True) -> Generator[Tile]`: Yields empty unlocked tiles (`data is None`).
-* `plants() -> Generator[Tile]`: Yields all plant tiles.
-* `crops(crop: str) -> Generator[Tile]`: Yields plants matching specific crop string.
-* `weeds(only_unlocked: bool = True) -> Generator[Tile]`: Yields weed tiles on unlocked quadrants.
-* `harvestable(crop: str | None = None) -> Generator[Tile]`: Yields mature plants with `is_ripe(state.day) == True`.
-* `needs_water(crop: str | None = None) -> Generator[Tile]`: Yields unwatered, growing plants (`watered == False` and not yet ripe).
+* `empty_tiles_count -> int`: O(1) count of empty tiles on currently unlocked land.
+* `all_tiles() -> tuple[Tile, ...]`: Returns all 100 tiles across the board.
+* `empty_tiles(only_unlocked: bool = True) -> list[Tile]`: Returns empty tiles (`data is None`).
+* `plants() -> list[Tile]`: Returns all plant tiles.
+* `crops(crop: str) -> list[Tile]`: Returns plants matching specific crop string.
+* `weeds(only_unlocked: bool = True) -> list[Tile]`: Returns weed tiles (`kind == "WEED"`).
+* `harvestable(crop: str | None = None) -> list[Tile]`: Returns mature plants with `is_ripe(state.day) == True`.
+* `needs_water() -> list[Tile]`: Returns unwatered plant tiles (`watered == False`).
 * `nearest(tiles: Iterable[Tile]) -> Tile | None`: Returns tile from iterator minimizing Manhattan distance to farmer.
 * `nearest_other(tiles: Iterable[Tile]) -> Tile | None`: Finds closest tile excluding the farmer's current coordinates.
 * `nearest_to(x: int, y: int, tiles: Iterable[Tile], exclude_pos: tuple[int, int] | None = None) -> Tile | None`: General distance minimizer from arbitrary coordinate $(x, y)$.
+
 
 ---
 

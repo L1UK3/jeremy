@@ -1,34 +1,41 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
+
+__all__ = ["GameState"]
 
 
 @dataclass(slots=True)
 class GameState:
-    raw: dict
+    raw: dict[str, Any]
     step: int
     day: int
     hour: int
     player: int
-    farm: dict
-    private: dict
-    market: dict
+    farm: dict[str, Any]
+    private: dict[str, Any]
+    market: dict[str, Any]
     money: int
     prices: dict[str, int]
     shed: dict[str, int]
     seeds: dict[str, int]
     tiles: list[list[Any]]
     farmer: tuple[int, int]
-    hands: list
+    hands: list[list[int]]
     hires_today: int
     unlocked_quadrants: list[str]
     board_size: int
+    unlocked_quadrants_set: frozenset[str]
 
     @classmethod
-    def from_obs(cls, obs: dict) -> "GameState":
+    def from_obs(cls, obs: dict[str, Any]) -> GameState:
         player = obs["player"]
         farm = obs["farms"][player]
         private = obs.get("private", {}) or {}
         market = obs.get("market", {}) or {}
+        unlocked = farm.get("unlocked_quadrants", ["NW"])
+        farmer_raw = farm.get("farmer", (0, 0))
 
         return cls(
             raw=obs,
@@ -44,11 +51,12 @@ class GameState:
             shed=private.get("shed", {}),
             seeds=private.get("seeds", {}),
             tiles=farm.get("tiles", []),
-            farmer=tuple(farm.get("farmer", [0, 0])),
+            farmer=(farmer_raw[0], farmer_raw[1]),
             hands=farm.get("hands", []),
             hires_today=farm.get("hires_today", 0),
-            unlocked_quadrants=farm.get("unlocked_quadrants", ["NW"]),
+            unlocked_quadrants=unlocked,
             board_size=len(farm.get("tiles", [])),
+            unlocked_quadrants_set=frozenset(unlocked),
         )
 
     @property
@@ -61,20 +69,19 @@ class GameState:
 
     @property
     def current_tile(self) -> Any:
-        return self.tiles[self.y][self.x]
-
+        return self.tiles[self.farmer[1]][self.farmer[0]]
 
     def is_quadrant_unlocked(self, quadrant: str) -> bool:
-        return quadrant in self.unlocked_quadrants
+        return quadrant in self.unlocked_quadrants_set
 
     def is_tile_unlocked(self, x: int, y: int) -> bool:
         if x < 5 and y < 5:
-            return "NW" in self.unlocked_quadrants
+            return "NW" in self.unlocked_quadrants_set
         if x >= 5 and y < 5:
-            return "NE" in self.unlocked_quadrants
+            return "NE" in self.unlocked_quadrants_set
         if x < 5 and y >= 5:
-            return "SW" in self.unlocked_quadrants
-        return "SE" in self.unlocked_quadrants
+            return "SW" in self.unlocked_quadrants_set
+        return "SE" in self.unlocked_quadrants_set
 
     def price(self, item: str) -> int:
         return self.prices.get(item, 0)

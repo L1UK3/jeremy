@@ -1,8 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from agent.scores import BUY_LAND, BUY_SEED, HIRE_HAND, SELL
 from environment.actions import ActionBuilder
 
+if TYPE_CHECKING:
+    from agent.planner import Planner
 
-def evaluate_market(planner) -> None:
+__all__ = ["evaluate_expansion", "evaluate_market"]
+
+
+def evaluate_market(planner: Planner) -> None:
     """Evaluate market sell orders, seed purchases, and worker hiring."""
     crop = planner.config.get_crop(planner.eco)
 
@@ -23,7 +32,7 @@ def evaluate_market(planner) -> None:
             planner.add(SELL, ActionBuilder.sell(item, sell_amount))
 
     # Seed Purchases
-    empty_tiles = sum(1 for _ in planner.board.empty_tiles())
+    empty_tiles = planner.board.empty_tiles_count
     target = min(planner.config.seed_target, empty_tiles)
     if crop and planner.eco.should_buy_seed(crop, target):
         planner.add(
@@ -34,12 +43,15 @@ def evaluate_market(planner) -> None:
         )
 
 
-def evaluate_expansion(planner) -> None:
+def evaluate_expansion(planner: Planner) -> None:
     """Evaluate purchasing adjacent land quadrants."""
     if not planner.config.expand_land or planner.state.day < 13:
         return
 
-    if len(planner.state.unlocked_quadrants) >= planner.config.max_quadrants:
+    if (
+        len(planner.state.unlocked_quadrants_set)
+        >= planner.config.max_quadrants
+    ):
         return
 
     if not planner.eco.should_expand():
@@ -47,3 +59,4 @@ def evaluate_expansion(planner) -> None:
 
     if target := planner.eco.next_quadrant_target():
         planner.add(BUY_LAND, ActionBuilder.buy_land(target[0], target[1]))
+

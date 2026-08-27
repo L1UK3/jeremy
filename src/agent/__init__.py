@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from agent import evaluators, jobs, scores
 from agent.config import DEFAULT_CONFIG, AgentConfig
 from agent.evaluators import evaluate_expansion, evaluate_market

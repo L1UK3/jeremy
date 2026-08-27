@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import Any
+
+__all__ = ["Action", "ActionBuilder"]
 
 
 @dataclass(slots=True)
 class Action:
     score: float = 0.0
 
-    farmer: list = field(default_factory=lambda: ["PASS"])
-    hands: list = field(default_factory=list)
-    market: list = field(default_factory=list)
+    farmer: list[str] = field(default_factory=lambda: ["PASS"])
+    hands: list[list[str]] = field(default_factory=list)
+    market: list[list[Any]] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "farmer": self.farmer,
             "hands": self.hands,
