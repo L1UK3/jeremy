@@ -10,7 +10,7 @@ replays/
 .env
 
 submission.tar.gz
-out/
+.out/
 
 requirements.local.txt
 
