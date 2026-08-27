@@ -13,6 +13,8 @@ submission.py / submission.tar.gz
 
 import argparse
 import re
+import shutil
+import subprocess
 import tarfile
 from pathlib import Path
 
@@ -43,7 +45,6 @@ MODULES = [
     "agent/planner.py",
     "main.py",
 ]
-
 
 
 HEADER = """\
@@ -99,10 +100,29 @@ def clean_source(
                     if item and not is_internal_import(item):
                         direct_imports.add(f"import {item}")
                 continue
+        if line.startswith("if TYPE_CHECKING:"):
+            for next_line in lines:
+                if not next_line.startswith("    "):
+                    break
+            continue
 
         body.append(line)
 
     return from_imports, direct_imports, body
+
+
+def format_with_ruff(file_path: Path) -> None:
+    """Format and fix lint issues in generated file."""
+    cmd = ["ruff"] if shutil.which("ruff") else ["uvx", "ruff"]
+
+    subprocess.run(
+        [*cmd, "check", "--fix", str(file_path)], capture_output=True
+    )
+    subprocess.run(
+        [*cmd, "format", str(file_path)], capture_output=True
+    )
+
+    print("  Formatted with ruff")
 
 
 def build_submission() -> Path:
@@ -139,6 +159,8 @@ def build_submission() -> Path:
         f.write("\n")
         for line in all_body:
             f.write(line + "\n")
+
+    format_with_ruff(OUTPUT)
 
     print(f"  Output Submission : {OUTPUT}")
     print(f"  Submission Size   : {OUTPUT.stat().st_size:,} bytes")
