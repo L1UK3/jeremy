@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 OPENING_TRACE: dict[int, dict] = {
-    1: {
+    0: {
         "farmer": ["PASS"],
         "hands": [],
         "market": [
@@ -13,10 +13,11 @@ OPENING_TRACE: dict[int, dict] = {
             ["BUY_ANIMAL", "SHEEP", 2],
             ["BUY_ANIMAL", "COW", 2],
             ["BUY_SEED", "WHEAT", 7],
-            ["BUY_SEED", "MELON", 12],
+            ["BUY_SEED", "MELON", 6],
+            ["BUY_PRODUCT", "WHEAT", 8],
         ],
     },
-    2: {
+    1: {
         "farmer": ["PICKUP", "COW", 2],
         "hands": [
             ["WEST"],
@@ -27,7 +28,7 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [["BUY_PRODUCT", "WHEAT", 2]],
     },
-    3: {
+    2: {
         "farmer": ["BUILD_PASTURE"],
         "hands": [
             ["NORTH"],
@@ -38,12 +39,12 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    4: {
+    3: {
         "farmer": ["PLACE", "COW"],
         "hands": [["NORTH"], ["NORTH"], ["PASS"], ["NORTH"], ["NORTH"]],
         "market": [],
     },
-    5: {
+    4: {
         "farmer": ["WEST"],
         "hands": [
             ["BUILD_PASTURE"],
@@ -54,7 +55,7 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    6: {
+    5: {
         "farmer": ["BUILD_PASTURE"],
         "hands": [
             ["WEST"],
@@ -65,7 +66,7 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    7: {
+    6: {
         "farmer": ["PLACE", "COW"],
         "hands": [
             ["PLANT", "MELON"],
@@ -76,17 +77,17 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    8: {
+    7: {
         "farmer": ["WEST"],
         "hands": [["WATER"], ["WEST"], ["PASS"], ["CARE"], ["WATER"]],
         "market": [],
     },
-    9: {
+    8: {
         "farmer": ["BUILD_PASTURE"],
         "hands": [["WEST"], ["PLANT", "MELON"], ["PASS"], ["WEST"], ["WEST"]],
         "market": [],
     },
-    10: {
+    9: {
         "farmer": ["WEST"],
         "hands": [
             ["PLANT", "WHEAT"],
@@ -97,17 +98,17 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    11: {
+    10: {
         "farmer": ["PLANT", "WHEAT"],
         "hands": [["WATER"], ["WEST"], ["PASS"], ["PLACE", "SHEEP"], ["WATER"]],
         "market": [],
     },
-    12: {
+    11: {
         "farmer": ["WATER"],
         "hands": [["WEST"], ["PLANT", "MELON"], ["PASS"], ["FEED"], ["WEST"]],
         "market": [],
     },
-    13: {
+    12: {
         "farmer": ["WEST"],
         "hands": [
             ["PLANT", "MELON"],
@@ -118,12 +119,12 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    14: {
+    13: {
         "farmer": ["PLANT", "MELON"],
         "hands": [["WATER"], ["WEST"], ["PASS"], ["WEST"], ["WATER"]],
         "market": [],
     },
-    15: {
+    14: {
         "farmer": ["WATER"],
         "hands": [
             ["WEST"],
@@ -134,7 +135,7 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    16: {
+    15: {
         "farmer": ["PASS"],
         "hands": [
             ["PLANT", "MELON"],
@@ -145,12 +146,12 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    17: {
+    16: {
         "farmer": ["PASS"],
         "hands": [["WATER"], ["WEST"], ["PASS"], ["WEST"], ["WATER"]],
         "market": [],
     },
-    18: {
+    17: {
         "farmer": ["PASS"],
         "hands": [
             ["PASS"],
@@ -161,24 +162,29 @@ OPENING_TRACE: dict[int, dict] = {
         ],
         "market": [],
     },
-    19: {
+    18: {
         "farmer": ["PASS"],
         "hands": [["PASS"], ["WATER"], ["PASS"], ["WATER"], ["PLANT", "WHEAT"]],
         "market": [],
     },
-    20: {
+    19: {
         "farmer": ["PASS"],
         "hands": [["PASS"], ["PASS"], ["PASS"], ["WEST"], ["WATER"]],
         "market": [],
     },
-    21: {
+    20: {
         "farmer": ["PASS"],
         "hands": [["PASS"], ["PASS"], ["PASS"], ["PLANT", "MELON"], ["PASS"]],
         "market": [],
     },
-    22: {
+    21: {
         "farmer": ["PASS"],
         "hands": [["PASS"], ["PASS"], ["PASS"], ["WATER"], ["PASS"]],
+        "market": [],
+    },
+    22: {
+        "farmer": ["PASS"],
+        "hands": [["PASS"], ["PASS"], ["PASS"], ["PASS"], ["PASS"]],
         "market": [],
     },
     23: {
@@ -186,113 +192,4 @@ OPENING_TRACE: dict[int, dict] = {
         "hands": [["PASS"], ["PASS"], ["PASS"], ["PASS"], ["PASS"]],
         "market": [],
     },
-    24: {
-        "farmer": ["PASS"],
-        "hands": [["PASS"], ["PASS"], ["PASS"], ["PASS"], ["PASS"]],
-        "market": [],
-    },
-    25: {
-        "farmer": ["CARE"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 3]],
-    },
-    26: {
-        "farmer": ["PICKUP", "WHEAT", 3],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    27: {
-        "farmer": ["FEED"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    28: {
-        "farmer": ["WEST"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    29: {
-        "farmer": ["FEED"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    30: {
-        "farmer": ["CARE"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    31: {
-        "farmer": ["NORTH"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    32: {
-        "farmer": ["FEED"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    33: {
-        "farmer": ["CARE"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    34: {
-        "farmer": ["EAST"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    35: {
-        "farmer": ["CARE"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    36: {
-        "farmer": ["COLLECT_FERTILIZER"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    37: {
-        "farmer": ["SOUTH"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    38: {
-        "farmer": ["COLLECT_FERTILIZER"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    39: {
-        "farmer": ["DROP"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    40: {
-        "farmer": ["WEST"],
-        "hands": [],
-        "market": [["SELL", "FERTILIZER", 2], ["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    41: {
-        "farmer": ["EAST"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 3]],
-    },
-    42: {
-        "farmer": ["PICKUP", "WHEAT", 1],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 3]],
-    },
-    43: {
-        "farmer": ["NORTH"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    44: {
-        "farmer": ["FEED"],
-        "hands": [],
-        "market": [["BUY_PRODUCT", "WHEAT", 2]],
-    },
-    45: {"farmer": ["WEST"], "hands": [], "market": []},
-    46: {"farmer": ["COLLECT_FERTILIZER"], "hands": [], "market": []},
-    47: {"farmer": ["SOUTH"], "hands": [], "market": []},
-    48: {"farmer": ["COLLECT_FERTILIZER"], "hands": [], "market": []},
 }

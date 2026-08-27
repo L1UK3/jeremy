@@ -41,10 +41,8 @@ MODULES = [
     "agent/search.py",
     "agent/evaluators.py",
     "agent/scheduler.py",
-    "agent/manage_livestock.py",
     "agent/jobs.py",
     "agent/opening.py",
-    "agent/expanse.py",
     "agent/planner.py",
     "main.py",
 ]
