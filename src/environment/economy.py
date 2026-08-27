@@ -133,3 +133,27 @@ class Economy:
         if self.state.hires_today >= max_hires_per_day:
             return False
         return self.state.money >= self.hire_cost()
+
+    def affordable_hires(
+        self, max_hires_per_day: int = 3, max_budget: float | None = None
+    ) -> int:
+        hires_today = self.state.hires_today
+        hires_remaining = max(0, max_hires_per_day - hires_today)
+        if hires_remaining == 0:
+            return 0
+        budget = (
+            self.state.money
+            if max_budget is None
+            else min(self.state.money, max_budget)
+        )
+        affordable = 0
+        running_cost = 0
+        for i in range(hires_remaining):
+            idx = hires_today + i
+            cost = FIBONACCI[idx] if idx < len(FIBONACCI) else 55
+            if running_cost + cost <= budget:
+                running_cost += cost
+                affordable += 1
+            else:
+                break
+        return affordable

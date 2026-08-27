@@ -14,6 +14,7 @@ State and outputs live in ../out/:
 
 Run: python scrape.py [--max-new N]   (polite: ~1 req/sec)
 """
+
 import argparse
 import csv
 import gzip
@@ -29,17 +30,49 @@ HERE = Path(__file__).parent
 OUT_DIR = HERE.parent / ".out"
 RAW = OUT_DIR / "raw"
 STATE = OUT_DIR / "state.json"
-LIST_URL = "https://www.kaggle.com/api/i/competitions.EpisodeService/ListEpisodes"
+LIST_URL = (
+    "https://www.kaggle.com/api/i/competitions.EpisodeService/ListEpisodes"
+)
 REPLAY_URL = "https://www.kaggleusercontent.com/episodes/{id}.json"
 
 # Public leaderboard snapshot 2026-07-31 (all 36 teams' latest submissions);
 # the crawl discovers new ones from episode pairings automatically.
 SEED_SUBMISSIONS = [
-    55118227, 55116580, 55116691, 55117099, 55118449, 55117347, 55115388,
-    55118741, 55118157, 55118855, 55115608, 55116223, 55115974, 55118395,
-    55115818, 55118396, 55117565, 55118615, 55118013, 55115318, 55117304,
-    55119028, 55117284, 55117940, 55117886, 55116523, 55116608, 55117088,
-    55118784, 55115877, 55118706, 55117932, 55115641, 55116892, 55117274,
+    55118227,
+    55116580,
+    55116691,
+    55117099,
+    55118449,
+    55117347,
+    55115388,
+    55118741,
+    55118157,
+    55118855,
+    55115608,
+    55116223,
+    55115974,
+    55118395,
+    55115818,
+    55118396,
+    55117565,
+    55118615,
+    55118013,
+    55115318,
+    55117304,
+    55119028,
+    55117284,
+    55117940,
+    55117886,
+    55116523,
+    55116608,
+    55117088,
+    55118784,
+    55115877,
+    55118706,
+    55117932,
+    55115641,
+    55116892,
+    55117274,
     55118574,
 ]
 
@@ -57,7 +90,9 @@ def save_state(state):
 def list_episodes(session, submission_id):
     # Throttling is ambient, not transient: two touches, then skip.
     for _ in range(2):
-        r = session.post(LIST_URL, json={"submissionId": submission_id}, timeout=30)
+        r = session.post(
+            LIST_URL, json={"submissionId": submission_id}, timeout=30
+        )
         if r.status_code == 429:
             time.sleep(5)
             continue
@@ -75,8 +110,15 @@ def fetch_replay(session, episode_id):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--max-new", type=int, default=300, help="replay download cap per run")
-    ap.add_argument("--budget-min", type=int, default=45, help="minutes for the metadata crawl")
+    ap.add_argument(
+        "--max-new", type=int, default=300, help="replay download cap per run"
+    )
+    ap.add_argument(
+        "--budget-min",
+        type=int,
+        default=45,
+        help="minutes for the metadata crawl",
+    )
     args = ap.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -85,7 +127,9 @@ def main():
     subs = list(dict.fromkeys(state["submissions"]))
     episodes = state["episodes"]  # id(str) -> metadata dict
     session = requests.Session()
-    session.headers["User-Agent"] = "kaggriculture-dataset-builder (georgymamarin)"
+    session.headers["User-Agent"] = (
+        "kaggriculture-dataset-builder (georgymamarin)"
+    )
 
     # 1. Refresh episode metadata, newest activity first, within a time budget.
     # The submission list only grows and the API throttles hard, so a full sweep
@@ -96,14 +140,18 @@ def main():
         for a in e.get("agents", []):
             asid = a.get("submissionId")
             if asid:
-                last_seen[asid] = max(last_seen.get(asid, ""), e.get("endTime") or "")
+                last_seen[asid] = max(
+                    last_seen.get(asid, ""), e.get("endTime") or ""
+                )
     order = sorted(subs, key=lambda s0: last_seen.get(s0, "9999"), reverse=True)
 
     crawled = limited = 0
     for sid in order:
         if time.time() > deadline:
-            print(f"  crawl budget spent: {crawled} ok, {limited} limited, "
-                  f"{len(order) - crawled - limited} deferred")
+            print(
+                f"  crawl budget spent: {crawled} ok, {limited} limited, "
+                f"{len(order) - crawled - limited} deferred"
+            )
             break
         try:
             eps = list_episodes(session, sid)
@@ -117,25 +165,37 @@ def main():
             for a in e.get("agents", []):
                 asid = a.get("submissionId")
                 if asid and asid not in subs:
-                    subs.append(asid)          # discovered a new opponent
+                    subs.append(asid)  # discovered a new opponent
         if crawled % 25 == 0:
-            print(f"  metadata: {crawled} ok / {limited} limited, {len(episodes)} episodes",
-                  flush=True)
+            print(
+                f"  metadata: {crawled} ok / {limited} limited, {len(episodes)} episodes",
+                flush=True,
+            )
         time.sleep(1.2)
     print(f"metadata done: {len(subs)} submissions, {len(episodes)} episodes")
 
     # 2. Download missing replays (completed episodes only).
     import pyarrow.parquet as _pq
+
     have_pq = set()
     if (OUT_DIR / "replays.parquet").exists():
-        have_pq = set(_pq.read_table(OUT_DIR / "replays.parquet",
-                                     columns=["episode_id"])["episode_id"].to_pylist())
+        have_pq = set(
+            _pq.read_table(OUT_DIR / "replays.parquet", columns=["episode_id"])[
+                "episode_id"
+            ].to_pylist()
+        )
     # Newest first: with a backlog, insertion order starves the freshest days.
     missing = sorted(
-        (eid for eid, e in episodes.items()
-         if e.get("state") == "COMPLETED" and int(eid) not in have_pq
-         and not (RAW / f"{eid}.json.gz").exists()),
-        key=lambda eid: episodes[eid].get("endTime") or "", reverse=True)
+        (
+            eid
+            for eid, e in episodes.items()
+            if e.get("state") == "COMPLETED"
+            and int(eid) not in have_pq
+            and not (RAW / f"{eid}.json.gz").exists()
+        ),
+        key=lambda eid: episodes[eid].get("endTime") or "",
+        reverse=True,
+    )
     print(f"replays missing: {len(missing)} (cap {args.max_new})")
     got = 0
     for eid in missing[: args.max_new]:
@@ -153,25 +213,65 @@ def main():
     # 3. Flat tables.
     with open(OUT_DIR / "episodes.csv", "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["episode_id", "create_time", "end_time", "type", "state",
-                    "sub_0", "team_0", "bank_0", "rating_0",
-                    "sub_1", "team_1", "bank_1", "rating_1"])
+        w.writerow(
+            [
+                "episode_id",
+                "create_time",
+                "end_time",
+                "type",
+                "state",
+                "sub_0",
+                "team_0",
+                "bank_0",
+                "rating_0",
+                "sub_1",
+                "team_1",
+                "bank_1",
+                "rating_1",
+            ]
+        )
         for eid, e in sorted(episodes.items()):
             ag = e.get("agents", [])
-            row = [eid, e.get("createTime"), e.get("endTime"), e.get("type"), e.get("state")]
+            row = [
+                eid,
+                e.get("createTime"),
+                e.get("endTime"),
+                e.get("type"),
+                e.get("state"),
+            ]
             for k in (0, 1):
                 a = ag[k] if k < len(ag) else {}
-                row += [a.get("submissionId"), a.get("teamId"),
-                        a.get("reward"), a.get("updatedScore")]
+                row += [
+                    a.get("submissionId"),
+                    a.get("teamId"),
+                    a.get("reward"),
+                    a.get("updatedScore"),
+                ]
             w.writerow(row)
     with open(OUT_DIR / "agents.csv", "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["episode_id", "agent_index", "submission_id", "team_id",
-                    "final_bank", "rating_after"])
+        w.writerow(
+            [
+                "episode_id",
+                "agent_index",
+                "submission_id",
+                "team_id",
+                "final_bank",
+                "rating_after",
+            ]
+        )
         for eid, e in sorted(episodes.items()):
             for k, a in enumerate(e.get("agents", [])):
-                w.writerow([eid, a.get("index", k), a.get("submissionId"),
-                            a.get("teamId"), a.get("reward"), a.get("updatedScore")])
+                w.writerow(
+                    [
+                        eid,
+                        a.get("index", k),
+                        a.get("submissionId"),
+                        a.get("teamId"),
+                        a.get("reward"),
+                        a.get("updatedScore"),
+                    ]
+                )
 
     # Team names for readable charts, then pack replays for upload:
     # Kaggle decompresses .gz, parquet stays as-is (~340x smaller).
@@ -183,7 +283,9 @@ def main():
     state["episodes"] = episodes
     save_state(state)
     have = len(list(RAW.glob("*.json.gz")))
-    print(f"state saved: {len(subs)} submissions, {len(episodes)} episodes, {have} replays on disk")
+    print(
+        f"state saved: {len(subs)} submissions, {len(episodes)} episodes, {have} replays on disk"
+    )
 
 
 if __name__ == "__main__":

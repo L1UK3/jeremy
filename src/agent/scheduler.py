@@ -43,6 +43,12 @@ def job_to_action(job: Job, x: int, y: int) -> list[str]:
             return ["WATER"]
         if act == "DIG":
             return ["DIG"]
+        if act == "FEED":
+            return ["FEED"]
+        if act == "CARE":
+            return ["CARE"]
+        if act == "COLLECT_FERTILIZER":
+            return ["COLLECT_FERTILIZER"]
         if act == "FERTILIZE":
             return ["FERTILIZE"]
         return [act]
@@ -121,5 +127,3 @@ class Scheduler:
 
     def clear(self) -> None:
         self.jobs.clear()
-
-

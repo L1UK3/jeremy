@@ -38,7 +38,9 @@ def run_tournament(
 ) -> BenchmarkSummary:
     summary = BenchmarkSummary(episodes=num_episodes)
 
-    print(f"\nRunning {num_episodes}-game benchmark: {challenger} vs {baseline}")
+    print(
+        f"\nRunning {num_episodes}-game benchmark: {challenger} vs {baseline}"
+    )
     for i in progress(num_episodes, text="Simulating Matches"):
         # Alternate seat position: 0 for even games, 1 for odd games
         seat = i % 2
