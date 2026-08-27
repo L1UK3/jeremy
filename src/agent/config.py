@@ -13,7 +13,7 @@ class AgentConfig:
     seed_target: int = 4
     expand_land: bool = True
     max_hires_per_day: int = 8
-    max_quadrants: int = 1
+    max_quadrants: int = 2
 
     def get_crop(self, eco) -> str | None:
         return eco.best_crop()

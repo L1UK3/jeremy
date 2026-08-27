@@ -36,7 +36,7 @@ def evaluate_market(planner) -> None:
 
 def evaluate_expansion(planner) -> None:
     """Evaluate purchasing adjacent land quadrants."""
-    if not planner.config.expand_land or planner.state.day > 22:
+    if not planner.config.expand_land or planner.state.day < 13:
         return
 
     if len(planner.state.unlocked_quadrants) >= planner.config.max_quadrants:
