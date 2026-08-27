@@ -44,6 +44,8 @@ MODULES = [
     "agent/jobs.py",
     "agent/opening.py",
     "agent/planner.py",
+    "agent/expansion.py",
+    "agent/manage_livestock.py",
     "main.py",
 ]
 
@@ -74,15 +76,44 @@ def clean_source(
     direct_imports: set[str] = set()
     body: list[str] = []
 
-    lines = iter(text.splitlines())
-    for line in lines:
+    raw_lines = text.splitlines()
+    i = 0
+    n = len(raw_lines)
+
+    while i < n:
+        line = raw_lines[i]
+
+        if line.startswith("__all__"):
+            if "[" in line and "]" not in line:
+                i += 1
+                while i < n and "]" not in raw_lines[i]:
+                    i += 1
+            elif "(" in line and ")" not in line:
+                i += 1
+                while i < n and ")" not in raw_lines[i]:
+                    i += 1
+            i += 1
+            continue
+
+        if line.startswith("if TYPE_CHECKING:"):
+            i += 1
+            while i < n and (
+                raw_lines[i].startswith("    ")
+                or raw_lines[i].startswith("\t")
+                or not raw_lines[i].strip()
+            ):
+                i += 1
+            continue
+
         if line.startswith("from ") or line.startswith("import "):
             statement = line
             if "(" in statement and ")" not in statement:
-                for next_line in lines:
-                    statement += " " + next_line.strip()
-                    if ")" in next_line:
+                i += 1
+                while i < n:
+                    statement += " " + raw_lines[i].strip()
+                    if ")" in raw_lines[i]:
                         break
+                    i += 1
 
             clean_stmt = re.sub(r"[()]", "", statement.split("#")[0]).strip()
 
@@ -93,6 +124,7 @@ def clean_source(
                         n.strip() for n in names_str.split(",") if n.strip()
                     ]
                     from_imports.setdefault(mod_name, set()).update(names)
+                i += 1
                 continue
 
             if m := re.match(r"import\s+(.+)", clean_stmt):
@@ -100,14 +132,11 @@ def clean_source(
                     item = item.strip()
                     if item and not is_internal_import(item):
                         direct_imports.add(f"import {item}")
+                i += 1
                 continue
-        if line.startswith("if TYPE_CHECKING:"):
-            for next_line in lines:
-                if not next_line.startswith("    "):
-                    break
-            continue
 
         body.append(line)
+        i += 1
 
     return from_imports, direct_imports, body
 
