@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from typing import Any
 
 from controller import AgentController
 from economy import Economy
 from state import GameState
+
+__all__ = ["evaluate_expansion"]
 
 
 def evaluate_expansion(

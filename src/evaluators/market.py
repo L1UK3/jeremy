@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 from board import Board
@@ -5,6 +7,8 @@ from controller import AgentController
 from economy import Economy
 from market import Market
 from state import GameState
+
+__all__ = ["evaluate_market"]
 
 
 def evaluate_market(
