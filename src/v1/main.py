@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from actions import Action
 from board import Board
 from controller import AgentController
 from economy import Economy
@@ -36,23 +35,23 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
     # turns 0-23
     if step in OPENING_TRACE:
         act = OPENING_TRACE[step]
-        return Action(
-            farmer=act.get("farmer", ["PASS"]),
-            hands=act.get("hands", []),
-            market=act.get("market", []),
-        ).to_dict()
+        return {
+            "farmer": act.get("farmer", ["PASS"]),
+            "hands": act.get("hands", []),
+            "market": act.get("market", []),
+        }
 
     if step in EXPANSION_TRACE:
         act = EXPANSION_TRACE[step]
-        return Action(
-            farmer=act.get("farmer", ["PASS"]),
-            hands=act.get("hands", []),
-            market=act.get("market", []),
-        ).to_dict()
+        return {
+            "farmer": act.get("farmer", ["PASS"]),
+            "hands": act.get("hands", []),
+            "market": act.get("market", []),
+        }
 
     # turns 712-719
-    if step >= (712):
-        return explosion(state, board).to_dict()
+    if step >= 712:
+        return explosion(state, board)
 
     crop = CONTROLLER.get_crop(eco)
     market_orders = evaluate_market(state, board, eco, market, CONTROLLER, crop)
@@ -72,8 +71,18 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         livestock_act if livestock_act is not None else default_farmer_act
     )
 
-    return Action(
-        farmer=farmer_act,
-        hands=hands_acts,
-        market=market_orders,
-    ).to_dict()
+    if len(board.needs_feed()) > 0 and len(state.hands) > 0:
+        for h_idx, h_pos in enumerate(state.hands, start=1):
+            hand_pos = (h_pos[0], h_pos[1])
+            hand_livestock = evaluate_livestock(
+                state, board, worker_idx=h_idx, worker_pos=hand_pos
+            )
+            if hand_livestock is not None:
+                hands_acts[h_idx - 1] = hand_livestock
+                break
+
+    return {
+        "farmer": farmer_act,
+        "hands": hands_acts,
+        "market": market_orders,
+    }

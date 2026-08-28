@@ -7,58 +7,23 @@ from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 if TYPE_CHECKING:
     from state import GameState
 
-__all__ = ["Economy"]
+__all__ = ["CROP_PROPERTIES", "Economy"]
 
 CROP_PROPERTIES: dict[str, tuple[int, int]] = {
-    crop: (data.get("seed", 0), data.get("max_yield_day", 1))
+    crop: (int(data.get("seed", 0)), int(data.get("max_yield_day", 1)))
     for crop, data in CROPS.items()
 }
 FIBONACCI: tuple[int, ...] = (1, 1, 2, 3, 5, 8, 13, 21, 34, 55)
 
 
 class Economy:
+    __slots__ = ("state",)
+
     def __init__(self, state: GameState) -> None:
         self.state = state
 
     # ----------------------------
-    # PRICE
-    # ----------------------------
-
-    def price(self, item: str) -> int:
-        return self.state.price(item)
-
-    # ----------------------------
-    # INVENTORY
-    # ----------------------------
-
-    def inventory(self, item: str) -> int:
-        return self.state.inventory(item)
-
-    def seeds(self, crop: str) -> int:
-        return self.state.seed_count(crop)
-
-    # ----------------------------
-    # ROI
-    # ----------------------------
-
-    def crop_cost(self, crop: str) -> int:
-        return CROPS[crop]["seed"]
-
-    def crop_grow_days(self, crop: str) -> int:
-        return CROPS[crop]["max_yield_day"]
-
-    def crop_revenue(self, crop: str) -> int:
-        return self.price(crop)
-
-    def crop_profit(self, crop: str) -> float:
-        return float(self.crop_revenue(crop) - self.crop_cost(crop))
-
-    def crop_roi(self, crop: str) -> float:
-        grow = max(1, self.crop_grow_days(crop))
-        return self.crop_profit(crop) / grow
-
-    # ----------------------------
-    # BEST CROP
+    # BEST CROP (ROI EVALUATION)
     # ----------------------------
 
     def best_crop(self) -> str | None:
@@ -83,14 +48,22 @@ class Economy:
     # BUY SEED
     # ----------------------------
 
-    def should_buy_seed(self, crop: str | None, target_count: int = 1) -> bool:
-        if not crop or self.seeds(crop) >= target_count:
-            return False
+    def crop_cost(self, crop: str) -> int:
+        return CROP_PROPERTIES.get(crop, (0, 1))[0]
 
+    def crop_roi(self, crop: str) -> float:
+        seed_cost, max_yield_day = CROP_PROPERTIES.get(crop, (0, 1))
+        grow = max_yield_day if max_yield_day > 0 else 1
+        revenue = self.state.price(crop)
+        return float(revenue - seed_cost) / float(grow)
+
+    def should_buy_seed(self, crop: str | None, target_count: int = 1) -> bool:
+        if not crop or self.state.seed_count(crop) >= target_count:
+            return False
         return self.state.can_afford(self.crop_cost(crop))
 
     # ----------------------------
-    # LAND
+    # LAND EXPANSION
     # ----------------------------
 
     def expansion_cost(self) -> int | None:
@@ -122,7 +95,7 @@ class Economy:
         return self.state.money >= (cost + buffer)
 
     # ----------------------------
-    # FARMHAND
+    # FARMHAND HIRING
     # ----------------------------
 
     def hire_cost(self) -> int:
@@ -130,11 +103,6 @@ class Economy:
         if idx < len(FIBONACCI):
             return FIBONACCI[idx]
         return 55
-
-    def should_hire(self, max_hires_per_day: int = 3) -> bool:
-        if self.state.hires_today >= max_hires_per_day:
-            return False
-        return self.state.money >= self.hire_cost()
 
     def affordable_hires(
         self, max_hires_per_day: int = 3, max_budget: float | None = None

@@ -8,7 +8,13 @@ from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 if TYPE_CHECKING:
     from state import GameState
 
-__all__ = ["Board", "Tile", "manhattan_distance", "step_toward"]
+__all__ = [
+    "SHED_ACCESS_TILES",
+    "Board",
+    "Tile",
+    "manhattan_distance",
+    "step_toward",
+]
 
 CROP_SPECS: dict[str, tuple[int, int, int, bool]] = {
     crop: (
@@ -19,6 +25,24 @@ CROP_SPECS: dict[str, tuple[int, int, int, bool]] = {
     )
     for crop, data in CROPS.items()
 }
+
+SHED_ACCESS_TILES: tuple[tuple[int, int], ...] = (
+    (4, 4),
+    (5, 4),
+    (4, 5),
+    (5, 5),
+)
+
+STATIC_POS: tuple[tuple[int, int], ...] = tuple(
+    (x, y) for y in range(10) for x in range(10)
+)
+STATIC_QUADRANTS: tuple[str, ...] = tuple(
+    "NW"
+    if x < 5 and y < 5
+    else ("NE" if x >= 5 and y < 5 else ("SW" if x < 5 and y >= 5 else "SE"))
+    for y in range(10)
+    for x in range(10)
+)
 
 
 def manhattan_distance(x1: int, y1: int, x2: int, y2: int) -> int:
@@ -39,34 +63,19 @@ def step_toward(fx: int, fy: int, tx: int, ty: int) -> str:
     return "PASS"
 
 
-STATIC_POS: tuple[tuple[int, int], ...] = tuple(
-    (x, y) for y in range(10) for x in range(10)
-)
-STATIC_QUADRANTS: tuple[str, ...] = tuple(
-    "NW"
-    if x < 5 and y < 5
-    else ("NE" if x >= 5 and y < 5 else ("SW" if x < 5 and y >= 5 else "SE"))
-    for y in range(10)
-    for x in range(10)
-)
-
-
 class Tile:
     __slots__ = (
         "animal",
         "cared_today",
         "consecutive_unfed",
         "crop",
-        "data",
         "empty",
         "fed_today",
-        "fertilized_until_day",
         "fertilizer_available",
         "is_animal",
         "is_plant",
         "is_weed",
         "kind",
-        "pending_care_bonus",
         "planted_day",
         "pos",
         "quadrant",
@@ -80,13 +89,12 @@ class Tile:
         self,
         x: int,
         y: int,
-        data: Any,
+        data: dict[str, Any] | None,
         pos: tuple[int, int] | None = None,
         quadrant: str | None = None,
     ) -> None:
         self.x = x
         self.y = y
-        self.data = data
         self.pos = pos if pos is not None else (x, y)
         self.quadrant = (
             quadrant
@@ -101,28 +109,29 @@ class Tile:
                 )
             )
         )
-        if data is None:
+
+        if not data:
             self.empty = True
+            self.kind = None
             self.is_plant = False
             self.is_weed = False
             self.is_animal = False
             self.animal = None
-            self.kind = None
             self.crop = None
             self.watered = False
             self.yield_units = 0
             self.planted_day = None
-            self.fertilized_until_day = None
             self.fed_today = False
             self.cared_today = False
             self.fertilizer_available = False
             self.consecutive_unfed = 0
-            self.pending_care_bonus = 0
-        elif isinstance(data, dict):
+            return
+
+        self.empty = False
+        if isinstance(data, dict):
             kind = data.get("kind")
             self.kind = kind
             if kind == "PLANT":
-                self.empty = False
                 self.is_plant = True
                 self.is_weed = False
                 self.is_animal = False
@@ -131,14 +140,11 @@ class Tile:
                 self.watered = bool(data.get("watered_today", False))
                 self.yield_units = int(data.get("yield_units", 0))
                 self.planted_day = data.get("planted_day")
-                self.fertilized_until_day = data.get("fertilized_until_day")
                 self.fed_today = False
                 self.cared_today = False
                 self.fertilizer_available = False
                 self.consecutive_unfed = 0
-                self.pending_care_bonus = 0
             elif kind == "WEED":
-                self.empty = False
                 self.is_plant = False
                 self.is_weed = True
                 self.is_animal = False
@@ -147,15 +153,12 @@ class Tile:
                 self.watered = False
                 self.yield_units = 0
                 self.planted_day = None
-                self.fertilized_until_day = None
                 self.fed_today = False
                 self.cared_today = False
                 self.fertilizer_available = False
                 self.consecutive_unfed = 0
-                self.pending_care_bonus = 0
             elif kind in ("PASTURE", "COOP") or "animal" in data:
                 animal_name = data.get("animal")
-                self.empty = False
                 self.is_plant = False
                 self.is_weed = False
                 self.is_animal = bool(animal_name)
@@ -164,16 +167,13 @@ class Tile:
                 self.watered = False
                 self.yield_units = int(data.get("yield_units", 0))
                 self.planted_day = data.get("placed_day")
-                self.fertilized_until_day = None
                 self.fed_today = bool(data.get("fed_today", False))
                 self.cared_today = bool(data.get("cared_today", False))
                 self.fertilizer_available = bool(
                     data.get("fertilizer_available", False)
                 )
                 self.consecutive_unfed = int(data.get("consecutive_unfed", 0))
-                self.pending_care_bonus = int(data.get("pending_care_bonus", 0))
             else:
-                self.empty = False
                 self.is_plant = False
                 self.is_weed = False
                 self.is_animal = False
@@ -182,34 +182,38 @@ class Tile:
                 self.watered = False
                 self.yield_units = 0
                 self.planted_day = None
-                self.fertilized_until_day = None
                 self.fed_today = False
                 self.cared_today = False
                 self.fertilizer_available = False
                 self.consecutive_unfed = 0
-                self.pending_care_bonus = 0
-        else:
-            self.empty = False
+        elif isinstance(data, str):
+            self.kind = data
             self.is_plant = False
-            self.is_weed = False
+            self.is_weed = data == "WEED"
             self.is_animal = False
             self.animal = None
-            self.kind = None
             self.crop = None
             self.watered = False
             self.yield_units = 0
             self.planted_day = None
-            self.fertilized_until_day = None
             self.fed_today = False
             self.cared_today = False
             self.fertilizer_available = False
             self.consecutive_unfed = 0
-            self.pending_care_bonus = 0
-
-    def age(self, current_day: int) -> int:
-        if self.planted_day is None:
-            return 0
-        return current_day - self.planted_day
+        else:
+            self.kind = None
+            self.is_plant = False
+            self.is_weed = False
+            self.is_animal = False
+            self.animal = None
+            self.crop = None
+            self.watered = False
+            self.yield_units = 0
+            self.planted_day = None
+            self.fed_today = False
+            self.cared_today = False
+            self.fertilizer_available = False
+            self.consecutive_unfed = 0
 
     def is_ripe(self, current_day: int) -> bool:
         if not (self.is_plant and self.yield_units > 0 and self.crop):
@@ -222,27 +226,9 @@ class Tile:
             if self.planted_day is not None
             else 0
         )
-        if age < spec[0]:  # first_yield_day
+        if age < spec[0]:
             return False
-        return (
-            spec[3]  # ongoing
-            or self.yield_units >= spec[2]  # max_yield
-            or age >= spec[1]  # max_yield_day
-        )
-
-    def distance(self, x: int, y: int) -> int:
-        return abs(self.x - x) + abs(self.y - y)
-
-    def is_fertilized(self, current_day: int) -> bool:
-        return (
-            self.fertilized_until_day is not None
-            and self.fertilized_until_day >= current_day
-        )
-
-    def is_unlocked(
-        self, unlocked_quadrants: list[str] | set[str] | frozenset[str]
-    ) -> bool:
-        return self.quadrant in unlocked_quadrants
+        return spec[3] or self.yield_units >= spec[2] or age >= spec[1]
 
 
 EMPTY_TILES: tuple[Tile, ...] = tuple(
@@ -252,6 +238,20 @@ EMPTY_TILES: tuple[Tile, ...] = tuple(
 
 
 class Board:
+    __slots__ = (
+        "_animals",
+        "_empty_unlocked",
+        "_fertilizer_available",
+        "_harvestable",
+        "_needs_care",
+        "_needs_feed",
+        "_needs_water",
+        "_tiles",
+        "_weeds_unlocked",
+        "size",
+        "state",
+    )
+
     def __init__(self, state: GameState) -> None:
         self.state = state
         self.size = state.board_size
@@ -260,10 +260,7 @@ class Board:
 
         tiles_list: list[Tile] = []
         empty_unlocked: list[Tile] = []
-        all_empty: list[Tile] = []
-        plants: list[Tile] = []
         weeds_unlocked: list[Tile] = []
-        all_weeds: list[Tile] = []
         needs_water: list[Tile] = []
         harvestable: list[Tile] = []
         animals: list[Tile] = []
@@ -276,10 +273,8 @@ class Board:
             for x, cell in enumerate(row):
                 if cell is None and idx < 100:
                     tile = EMPTY_TILES[idx]
-                    quad = tile.quadrant
                     tiles_list.append(tile)
-                    all_empty.append(tile)
-                    if quad in unlocked:
+                    if tile.quadrant in unlocked:
                         empty_unlocked.append(tile)
                     idx += 1
                     continue
@@ -305,17 +300,14 @@ class Board:
 
                 is_unl = quad in unlocked
                 if tile.empty:
-                    all_empty.append(tile)
                     if is_unl:
                         empty_unlocked.append(tile)
                 elif tile.is_plant:
-                    plants.append(tile)
                     if not tile.watered:
                         needs_water.append(tile)
                     if tile.is_ripe(day):
                         harvestable.append(tile)
                 elif tile.is_weed:
-                    all_weeds.append(tile)
                     if is_unl:
                         weeds_unlocked.append(tile)
                 elif tile.is_animal:
@@ -329,12 +321,9 @@ class Board:
                     if tile.yield_units > 0:
                         harvestable.append(tile)
 
-        self._tiles: tuple[Tile, ...] = tuple(tiles_list)
+        self._tiles = tuple(tiles_list)
         self._empty_unlocked = empty_unlocked
-        self._all_empty = all_empty
-        self._plants = plants
         self._weeds_unlocked = weeds_unlocked
-        self._all_weeds = all_weeds
         self._needs_water = needs_water
         self._harvestable = harvestable
         self._animals = animals
@@ -346,33 +335,22 @@ class Board:
     def empty_tiles_count(self) -> int:
         return len(self._empty_unlocked)
 
-    def get_tile(self, x: int, y: int) -> Tile | None:
-        if 0 <= x < self.size and 0 <= y < self.size:
-            return self._tiles[y * self.size + x]
-        return None
-
-    def all_tiles(self) -> tuple[Tile, ...]:
-        return self._tiles
-
-    def empty_tiles(self, only_unlocked: bool = True) -> list[Tile]:
-        return self._empty_unlocked if only_unlocked else self._all_empty
-
-    def tiles(self) -> list[Tile]:
-        return self._tiles
-
     def tile(self, x: int, y: int) -> Tile | None:
         if 0 <= x < 10 and 0 <= y < 10:
             return self._tiles[y * 10 + x]
         return None
 
-    def plants(self) -> list[Tile]:
-        return self._plants
+    def get_tile(self, x: int, y: int) -> Tile | None:
+        return self.tile(x, y)
+
+    def all_tiles(self) -> tuple[Tile, ...]:
+        return self._tiles
+
+    def empty_tiles(self, only_unlocked: bool = True) -> list[Tile]:
+        return self._empty_unlocked
 
     def weeds(self, only_unlocked: bool = True) -> list[Tile]:
-        return self._weeds_unlocked if only_unlocked else self._all_weeds
-
-    def crops(self, crop: str) -> list[Tile]:
-        return [t for t in self._plants if t.crop == crop]
+        return self._weeds_unlocked
 
     def harvestable(self, crop: str | None = None) -> list[Tile]:
         if crop is None:
@@ -401,7 +379,7 @@ class Board:
         tiles: Iterable[Tile],
         exclude_pos: tuple[int, int] | None = None,
     ) -> Tile | None:
-        best = None
+        best: Tile | None = None
         best_dist = 10**9
         for tile in tiles:
             if exclude_pos and tile.pos == exclude_pos:
@@ -412,20 +390,11 @@ class Board:
                 best = tile
         return best
 
-    def nearest(self, tiles: Iterable[Tile]) -> Tile | None:
-        return self.nearest_to(self.state.x, self.state.y, tiles)
-
-    def nearest_other(self, tiles: Iterable[Tile]) -> Tile | None:
-        return self.nearest_to(
-            self.state.x, self.state.y, tiles, exclude_pos=self.state.farmer
-        )
-
     def nearest_shed(self, x: int, y: int) -> tuple[int, int]:
         """Return nearest shed interaction coordinate, preferring unlocked quadrants."""
-        shed_candidates = [(4, 4), (5, 4), (4, 5), (5, 5)]
         best = (4, 4)
         best_dist = 10**9
-        for sx, sy in shed_candidates:
+        for sx, sy in SHED_ACCESS_TILES:
             if self.state.is_tile_unlocked(sx, sy) or (sx, sy) == (4, 4):
                 d = abs(sx - x) + abs(sy - y)
                 if d < best_dist:

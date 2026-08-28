@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-__all__ = ["GameState"]
+__all__ = ["SHED_ADJACENT_TILES", "GameState"]
+
+SHED_ADJACENT_TILES: frozenset[tuple[int, int]] = frozenset(
+    ((4, 4), (4, 5), (5, 4), (5, 5))
+)
 
 
 @dataclass(slots=True)
@@ -20,7 +24,7 @@ class GameState:
     prices: dict[str, int]
     shed: dict[str, int]
     seeds: dict[str, int]
-    tiles: list[list[Any]]
+    tiles: list[list[dict[str, Any] | None]]
     farmer: tuple[int, int]
     hands: list[list[int]]
     hires_today: int
@@ -30,11 +34,11 @@ class GameState:
 
     @classmethod
     def from_obs(cls, obs: dict[str, Any]) -> GameState:
-        player = obs["player"]
-        farm = obs["farms"][player]
-        private = obs.get("private", {}) or {}
-        market = obs.get("market", {}) or {}
-        unlocked = farm.get("unlocked_quadrants", ["NW"])
+        player: int = obs["player"]
+        farm: dict[str, Any] = obs["farms"][player]
+        private: dict[str, Any] = obs.get("private") or {}
+        market: dict[str, Any] = obs.get("market") or {}
+        unlocked: list[str] = farm.get("unlocked_quadrants", ["NW"])
         farmer_raw = farm.get("farmer", (0, 0))
 
         return cls(
@@ -59,21 +63,6 @@ class GameState:
             unlocked_quadrants_set=frozenset(unlocked),
         )
 
-    @property
-    def x(self) -> int:
-        return self.farmer[0]
-
-    @property
-    def y(self) -> int:
-        return self.farmer[1]
-
-    @property
-    def current_tile(self) -> Any:
-        return self.tiles[self.farmer[1]][self.farmer[0]]
-
-    def is_quadrant_unlocked(self, quadrant: str) -> bool:
-        return quadrant in self.unlocked_quadrants_set
-
     def is_tile_unlocked(self, x: int, y: int) -> bool:
         if x < 5 and y < 5:
             return "NW" in self.unlocked_quadrants_set
@@ -93,16 +82,13 @@ class GameState:
         return self.seeds.get(crop, 0)
 
     def has_seed(self, crop: str) -> bool:
-        return self.seed_count(crop) > 0
+        return self.seeds.get(crop, 0) > 0
 
     def can_afford(self, amount: int) -> bool:
         return self.money >= amount
 
-    def has_fertilizer(self) -> bool:
-        return self.inventory("fertilizer") > 0
-
     def worker_inventory(self, idx: int = 0) -> dict[str, int]:
-        invs = self.private.get("inventories", [])
+        invs = self.private.get("inventories")
         if (
             isinstance(invs, list)
             and idx < len(invs)
@@ -112,4 +98,4 @@ class GameState:
         return {}
 
     def is_shed_adjacent(self, x: int, y: int) -> bool:
-        return (x, y) in {(4, 4), (4, 5), (5, 4), (5, 5)}
+        return (x, y) in SHED_ADJACENT_TILES

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from actions import Action
 from board import step_toward
 
 if TYPE_CHECKING:
@@ -174,7 +173,7 @@ def _build_market_orders(
     ]
 
 
-def explosion(state: GameState, board: Board) -> Action:
+def explosion(state: GameState, board: Board) -> dict[str, Any]:
     """Final 8-turn liquidation controller (turns 712-719)."""
     turns_left = max(1, 720 - state.step)
     targets = _collect_harvest_targets(state, board)
@@ -201,4 +200,4 @@ def explosion(state: GameState, board: Board) -> Action:
     ]
 
     market_orders = _build_market_orders(state, pending_deposits)
-    return Action(farmer=acts[0], hands=acts[1:], market=market_orders)
+    return {"farmer": acts[0], "hands": acts[1:], "market": market_orders}

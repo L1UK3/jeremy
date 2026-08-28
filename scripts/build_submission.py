@@ -24,11 +24,11 @@ OUTPUT = ROOT / ".out" / "submission.py"
 OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
-    "actions.py",
     "board.py",
     "controller.py",
     "economy.py",
     "evaluators.py",
+    "expansion.py",
     "explosion.py",
     "main.py",
     "market.py",
@@ -40,16 +40,17 @@ FILES = [
 MODULES = [
     "state.py",
     "board.py",
-    "actions.py",
     "economy.py",
     "market.py",
     "opening.py",
+    "expansion.py",
     "scheduler.py",
     "controller.py",
     "evaluators.py",
     "explosion.py",
     "main.py",
 ]
+
 
 HEADER = """\
 # ==========================================================

@@ -85,12 +85,12 @@ OPENING_TRACE: dict[int, dict] = {
         "market": [],
     },
     8: {
-        "farmer": ["BUILD_PASTURE"],
+        "farmer": ["PLANT", "WHEAT"],
         "hands": [["WEST"], ["PLANT", "MELON"], ["PASS"], ["WEST"], ["WEST"]],
         "market": [],
     },
     9: {
-        "farmer": ["WEST"],
+        "farmer": ["WATER"],
         "hands": [
             ["PLANT", "WHEAT"],
             ["WATER"],
