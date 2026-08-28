@@ -5,17 +5,17 @@ from typing import Any
 from board import Board
 from controller import AgentController
 from economy import Economy
-from evaluators import (
-    evaluate_expansion,
-    evaluate_livestock,
-    evaluate_market,
-)
-from expansion import EXPANSION_TRACE
-from explosion import explosion
 from market import Market
-from opening import OPENING_TRACE
 from scheduler import Scheduler
 from state import GameState
+from v1.evaluate_expansion import evaluate_expansion
+from v1.evaluate_livestock import evaluate_livestock
+from v1.evaluate_market import (
+    evaluate_market,
+)
+from v2.expansion import EXPANSION_TRACE
+from v2.opening import OPENING_TRACE
+from v3.explosion import explosion
 
 __all__ = ["agent"]
 
