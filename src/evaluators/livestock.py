@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from board import Board, step_toward
 from state import GameState
+
+__all__ = ["BYPRODUCTS", "evaluate_livestock"]
 
 BYPRODUCTS: tuple[str, ...] = ("FERTILIZER", "MILK", "WOOL", "EGG")
 
