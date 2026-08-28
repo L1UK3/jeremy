@@ -19,7 +19,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src" / "v1"
+SRC_DIR = ROOT / "src"
 OUTPUT = ROOT / ".out" / "submission.py"
 OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
@@ -27,14 +27,19 @@ FILES = [
     "board.py",
     "controller.py",
     "economy.py",
-    "evaluators.py",
-    "expansion.py",
-    "explosion.py",
+    "evaluators/__init__.py",
+    "evaluators/expansion.py",
+    "evaluators/livestock.py",
+    "evaluators/market.py",
     "main.py",
     "market.py",
-    "opening.py",
+    "routes/__init__.py",
+    "routes/expansion.py",
+    "routes/opening.py",
     "scheduler.py",
     "state.py",
+    "strategies/__init__.py",
+    "strategies/explosion.py",
 ]
 
 MODULES = [
@@ -42,12 +47,14 @@ MODULES = [
     "board.py",
     "economy.py",
     "market.py",
-    "opening.py",
-    "expansion.py",
+    "routes/opening.py",
+    "routes/expansion.py",
     "scheduler.py",
     "controller.py",
-    "evaluators.py",
-    "explosion.py",
+    "evaluators/livestock.py",
+    "evaluators/expansion.py",
+    "evaluators/market.py",
+    "strategies/explosion.py",
     "main.py",
 ]
 
@@ -60,14 +67,20 @@ HEADER = """\
 # ==========================================================
 """
 
-INTERNAL_PACKAGES = {"src", "v1", "main"}
-INTERNAL_MODULES = {Path(m).stem for m in MODULES} | INTERNAL_PACKAGES
+INTERNAL_PACKAGES = {"src", "v1", "main", "evaluators", "routes", "strategies"}
+INTERNAL_MODULES = (
+    {Path(m).stem for m in MODULES}
+    | {m.replace("/", ".").removesuffix(".py") for m in MODULES}
+    | INTERNAL_PACKAGES
+)
 
 
 def is_internal_import(module_name: str) -> bool:
     """Check if an imported module belongs to internal agent/environment code."""
     root_pkg = module_name.split(".")[0].strip()
-    return root_pkg in INTERNAL_MODULES
+    return (
+        root_pkg in INTERNAL_MODULES or module_name.strip() in INTERNAL_MODULES
+    )
 
 
 def clean_source(
