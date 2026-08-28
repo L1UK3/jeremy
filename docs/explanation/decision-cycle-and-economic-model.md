@@ -15,7 +15,9 @@ Day 0, Hour 0         Day 0, Hour 23        Day 1, Hour 0         Day 29, Hour 2
 ```
 
 ### End-of-Day Processing (Hour 23)
+
 At the end of each day:
+
 1. **Water / Feed Check**: Any unwatered crop or unfed animal increments its unwatered/unfed counter. Two consecutive days without water/food results in permanent crop loss (turns to weed) or animal escape.
 2. **Growth & Production**: Crops increment age. Animals bank care bonuses or yield product.
 3. **Fertilizer Accumulation**: Surviving animals produce 1 fertilizer.
@@ -27,14 +29,17 @@ At the end of each day:
 ## 2. Action Composition & Merging
 
 Each turn, a player may submit:
+
 - **One action for the main farmer**: Movement, Tile interaction (`WATER`, `PLANT`, `HARVEST`, `FERTILIZE`, `DIG`), Shed interaction (`PICKUP`, `PLACE`, `DROP`), or `PASS`.
 - **One action per hired farmhand**: Same set of unit actions.
 - **Up to 10 market orders**: `BUY_SEED`, `BUY_PRODUCT`, `BUY_ANIMAL`, `SELL`, `BUY_LAND`, `HIRE`.
 
 ### How `ActionBuilder.merge()` Works
+
 Because unit movement and market trading operate on independent channels in the Kaggle engine, an agent can walk to water a crop while simultaneously buying seeds and selling harvested produce.
 
 `ActionBuilder.merge(*actions)` resolves candidate actions by:
+
 1. Retaining the highest-priority non-`PASS` farmer action.
 2. Concatenating all non-conflicting market orders into the `market` list.
 3. Appending all farmhand actions into the `hands` list.
@@ -65,23 +70,25 @@ $$\text{ROI} = \frac{\text{Profit}}{\max(1, \text{Growth Days})}$$
 
 ### Crop Reference Parameters
 
-| Crop | Seed Cost | Base Price | Growth Days to Peak | Peak Yield (Unfert.) | Peak Yield (Fert.) | Base Yield / Tile / Day |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Wheat** | $10 | $25 | 4 | 4 | 6 | 0.80 |
-| **Carrot** | $20 | $35 | 3 | 3 | 4 | 0.75 |
-| **Tomato** | $50 | $60 | 11 | 4 (ongoing) | 8 | 0.33 |
-| **Strawberry**| $100 | $120 | 16 | 4 (ongoing) | 8 | 0.24 |
-| **Melon** | $80 | $250 | 10 | 6 | 6 (fast) | 0.55 |
+| Crop           | Seed Cost | Base Price | Growth Days to Peak | Peak Yield (Unfert.) | Peak Yield (Fert.) | Base Yield / Tile / Day |
+| :------------- | :-------- | :--------- | :------------------ | :------------------- | :----------------- | :---------------------- |
+| **Wheat**      | $10       | $25        | 4                   | 4                    | 6                  | 0.80                    |
+| **Carrot**     | $20       | $35        | 3                   | 3                    | 4                  | 0.75                    |
+| **Tomato**     | $50       | $60        | 11                  | 4 (ongoing)          | 8                  | 0.33                    |
+| **Strawberry** | $100      | $120       | 16                  | 4 (ongoing)          | 8                  | 0.24                    |
+| **Melon**      | $80       | $250       | 10                  | 6                    | 6 (fast)           | 0.55                    |
 
 ### Bonus Watering Window
-* **One-time crops (Wheat, Carrot, Melon)**: Watering during the bonus window ($\ge \lceil \text{max\_yield\_day} / 2 \rceil$) adds $+1$ harvestable yield unit per day.
-* **Fertilization**: Doubles the bonus added per day for 3 days.
+
+- **One-time crops (Wheat, Carrot, Melon)**: Watering during the bonus window ($\ge \lceil \text{max\_yield\_day} / 2 \rceil$) adds $+1$ harvestable yield unit per day.
+- **Fertilization**: Doubles the bonus added per day for 3 days.
 
 ---
 
 ## 4. Market Pricing & Supply Elasticity
 
 Market sale prices fluctuate dynamically with global market supply $I$ relative to starting inventory $I_0$:
+
 - When market supply $I < I_0$ (scarcity), prices rise above base price.
 - When market supply $I > I_0$ (glut), prices fall toward the $1 floor.
 - Goods with steep price curves (Melon, Strawberry, Milk, Wool) experience rapid price collapse during oversupply, whereas staples (Wheat, Carrot) absorb market volume more smoothly.
@@ -101,6 +108,7 @@ flowchart LR
 ```
 
 ### Spatial Utility Function
+
 For any unit located at $(x_u, y_u)$ evaluating a task candidate $j$:
 
 $$\text{Utility}(j, u) = \text{Priority}(j) - 2.0 \times \text{ManhattanDistance}\big((x_u, y_u), \text{target}(j)\big)$$
@@ -120,7 +128,7 @@ $$\text{Eligible Crops} = \big\{ c \in \text{CROPS} \;\big|\; \text{max\_yield\_
 $$\text{Active Crop} = \arg\max_{c \in \text{Eligible Crops}} \text{ROI}(c)$$
 
 ### Horizon Strategy:
-* **Days 0–25**: Selects highest ROI compounding crops (Melon, Strawberry).
-* **Days 26–28**: Automatically pivots away from slow-maturing 4-day crops to 2-day Carrots and 1-day Wheat so late plantings mature before turn 720.
-* **Day 29**: Suppresses seed purchases entirely to maximize liquid cash and final harvest cycles.
 
+- **Days 0–25**: Selects highest ROI compounding crops (Melon, Strawberry).
+- **Days 26–28**: Automatically pivots away from slow-maturing 4-day crops to 2-day Carrots and 1-day Wheat so late plantings mature before turn 720.
+- **Day 29**: Suppresses seed purchases entirely to maximize liquid cash and final harvest cycles.

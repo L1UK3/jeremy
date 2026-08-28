@@ -7,6 +7,7 @@ This guide details how to bundle agent source files into a valid `submission.tar
 ## Submission Format Requirements
 
 Kaggle requires a `.tar.gz` archive containing:
+
 1. `main.py` at the root of the archive exposing an `agent(obs)` function.
 2. Supporting modules placed alongside `main.py` (e.g. `agent/`, `environment/`).
 3. Exclusion of byte-compiled `.pyc` and `__pycache__` directories.
@@ -22,6 +23,7 @@ python src/utils/build.py
 ```
 
 Expected output:
+
 ```
   Output Archive : D:\Projects\jeremy\submission.tar.gz
   Created        : 1723984210.0
@@ -35,11 +37,13 @@ Expected output:
 Inspect the internal directory layout of the generated tarball to verify paths are rooted correctly:
 
 ### In PowerShell
+
 ```powershell
 tar -tzf submission.tar.gz
 ```
 
 ### Expected Directory Listing
+
 ```
 main.py
 agent/
@@ -103,6 +107,7 @@ pip install kaggle
 ```
 
 Place your Kaggle API token in `~/.kaggle/access_token`:
+
 ```bash
 # Recommended on Linux/macOS
 mkdir -p ~/.kaggle
@@ -114,6 +119,7 @@ export KAGGLE_API_TOKEN="your_token_here"
 ```
 
 Verify authentication and joined competitions:
+
 ```bash
 kaggle competitions list --group entered
 ```
@@ -133,13 +139,17 @@ kaggle competitions submit kaggriculture -f submission.tar.gz -m "v1.2: Heuristi
 ## Step 6: Monitor Submissions & Debug Episodes
 
 ### 1. Check Submission Status
+
 ```bash
 kaggle competitions submissions kaggriculture
 ```
+
 Take note of your `<SUBMISSION_ID>`.
 
 ### 2. List Match Episodes
+
 View all games played by your submission on the ladder:
+
 ```bash
 # Formatted table
 kaggle competitions episodes <SUBMISSION_ID>
@@ -149,13 +159,17 @@ kaggle competitions episodes <SUBMISSION_ID> -v
 ```
 
 ### 3. Download Episode Replays
+
 Download the complete replay JSON for offline inspection or local visualizer playback:
+
 ```bash
 kaggle competitions replay <EPISODE_ID> -p ./replays
 ```
 
 ### 4. Download Execution Logs
+
 Fetch standard output / standard error logs to debug runtime exceptions or verify search decisions:
+
 ```bash
 # Logs for Player 0 (Seat 0)
 kaggle competitions logs <EPISODE_ID> 0 -p ./logs
@@ -165,6 +179,8 @@ kaggle competitions logs <EPISODE_ID> 1 -p ./logs
 ```
 
 ### 5. Check Leaderboard Standings
+
 ```bash
 kaggle competitions leaderboard kaggriculture -s
 ```
+

@@ -112,6 +112,7 @@ python run_benchmark.py
 ```
 
 Console output with real-time ETA:
+
 ```
 Simulating Matches: 60% (12/20) | ETA: 14.2s
 ```
@@ -120,7 +121,8 @@ Simulating Matches: 60% (12/20) | ETA: 14.2s
 
 ## Step 4: Interpreting Benchmark Visualizations
 
-* **Score Over Time Plot (`benchmark_timeline.png`)**:
+- **Score Over Time Plot (`benchmark_timeline.png`)**:
   Shows game-by-game bank trajectories. Stability across both even and odd episode indices indicates consistency across both Seat 0 and Seat 1.
-* **Score Distribution Histogram (`benchmark_dist.png`)**:
+- **Score Distribution Histogram (`benchmark_dist.png`)**:
   Shows variance and separation between challenger and baseline distributions. Bimodal distributions can indicate sensitivity to initial crop seeds or shop unlock draws.
+
