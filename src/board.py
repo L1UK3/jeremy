@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
@@ -11,17 +11,28 @@ if TYPE_CHECKING:
 __all__ = [
     "SHED_ACCESS_TILES",
     "Board",
+    "CropSpec",
     "Tile",
     "manhattan_distance",
     "step_toward",
 ]
 
-CROP_SPECS: dict[str, tuple[int, int, int, bool]] = {
-    crop: (
-        data.get("first_yield_day", 0),
-        data.get("max_yield_day", 0),
-        data.get("max_yield", 0),
-        bool(data.get("ongoing", False)),
+
+class CropSpec(NamedTuple):
+    """Immutable specifications for a crop's growth lifecycle."""
+
+    first_yield_day: int
+    max_yield_day: int
+    max_yield: int
+    ongoing: bool
+
+
+CROP_SPECS: dict[str, CropSpec] = {
+    crop: CropSpec(
+        first_yield_day=int(data.get("first_yield_day", 0)),
+        max_yield_day=int(data.get("max_yield_day", 0)),
+        max_yield=int(data.get("max_yield", 0)),
+        ongoing=bool(data.get("ongoing", False)),
     )
     for crop, data in CROPS.items()
 }
@@ -64,12 +75,16 @@ def step_toward(fx: int, fy: int, tx: int, ty: int) -> str:
 
 
 class Tile:
+    """Encapsulates a grid coordinate and parsed state attributes."""
+
     __slots__ = (
         "animal",
         "cared_today",
         "consecutive_unfed",
+        "consecutive_unwatered",
         "crop",
         "empty",
+        "empty_pasture",
         "fed_today",
         "fertilizer_available",
         "is_animal",
@@ -89,7 +104,7 @@ class Tile:
         self,
         x: int,
         y: int,
-        data: dict[str, Any] | None,
+        data: dict[str, Any] | str | None,
         pos: tuple[int, int] | None = None,
         quadrant: str | None = None,
     ) -> None:
@@ -110,125 +125,94 @@ class Tile:
             )
         )
 
+        # Baseline default attributes
+        self.empty = False
+        self.empty_pasture = False
+        self.kind = None
+        self.is_plant = False
+        self.is_weed = False
+        self.is_animal = False
+        self.animal = None
+        self.crop = None
+        self.watered = False
+        self.yield_units = 0
+        self.planted_day = None
+        self.fed_today = False
+        self.cared_today = False
+        self.fertilizer_available = False
+        self.consecutive_unfed = 0
+        self.consecutive_unwatered = 0
+
         if not data:
             self.empty = True
-            self.kind = None
-            self.is_plant = False
-            self.is_weed = False
-            self.is_animal = False
-            self.animal = None
-            self.crop = None
-            self.watered = False
-            self.yield_units = 0
-            self.planted_day = None
-            self.fed_today = False
-            self.cared_today = False
-            self.fertilizer_available = False
-            self.consecutive_unfed = 0
             return
 
-        self.empty = False
         if isinstance(data, dict):
             kind = data.get("kind")
             self.kind = kind
             if kind == "PLANT":
                 self.is_plant = True
-                self.is_weed = False
-                self.is_animal = False
-                self.animal = None
                 self.crop = data.get("crop")
                 self.watered = bool(data.get("watered_today", False))
                 self.yield_units = int(data.get("yield_units", 0))
                 self.planted_day = data.get("planted_day")
-                self.fed_today = False
-                self.cared_today = False
-                self.fertilizer_available = False
-                self.consecutive_unfed = 0
+                self.consecutive_unwatered = int(
+                    data.get("consecutive_unwatered", 0)
+                )
             elif kind == "WEED":
-                self.is_plant = False
                 self.is_weed = True
-                self.is_animal = False
-                self.animal = None
-                self.crop = None
-                self.watered = False
-                self.yield_units = 0
-                self.planted_day = None
-                self.fed_today = False
-                self.cared_today = False
-                self.fertilizer_available = False
-                self.consecutive_unfed = 0
             elif kind in ("PASTURE", "COOP") or "animal" in data:
                 animal_name = data.get("animal")
-                self.is_plant = False
-                self.is_weed = False
-                self.is_animal = bool(animal_name)
-                self.animal = animal_name
-                self.crop = None
-                self.watered = False
-                self.yield_units = int(data.get("yield_units", 0))
-                self.planted_day = data.get("placed_day")
-                self.fed_today = bool(data.get("fed_today", False))
-                self.cared_today = bool(data.get("cared_today", False))
-                self.fertilizer_available = bool(
-                    data.get("fertilizer_available", False)
-                )
-                self.consecutive_unfed = int(data.get("consecutive_unfed", 0))
-            else:
-                self.is_plant = False
-                self.is_weed = False
-                self.is_animal = False
-                self.animal = None
-                self.crop = None
-                self.watered = False
-                self.yield_units = 0
-                self.planted_day = None
-                self.fed_today = False
-                self.cared_today = False
-                self.fertilizer_available = False
-                self.consecutive_unfed = 0
+                if animal_name:
+                    self.is_animal = True
+                    self.animal = animal_name
+                    self.yield_units = int(data.get("yield_units", 0))
+                    self.planted_day = data.get("placed_day")
+                    self.fed_today = bool(data.get("fed_today", False))
+                    self.cared_today = bool(data.get("cared_today", False))
+                    self.fertilizer_available = bool(
+                        data.get("fertilizer_available", False)
+                    )
+                    self.consecutive_unfed = int(
+                        data.get("consecutive_unfed", 0)
+                    )
+                else:
+                    self.empty_pasture = True
         elif isinstance(data, str):
             self.kind = data
-            self.is_plant = False
             self.is_weed = data == "WEED"
-            self.is_animal = False
-            self.animal = None
-            self.crop = None
-            self.watered = False
-            self.yield_units = 0
-            self.planted_day = None
-            self.fed_today = False
-            self.cared_today = False
-            self.fertilizer_available = False
-            self.consecutive_unfed = 0
-        else:
-            self.kind = None
-            self.is_plant = False
-            self.is_weed = False
-            self.is_animal = False
-            self.animal = None
-            self.crop = None
-            self.watered = False
-            self.yield_units = 0
-            self.planted_day = None
-            self.fed_today = False
-            self.cared_today = False
-            self.fertilizer_available = False
-            self.consecutive_unfed = 0
+
+    def distance(self, x: int, y: int) -> int:
+        """Calculate Manhattan distance from this tile to coordinate (x, y)."""
+        return abs(self.x - x) + abs(self.y - y)
+
+    def age(self, current_day: int) -> int:
+        """Calculate elapsed days since planting or placement."""
+        return (
+            current_day - self.planted_day
+            if self.planted_day is not None
+            else 0
+        )
+
+    def is_unlocked(self, unlocked_quadrants: Iterable[str]) -> bool:
+        """Check if this tile resides in one of the unlocked quadrants."""
+        return self.quadrant in unlocked_quadrants
 
     def is_ripe(self, current_day: int) -> bool:
+        """Check if a plant has reached harvestable maturity or ongoing yield threshold."""
         if not (self.is_plant and self.yield_units > 0 and self.crop):
             return False
         spec = CROP_SPECS.get(self.crop)
         if spec is None:
             return False
-        age = (
-            current_day - self.planted_day
-            if self.planted_day is not None
-            else 0
-        )
-        if age < spec[0]:
+        plant_age = self.age(current_day)
+        if plant_age < spec.first_yield_day:
             return False
-        return spec[3] or self.yield_units >= spec[2] or age >= spec[1]
+        return (
+            spec.ongoing
+            or self.yield_units >= spec.max_yield
+            or plant_age >= spec.max_yield_day
+        )
 
 
 EMPTY_TILES: tuple[Tile, ...] = tuple(
@@ -238,15 +222,23 @@ EMPTY_TILES: tuple[Tile, ...] = tuple(
 
 
 class Board:
+    """Spatial grid indexer and categorized query manager for the farm board."""
+
     __slots__ = (
         "_animals",
+        "_empty_all",
+        "_empty_pastures_all",
+        "_empty_pastures_unlocked",
         "_empty_unlocked",
         "_fertilizer_available",
         "_harvestable",
         "_needs_care",
         "_needs_feed",
         "_needs_water",
+        "_needs_water_urgent",
+        "_plants",
         "_tiles",
+        "_weeds_all",
         "_weeds_unlocked",
         "size",
         "state",
@@ -259,9 +251,15 @@ class Board:
         day = state.day
 
         tiles_list: list[Tile] = []
+        empty_all: list[Tile] = []
         empty_unlocked: list[Tile] = []
+        empty_pastures_all: list[Tile] = []
+        empty_pastures_unlocked: list[Tile] = []
+        weeds_all: list[Tile] = []
         weeds_unlocked: list[Tile] = []
+        plants: list[Tile] = []
         needs_water: list[Tile] = []
+        needs_water_urgent: list[Tile] = []
         harvestable: list[Tile] = []
         animals: list[Tile] = []
         needs_feed: list[Tile] = []
@@ -274,6 +272,7 @@ class Board:
                 if cell is None and idx < 100:
                     tile = EMPTY_TILES[idx]
                     tiles_list.append(tile)
+                    empty_all.append(tile)
                     if tile.quadrant in unlocked:
                         empty_unlocked.append(tile)
                     idx += 1
@@ -300,16 +299,25 @@ class Board:
 
                 is_unl = quad in unlocked
                 if tile.empty:
+                    empty_all.append(tile)
                     if is_unl:
                         empty_unlocked.append(tile)
-                elif tile.is_plant:
-                    if not tile.watered:
-                        needs_water.append(tile)
-                    if tile.is_ripe(day):
-                        harvestable.append(tile)
+                elif tile.empty_pasture:
+                    empty_pastures_all.append(tile)
+                    if is_unl:
+                        empty_pastures_unlocked.append(tile)
                 elif tile.is_weed:
+                    weeds_all.append(tile)
                     if is_unl:
                         weeds_unlocked.append(tile)
+                elif tile.is_plant:
+                    plants.append(tile)
+                    if not tile.watered:
+                        needs_water.append(tile)
+                        if tile.consecutive_unwatered >= 1:
+                            needs_water_urgent.append(tile)
+                    if tile.is_ripe(day):
+                        harvestable.append(tile)
                 elif tile.is_animal:
                     animals.append(tile)
                     if not tile.fed_today:
@@ -322,9 +330,15 @@ class Board:
                         harvestable.append(tile)
 
         self._tiles = tuple(tiles_list)
+        self._empty_all = empty_all
         self._empty_unlocked = empty_unlocked
+        self._empty_pastures_all = empty_pastures_all
+        self._empty_pastures_unlocked = empty_pastures_unlocked
+        self._weeds_all = weeds_all
         self._weeds_unlocked = weeds_unlocked
+        self._plants = plants
         self._needs_water = needs_water
+        self._needs_water_urgent = needs_water_urgent
         self._harvestable = harvestable
         self._animals = animals
         self._needs_feed = needs_feed
@@ -333,44 +347,86 @@ class Board:
 
     @property
     def empty_tiles_count(self) -> int:
+        """Count of empty tiles on currently unlocked quadrants."""
         return len(self._empty_unlocked)
 
     def tile(self, x: int, y: int) -> Tile | None:
+        """Get Tile at coordinate (x, y) or None if out of bounds."""
         if 0 <= x < 10 and 0 <= y < 10:
             return self._tiles[y * 10 + x]
         return None
 
     def get_tile(self, x: int, y: int) -> Tile | None:
+        """Alias for tile(x, y)."""
         return self.tile(x, y)
 
     def all_tiles(self) -> tuple[Tile, ...]:
+        """Return all 100 tiles across the board."""
         return self._tiles
 
     def empty_tiles(self, only_unlocked: bool = True) -> list[Tile]:
-        return self._empty_unlocked
+        """Return empty tiles, optionally filtering to unlocked quadrants only."""
+        return self._empty_unlocked if only_unlocked else self._empty_all
+
+    def empty_pastures(self, only_unlocked: bool = True) -> list[Tile]:
+        """Return empty pasture/coop tiles awaiting animal placement."""
+        return (
+            self._empty_pastures_unlocked
+            if only_unlocked
+            else self._empty_pastures_all
+        )
 
     def weeds(self, only_unlocked: bool = True) -> list[Tile]:
-        return self._weeds_unlocked
+        """Return weed tiles, optionally filtering to unlocked quadrants only."""
+        return self._weeds_unlocked if only_unlocked else self._weeds_all
+
+    def plants(self) -> list[Tile]:
+        """Return active plant tiles."""
+        return self._plants
+
+    def crops(self, crop: str) -> list[Tile]:
+        """Return plant tiles of a specific crop."""
+        return [t for t in self._plants if t.crop == crop]
 
     def harvestable(self, crop: str | None = None) -> list[Tile]:
+        """Return mature plant tiles (and ready animal yields), optionally filtered by crop."""
         if crop is None:
             return self._harvestable
         return [t for t in self._harvestable if t.crop == crop]
 
     def needs_water(self) -> list[Tile]:
+        """Return active plant tiles that have not been watered today."""
         return self._needs_water
 
+    def needs_water_urgent(self) -> list[Tile]:
+        """Return plant tiles with consecutive_unwatered >= 1 facing imminent death."""
+        return self._needs_water_urgent
+
     def animals(self) -> list[Tile]:
+        """Return all pasture and coop tiles containing animals."""
         return self._animals
 
     def needs_feed(self) -> list[Tile]:
+        """Return animal tiles that have not been fed today."""
         return self._needs_feed
 
     def needs_care(self) -> list[Tile]:
+        """Return animal tiles that have not been cared for today."""
         return self._needs_care
 
     def has_fertilizer_tiles(self) -> list[Tile]:
+        """Return animal tiles with ready-to-collect fertilizer."""
         return self._fertilizer_available
+
+    def nearest(self, tiles: Iterable[Tile]) -> Tile | None:
+        """Return the closest tile to the farmer from a collection of tiles."""
+        fx, fy = self.state.farmer
+        return self.nearest_to(fx, fy, tiles)
+
+    def nearest_other(self, tiles: Iterable[Tile]) -> Tile | None:
+        """Return the closest tile to the farmer, excluding the farmer's current coordinate."""
+        fx, fy = self.state.farmer
+        return self.nearest_to(fx, fy, tiles, exclude_pos=(fx, fy))
 
     def nearest_to(
         self,
@@ -379,6 +435,7 @@ class Board:
         tiles: Iterable[Tile],
         exclude_pos: tuple[int, int] | None = None,
     ) -> Tile | None:
+        """Find the tile in `tiles` closest to coordinate (x, y) via Manhattan distance."""
         best: Tile | None = None
         best_dist = 10**9
         for tile in tiles:
