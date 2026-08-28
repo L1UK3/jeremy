@@ -20,30 +20,29 @@ Consult these documents in [`docs/`](docs/index.md) before designing or changing
 
 ## 2. Core Architecture & File Responsibilities
 
-| File                                                         | Role & Invariants                                                                                                                          |
-| :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| [`src/main.py`](src/main.py)                                 | **Top-level entrypoint**. Exports `def agent(obs: dict) -> dict:`. Wraps `obs` in `GameState`, executes `Planner(state).play().to_dict()`. |
-| [`src/agent/planner.py`](src/agent/planner.py)               | **Decision loop**. Evaluates market, current tile, planting, and movement. Pushes scored candidate actions into `Search`.                  |
-| [`src/agent/search.py`](src/agent/search.py)                 | **Candidate pool**. Stores `Node(score, action)`. `topk()` and `best()` prioritize actions.                                                |
-| [`src/agent/scheduler.py`](src/agent/scheduler.py)           | **Multi-unit task dispatcher**. Allocates non-overlapping spatial jobs to farmer and hired farmhands.                                      |
-| [`src/agent/opening.py`](src/agent/opening.py)               | **Opening trajectory**. Scripted action trace for Days 1–2 (Turns 1–48) extracted from top ladder replays.                                 |
-| [`src/agent/expanse.py`](src/agent/expanse.py)               | **Expansion trajectory**. Scripted action trace for Day 8 (Steps 169–192) and Day 12 (Steps 265–288).                                      |
-| [`src/environment/state.py`](src/environment/state.py)       | **State wrapper**. Typed `GameState.from_obs(obs)` dataclass for fast attribute access.                                                    |
-| [`src/environment/board.py`](src/environment/board.py)       | **Spatial grid manager**. Yields `Tile` generators (`harvestable()`, `needs_water()`, `empty_tiles()`) and Manhattan `nearest()`.          |
-| [`src/environment/economy.py`](src/environment/economy.py)   | **Financial calculator**. Calculates `crop_roi()`, `best_crop()`, and checks affordability.                                                |
-| [`src/environment/market.py`](src/environment/market.py)     | **Rolling market stats**. 20-turn price window, trend tracking, and composite `sell_score()`.                                              |
-| [`src/environment/actions.py`](src/environment/actions.py)   | **Action factory**. Static `ActionBuilder` methods and `ActionBuilder.merge()` logic.                                                      |
-| [`src/simulation/episode.py`](src/simulation/episode.py)     | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs.                                                   |
-| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles `agent/`, `environment/`, and `main.py` into root of `submission.tar.gz` and builds `submission.py`.                 |
+| File / Subpackage                                            | Role & Invariants                                                                                                              |
+| :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| [`src/main.py`](src/main.py)                                 | **Top-level entrypoint**. Exports `def agent(obs: dict) -> dict:`. Orchestrates routes, evaluators, scheduler, and strategies. |
+| [`src/state.py`](src/state.py)                               | **State wrapper**. Typed `GameState.from_obs(obs)` dataclass for fast attribute access.                                        |
+| [`src/board.py`](src/board.py)                               | **Spatial grid manager**. `Board` and `Tile` with `__slots__`, precomputed neighbor lookups, and fast spatial queries.         |
+| [`src/economy.py`](src/economy.py)                           | **Financial calculator**. Calculates `crop_roi()`, `should_expand()`, and affordable hiring counts.                            |
+| [`src/market.py`](src/market.py)                             | **Rolling market stats**. Single-pass price analysis and composite `sell_score()`.                                             |
+| [`src/scheduler.py`](src/scheduler.py)                       | **Multi-unit task dispatcher**. Allocates spatial crop and chore jobs to farmer and hired farmhands.                           |
+| [`src/controller.py`](src/controller.py)                     | **Lifecycle controller**. Manages phase transitions, crop selection, and quadrant expansion staging.                           |
+| [`src/evaluators/`](src/evaluators/)                         | **Evaluator subpackage**. Evaluates livestock feeding/care, market trades, and quadrant expansions.                            |
+| [`src/routes/`](src/routes/)                                 | **Scripted trajectories**. Replay-extracted traces for early-game opening and quadrant expansions.                             |
+| [`src/strategies/`](src/strategies/)                         | **End-game liquidation**. Fast harvest and market liquidation pipeline for Days 29–30.                                         |
+| [`simulation/episode.py`](simulation/episode.py)             | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs.                                       |
+| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles modular `src/` tree into `.out/submission.py` and `.out/submission.tar.gz`.                              |
 
 ---
 
 ## 3. Mandatory Agent Rules & Constraints
 
-1. **Never write raw action dictionaries**: Always use [`ActionBuilder`](docs/reference/environment-api.md#class-actionbuilder) static methods (`ActionBuilder.water()`, `ActionBuilder.plant(crop)`, `ActionBuilder.sell(item, n)`).
-2. **Never hardcode movements**: Use `Board.nearest()` Manhattan distance queries or scheduler task dispatch.
-3. **Action Merging**: The engine processes 1 farmer action + up to 10 market orders per turn concurrently. Use `ActionBuilder.merge(*actions)` to combine them.
-4. **Passability on Locked Tiles**: Units can walk across locked quadrants to access other areas or the shed. Only tile actions (`PLANT`, `WATER`, `DIG`, `BUILD_*`) no-op on locked tiles.
+1. **Native Action Dictionaries**: Return standard action dictionaries `{"farmer": [...], "hands": [...], "market": [...]}` directly.
+2. **Never hardcode movements in dynamic phases**: Use `step_toward()` or `Scheduler` spatial job dispatch.
+3. **Action Merging**: The engine processes 1 farmer action + up to 10 market orders per turn concurrently.
+4. **Passability on Locked Tiles**: Units can walk across locked quadrants to access other areas or the shed. Tile actions (`PLANT`, `WATER`, `DIG`, `BUILD_*`) no-op on locked tiles.
 5. **Shed Adjacency**: Shed interaction coordinates are `(4,4)`, `(5,4)`, `(4,5)`, and `(5,5)` on the $10 \times 10$ board.
 6. **No bytecode in packages**: `build_submission.py` excludes all `__pycache__` and `.pyc` files.
 
