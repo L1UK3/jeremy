@@ -98,6 +98,24 @@ class Economy:
     # FARMHAND HIRING
     # ----------------------------
 
+    def max_daily_hires(self) -> int:
+        """Dynamically scale daily worker limit based on day, unlocked quadrants and capital."""
+        day = self.state.day
+        money = self.state.money
+        quadrants = len(self.state.unlocked_quadrants_set)
+
+        if day >= 28:
+            return 5
+        if day < 6:
+            return 4 if money < 100 else 6
+        if money >= 5000:
+            return 14
+        if money >= 1200:
+            return 8 + (quadrants * 2)
+        if money >= 400:
+            return 6 + quadrants
+        return 4
+
     def hire_cost(self) -> int:
         idx = self.state.hires_today
         if idx < len(FIBONACCI):
@@ -105,10 +123,17 @@ class Economy:
         return 55
 
     def affordable_hires(
-        self, max_hires_per_day: int = 3, max_budget: float | None = None
+        self,
+        max_hires_per_day: int | None = None,
+        max_budget: float | None = None,
     ) -> int:
+        limit = (
+            self.max_daily_hires()
+            if max_hires_per_day is None
+            else max_hires_per_day
+        )
         hires_today = self.state.hires_today
-        hires_remaining = max(0, max_hires_per_day - hires_today)
+        hires_remaining = max(0, limit - hires_today)
         if hires_remaining == 0:
             return 0
         budget = (
