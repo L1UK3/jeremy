@@ -18,6 +18,7 @@ __all__ = [
     "HARVEST_BASE",
     "PLANT_BASE",
     "WATER",
+    "WATER_URGENT",
     "Job",
     "Scheduler",
     "default_utility_scorer",
@@ -28,14 +29,15 @@ __all__ = [
 # Score Calibration Constants
 # -------------------------------------------------------------------------
 
-FEED_URGENT: float = 1000.0
-FEED: float = 500.0
-CARE: float = 500.0
+FEED_URGENT: float = 350.0
+WATER_URGENT: float = 300.0
+FEED: float = 200.0
+CARE: float = 180.0
 HARVEST_BASE: float = 150.0
+DIG_WEED: float = 140.0
 WATER: float = 120.0
 PLANT_BASE: float = 75.0
 COLLECT_FERTILIZER: float = 65.0
-DIG_WEED: float = 60.0
 
 ANIMAL_PRODUCT: dict[str, str] = {
     "COW": "MILK",
@@ -107,7 +109,8 @@ class Scheduler:
                 jobs.append(Job(val, "HARVEST", tile.pos, item=tile.crop))
 
         for tile in board.needs_water():
-            jobs.append(Job(WATER, "WATER", tile.pos))
+            prio = WATER_URGENT if tile.consecutive_unwatered >= 1 else WATER
+            jobs.append(Job(prio, "WATER", tile.pos))
 
         for tile in board.weeds(only_unlocked=True):
             jobs.append(Job(DIG_WEED, "DIG", tile.pos))
@@ -115,11 +118,13 @@ class Scheduler:
         wheat_stock = self.state.inventory("WHEAT")
         if wheat_stock > 0:
             for tile in board.needs_feed()[:wheat_stock]:
-                prio = FEED_URGENT if tile.consecutive_unfed >= 1 else FEED
-                jobs.append(Job(prio, "FEED", tile.pos, item=tile.animal))
+                if not tile.fed_today:
+                    prio = FEED_URGENT if tile.consecutive_unfed >= 1 else FEED
+                    jobs.append(Job(prio, "FEED", tile.pos, item=tile.animal))
 
         for tile in board.needs_care():
-            jobs.append(Job(CARE, "CARE", tile.pos, item=tile.animal))
+            if not tile.cared_today:
+                jobs.append(Job(CARE, "CARE", tile.pos, item=tile.animal))
 
         for tile in board.has_fertilizer_tiles():
             jobs.append(
