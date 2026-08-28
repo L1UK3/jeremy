@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from environment.board import step_toward
+from src.v0.environment.board import step_toward
 
 if TYPE_CHECKING:
-    from agent.planner import Planner
+    from src.v0.agent.planner import Planner
 
 
 def manage_livestock(

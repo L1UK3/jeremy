@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from agent import evaluators, expansion, jobs, scores
-from agent.config import DEFAULT_CONFIG, AgentConfig
-from agent.evaluators import evaluate_expansion, evaluate_market
-from agent.expansion import EXPANSION_TRACE
-from agent.jobs import (
+from src.v0.agent import evaluators, expansion, jobs, scores
+from src.v0.agent.config import DEFAULT_CONFIG, AgentConfig
+from src.v0.agent.evaluators import evaluate_expansion, evaluate_market
+from src.v0.agent.expansion import EXPANSION_TRACE
+from src.v0.agent.jobs import (
     harvest_jobs,
     plant_jobs,
     schedule_jobs,
     water_jobs,
     weed_jobs,
 )
-from agent.opening import OPENING_TRACE
-from agent.planner import Planner
-from agent.scheduler import Job, Scheduler
-from agent.scores import (
+from src.v0.agent.opening import OPENING_TRACE
+from src.v0.agent.planner import Planner
+from src.v0.agent.scheduler import Job, Scheduler
+from src.v0.agent.scores import (
     BUY_LAND,
     BUY_SEED,
     DIG_WEED,
@@ -29,7 +29,7 @@ from agent.scores import (
     SELL,
     WATER,
 )
-from agent.search import Node, Search
+from src.v0.agent.search import Node, Search
 
 __all__ = [
     "BUY_LAND",

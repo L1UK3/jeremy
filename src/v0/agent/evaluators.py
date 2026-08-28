@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agent.scores import BUY_FEED, BUY_LAND, BUY_SEED, HIRE_HAND, SELL
-from environment.actions import Action, ActionBuilder
+from src.v0.agent.scores import BUY_FEED, BUY_LAND, BUY_SEED, HIRE_HAND, SELL
+from src.v0.environment.actions import Action, ActionBuilder
 
 if TYPE_CHECKING:
-    from agent.planner import Planner
+    from src.v0.agent.planner import Planner
 
 __all__ = ["evaluate_expansion", "evaluate_market"]
 
@@ -101,13 +101,21 @@ def evaluate_market(planner: Planner) -> None:
 
 def evaluate_expansion(planner: Planner) -> None:
     """Evaluate purchasing adjacent land quadrants."""
-    if not planner.config.expand_land or planner.state.day < 13:
+    if not planner.config.expand_land:
         return
 
-    if (
-        len(planner.state.unlocked_quadrants_set)
-        >= planner.config.max_quadrants
-    ):
+    num_unlocked = len(planner.state.unlocked_quadrants_set)
+
+    if num_unlocked == 1:
+        if planner.state.day < 8:
+            return
+    elif num_unlocked == 2:
+        if planner.state.day < 22:
+            return
+    else:
+        return
+
+    if num_unlocked >= planner.config.max_quadrants:
         return
 
     if not planner.eco.should_expand():

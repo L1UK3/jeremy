@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent.planner import Planner
-from environment.state import GameState
+from src.v0.agent.planner import Planner
+from src.v0.environment.state import GameState
 
 __all__ = ["agent"]
 

@@ -19,36 +19,37 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
+SRC_DIR = ROOT / "src" / "v1"
 OUTPUT = ROOT / ".out" / "submission.py"
 OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
-    "agent",
-    "environment",
+    "actions.py",
+    "board.py",
+    "controller.py",
+    "economy.py",
+    "evaluators.py",
+    "explosion.py",
     "main.py",
+    "market.py",
+    "opening.py",
+    "scheduler.py",
+    "state.py",
 ]
-
 
 MODULES = [
-    "environment/state.py",
-    "environment/board.py",
-    "environment/actions.py",
-    "environment/economy.py",
-    "environment/market.py",
-    "agent/config.py",
-    "agent/scores.py",
-    "agent/search.py",
-    "agent/evaluators.py",
-    "agent/scheduler.py",
-    "agent/jobs.py",
-    "agent/opening.py",
-    "agent/planner.py",
-    "agent/expansion.py",
-    "agent/manage_livestock.py",
+    "state.py",
+    "board.py",
+    "actions.py",
+    "economy.py",
+    "market.py",
+    "opening.py",
+    "scheduler.py",
+    "controller.py",
+    "evaluators.py",
+    "explosion.py",
     "main.py",
 ]
-
 
 HEADER = """\
 # ==========================================================
@@ -58,7 +59,7 @@ HEADER = """\
 # ==========================================================
 """
 
-INTERNAL_PACKAGES = {"agent", "environment", "src", "main"}
+INTERNAL_PACKAGES = {"src", "v1", "main"}
 INTERNAL_MODULES = {Path(m).stem for m in MODULES} | INTERNAL_PACKAGES
 
 
