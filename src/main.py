@@ -1,62 +1,126 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from board import Board
-from controller import AgentController
 from economy import Economy
-from evaluators.expansion import evaluate_expansion
-from evaluators.livestock import evaluate_livestock
-from evaluators.market import (
+from evaluators import (
+    evaluate_expansion,
+    evaluate_livestock,
     evaluate_market,
 )
+from explosion import explosion
 from market import Market
-from routes.expansion import EXPANSION_TRACE
-from routes.opening import OPENING_TRACE
 from scheduler import Scheduler
 from state import GameState
-from strategies.explosion import explosion
 
-__all__ = ["agent"]
+__all__ = [
+    "ROUTES",
+    "agent",
+    "expansion_agent",
+    "explosion_agent",
+    "main_agent",
+    "opening_agent",
+]
 
-CONTROLLER = AgentController()
+
+def _load_routes() -> dict[int, dict]:
+    candidates = []
+    if "__file__" in globals():
+        candidates.append(Path(__file__).resolve().parent / "routes.json")
+    candidates.extend(
+        [
+            Path("src/routes.json"),
+            Path("routes.json"),
+            Path(".out/routes.json"),
+        ]
+    )
+    for path in candidates:
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                raw = json.load(f)
+            return {int(k): v for k, v in raw.items()}
+    return {}
 
 
-def agent(obs: dict[str, Any]) -> dict[str, Any]:
-    """Main agent callback for Kaggriculture."""
-    state = GameState.from_obs(obs)
-    board = Board(state)
-    eco = Economy(state)
-    market = Market(state)
-    scheduler = Scheduler(state)
+ROUTES: dict[int, dict] = _load_routes()
 
+
+def opening_agent(
+    obs: dict[str, Any],
+    state: GameState | None = None,
+) -> dict[str, Any]:
+    """Opening phase agent (turns 0-23) executing scripted high-yield trajectories."""
+    if state is None:
+        state = GameState.from_obs(obs)
     step = state.step
-
-    # turns 0-23
-    if step in OPENING_TRACE:
-        act = OPENING_TRACE[step]
+    if step in ROUTES:
+        act = ROUTES[step]
         return {
             "farmer": act.get("farmer", ["PASS"]),
             "hands": act.get("hands", []),
             "market": act.get("market", []),
         }
+    return main_agent(obs, state=state)
 
-    if step in EXPANSION_TRACE:
-        act = EXPANSION_TRACE[step]
+
+def expansion_agent(
+    obs: dict[str, Any],
+    state: GameState | None = None,
+) -> dict[str, Any]:
+    """Expansion phase agent executing quadrant expansion trajectories."""
+    if state is None:
+        state = GameState.from_obs(obs)
+    step = state.step
+    if step in ROUTES:
+        act = ROUTES[step]
         return {
             "farmer": act.get("farmer", ["PASS"]),
             "hands": act.get("hands", []),
             "market": act.get("market", []),
         }
+    return main_agent(obs, state=state)
 
-    # turns 712-719
-    if step >= 712:
-        return explosion(state, board)
 
-    crop = CONTROLLER.get_crop(eco)
-    market_orders = evaluate_market(state, board, eco, market, CONTROLLER, crop)
+def explosion_agent(
+    obs: dict[str, Any],
+    state: GameState | None = None,
+    board: Board | None = None,
+) -> dict[str, Any]:
+    """Final 8-turn liquidation agent (turns 712-719)."""
+    if state is None:
+        state = GameState.from_obs(obs)
+    if board is None:
+        board = Board(state)
+    return explosion(state, board)
 
-    if expansion_order := evaluate_expansion(state, eco, CONTROLLER):
+
+def main_agent(
+    obs: dict[str, Any],
+    state: GameState | None = None,
+    board: Board | None = None,
+    eco: Economy | None = None,
+    market: Market | None = None,
+    scheduler: Scheduler | None = None,
+) -> dict[str, Any]:
+    """Dynamic mid-game agent managing crops, livestock, market, and scheduling."""
+    if state is None:
+        state = GameState.from_obs(obs)
+    if board is None:
+        board = Board(state)
+    if eco is None:
+        eco = Economy(state)
+    if market is None:
+        market = Market(state)
+    if scheduler is None:
+        scheduler = Scheduler(state)
+
+    crop = eco.best_crop()
+    market_orders = evaluate_market(state, board, eco, market, crop)
+
+    if expansion_order := evaluate_expansion(state, eco):
         if len(market_orders) < 10:
             market_orders.append(expansion_order)
 
@@ -86,3 +150,24 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         "hands": hands_acts,
         "market": market_orders,
     }
+
+
+def agent(obs: dict[str, Any]) -> dict[str, Any]:
+    """Agent wrapper routing turns to specialized phase agents."""
+    state = GameState.from_obs(obs)
+    step = state.step
+
+    # Opening phase (turns 0-23)
+    if step < 24:
+        return opening_agent(obs, state=state)
+
+    # Endgame liquidation (turns 712-719)
+    if step >= 712:
+        return explosion_agent(obs, state=state)
+
+    # Scripted expansion phases (turns 169-192, 265-288)
+    if step in ROUTES:
+        return expansion_agent(obs, state=state)
+
+    # Dynamic mid-game operations
+    return main_agent(obs, state=state)
