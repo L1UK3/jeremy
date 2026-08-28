@@ -31,6 +31,7 @@ FILES = [
     "main.py",
     "market.py",
     "routes.json",
+    "routes.json",
     "scheduler.py",
     "state.py",
 ]
@@ -156,6 +157,32 @@ def format_with_ruff(file_path: Path) -> None:
     print("  Formatted with ruff")
 
 
+def submit_to_kaggle(submission_path: Path) -> None:
+    """Submit the generated submission.py to Kaggle."""
+    if not shutil.which("kaggle"):
+        print("Kaggle CLI not found. Please install it to submit.")
+        return
+
+    cmd = [
+        "kaggle",
+        "competitions",
+        "submit",
+        "-c",
+        "kaggriculture",
+        "-f",
+        str(submission_path),
+        "-m",
+        "Automated submission from build_submission.py",
+    ]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        print("  Submission successful!")
+    else:
+        print("  Submission failed:")
+        print(f"  Error: {result.stderr}")
+
+
 def build_submission() -> Path:
     """Combine modular source files into a single standalone submission.py."""
     all_from_imports: dict[str, set[str]] = {}
@@ -234,10 +261,23 @@ if __name__ == "__main__":
         action="store_true",
         help="Bundle agent source files into submission.tar.gz",
     )
+    args.add_argument(
+        "--submit",
+        action="store_true",
+        help="Submit the generated submission.py to Kaggle",
+    )
 
     parsed_args = args.parse_args()
 
-    if parsed_args.build:
+    if parsed_args.submit and parsed_args.build:
+        submission_path = build_submission()
+        submit_to_kaggle(submission_path)
+    elif parsed_args.build:
         build_submission()
-    if parsed_args.bundle:
+    elif parsed_args.bundle:
         bundle_submission()
+    elif parsed_args.submit:
+        print("Submitting to Kaggle requires --build to be specified.")
+        print("Please run with --build first to generate submission.py.")
+    elif not (parsed_args.build or parsed_args.bundle or parsed_args.submit):
+        print("No action specified. Use --build, --bundle, or --submit.")
