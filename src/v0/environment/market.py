@@ -4,7 +4,7 @@ from collections import deque
 from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
-    from environment.state import GameState
+    from src.v0.environment.state import GameState
 
 __all__ = ["Market"]
 

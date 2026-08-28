@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 if TYPE_CHECKING:
-    from environment.state import GameState
+    from state import GameState
 
 __all__ = ["Economy"]
 
@@ -117,7 +117,9 @@ class Economy:
         cost = self.expansion_cost()
         if cost is None:
             return False
-        return self.state.money >= (cost + 300)
+        num_unlocked = len(self.state.unlocked_quadrants_set)
+        buffer = 1000 if num_unlocked >= 2 else 300
+        return self.state.money >= (cost + buffer)
 
     # ----------------------------
     # FARMHAND

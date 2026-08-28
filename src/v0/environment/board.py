@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 if TYPE_CHECKING:
-    from environment.state import GameState
+    from src.v0.environment.state import GameState
 
 __all__ = ["Board", "Tile", "manhattan_distance", "step_toward"]
 

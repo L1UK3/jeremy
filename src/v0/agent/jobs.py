@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agent.scheduler import Job
-from agent.scores import (
+from src.v0.agent.scheduler import Job
+from src.v0.agent.scores import (
     CARE,
     COLLECT_FERTILIZER,
     DIG_WEED,
@@ -15,7 +15,7 @@ from agent.scores import (
 )
 
 if TYPE_CHECKING:
-    from agent.planner import Planner
+    from src.v0.agent.planner import Planner
 
 __all__ = [
     "care_jobs",

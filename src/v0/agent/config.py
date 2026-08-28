@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from environment.economy import Economy
-    from environment.state import GameState
+    from src.v0.environment.economy import Economy
+    from src.v0.environment.state import GameState
 
 __all__ = ["DEFAULT_CONFIG", "AgentConfig"]
 

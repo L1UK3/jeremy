@@ -4,10 +4,10 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from environment.board import step_toward
+from src.v0.environment.board import step_toward
 
 if TYPE_CHECKING:
-    from environment.state import GameState
+    from src.v0.environment.state import GameState
 
 __all__ = ["Job", "Scheduler", "default_utility_scorer", "job_to_action"]
 

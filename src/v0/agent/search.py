@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from environment.actions import Action
+    from src.v0.environment.actions import Action
 
 __all__ = ["Node", "Search"]
 

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from environment.actions import Action
-from environment.board import step_toward
+from src.v0.environment.actions import Action
+from src.v0.environment.board import step_toward
 
 if TYPE_CHECKING:
-    from agent.planner import Planner
-    from environment.state import GameState
+    from src.v0.agent.planner import Planner
+    from src.v0.environment.state import GameState
 
 __all__ = ["explosion"]
 
