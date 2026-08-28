@@ -10,6 +10,8 @@ from state import GameState
 
 __all__ = ["evaluate_expansion", "evaluate_livestock", "evaluate_market"]
 
+BYPRODUCTS: tuple[str, ...] = ("FERTILIZER", "MILK", "WOOL", "EGG")
+
 
 def evaluate_livestock(
     state: GameState,
@@ -25,16 +27,14 @@ def evaluate_livestock(
     fx, fy = worker_pos if worker_pos is not None else state.farmer
     inv = state.worker_inventory(worker_idx)
     carried_wheat = inv.get("WHEAT", 0)
-    has_byproducts = any(
-        inv.get(p, 0) > 0 for p in ("FERTILIZER", "MILK", "WOOL", "EGG")
-    )
+    has_byproducts = any(inv.get(p, 0) > 0 for p in BYPRODUCTS)
 
     needs_feed = board.needs_feed()
+    urgent_feed = [t for t in needs_feed if t.consecutive_unfed >= 1]
     needs_care = board.needs_care()
     needs_fert = board.has_fertilizer_tiles()
     needs_prod_harvest = [t for t in animals if t.yield_units > 0]
 
-    # If standing on an animal tile, perform available actions on that tile first
     current_tile = board.tile(fx, fy)
     if current_tile and current_tile.is_animal:
         if not current_tile.fed_today and carried_wheat > 0:
@@ -46,7 +46,6 @@ def evaluate_livestock(
         if current_tile.yield_units > 0:
             return ["HARVEST"]
 
-    # If animals need feed and we have no wheat in hand
     if needs_feed and carried_wheat == 0:
         shed_wheat = state.inventory("WHEAT")
         if shed_wheat > 0:
@@ -56,31 +55,28 @@ def evaluate_livestock(
             target_shed = board.nearest_shed(fx, fy)
             return [step_toward(fx, fy, target_shed[0], target_shed[1])]
 
-    # If carrying wheat and animals need feed, go feed nearest unfed animal
     if needs_feed and carried_wheat > 0:
-        target = board.nearest_to(fx, fy, needs_feed)
+        target = board.nearest_to(
+            fx, fy, urgent_feed if urgent_feed else needs_feed
+        )
         if target:
             return [step_toward(fx, fy, target.x, target.y)]
 
-    # If animals need care, go care for nearest
     if needs_care:
         target = board.nearest_to(fx, fy, needs_care)
         if target:
             return [step_toward(fx, fy, target.x, target.y)]
 
-    # If animals have fertilizer, go collect
     if needs_fert:
         target = board.nearest_to(fx, fy, needs_fert)
         if target:
             return [step_toward(fx, fy, target.x, target.y)]
 
-    # If animals have milk/wool ready, go harvest
     if needs_prod_harvest:
         target = board.nearest_to(fx, fy, needs_prod_harvest)
         if target:
             return [step_toward(fx, fy, target.x, target.y)]
 
-    # If all animal chores are done, but worker is carrying byproducts, deposit at shed
     if has_byproducts:
         if state.is_shed_adjacent(fx, fy):
             return ["DROP"]
@@ -138,10 +134,10 @@ def evaluate_market(
     market_orders: list[list[Any]] = []
     animals = board.animals()
 
-    # Animal Feed Purchasing
+    # Animal Feed Purchasing (Priority 1)
     if animals:
         wheat_stock = state.inventory("WHEAT")
-        needed = max(0, len(animals) * 2 - wheat_stock)
+        needed = max(0, len(animals) * 3 - wheat_stock)
         if needed > 0:
             price = max(1, state.price("WHEAT"))
             max_can_buy = min(needed, int(state.money // price))
@@ -169,12 +165,12 @@ def evaluate_market(
 
     # Produce Selling
     shed_total = sum(state.shed.values())
-    for item, count in list(state.shed.items()):
+    for item, count in state.shed.items():
         if not count or count <= 0 or item in ("seed", "fertilizer_seed"):
             continue
 
         if item == "WHEAT" and animals:
-            sellable = max(0, count - len(animals) * 2)
+            sellable = max(0, count - len(animals) * 3)
         else:
             sellable = count
 
