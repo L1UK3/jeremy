@@ -56,20 +56,24 @@ graph TB
 ## Component Responsibilities
 
 ### 1. The Environment Abstraction Layer (`src/environment`)
-* **`GameState`**: Converts Kaggle's nested dictionary observations into a typed, slot-optimized data structure. Prevents runtime key errors and redundant dictionary traversals.
-* **`Board` and `Tile`**: Provides generator-based grid filtering (`plants()`, `empty_tiles()`, `harvestable()`, `needs_water()`) and distance calculations without materializing unnecessary intermediate lists.
-* **`Economy`**: Centralizes crop parameter tables, seed prices, and ROI calculations (`crop_profit / grow_days`).
-* **`ActionBuilder`**: Enforces correct payload syntax for all 18 discrete engine actions, providing `merge()` to combine concurrent farmer moves, hand dispatches, and market orders.
+
+- **`GameState`**: Converts Kaggle's nested dictionary observations into a typed, slot-optimized data structure. Prevents runtime key errors and redundant dictionary traversals.
+- **`Board` and `Tile`**: Provides generator-based grid filtering (`plants()`, `empty_tiles()`, `harvestable()`, `needs_water()`) and distance calculations without materializing unnecessary intermediate lists.
+- **`Economy`**: Centralizes crop parameter tables, seed prices, and ROI calculations (`crop_profit / grow_days`).
+- **`ActionBuilder`**: Enforces correct payload syntax for all 18 discrete engine actions, providing `merge()` to combine concurrent farmer moves, hand dispatches, and market orders.
 
 ### 2. The Decision Layer (`src/agent`)
-* **`Planner`**: Coordinates turn evaluation, invoking domain-specific heuristic evaluators and selecting the merged action.
-* **`heuristics`**: Modular pure functions (`evaluate_farming`, `evaluate_movement`, `evaluate_market`, `evaluate_expansion`) and calibration constants in `scores.py`.
-* **`Search`**: A prioritized candidate pool. Rather than committing immediately to the first valid action, the planner registers multiple potential actions with numerical utility weights.
-* **`Scheduler`**: An extensible priority job queue for assigning non-overlapping tasks across the farmer and multiple hired hands.
+
+- **`Planner`**: Coordinates turn evaluation, invoking domain-specific heuristic evaluators and selecting the merged action.
+- **`heuristics`**: Modular pure functions (`evaluate_farming`, `evaluate_movement`, `evaluate_market`, `evaluate_expansion`) and calibration constants in `scores.py`.
+- **`Search`**: A prioritized candidate pool. Rather than committing immediately to the first valid action, the planner registers multiple potential actions with numerical utility weights.
+- **`Scheduler`**: An extensible priority job queue for assigning non-overlapping tasks across the farmer and multiple hired hands.
 
 ### 3. Simulation & Benchmarking (`src/simulation`, `src/utils`)
-* **`Episode`**: Wraps the Kaggle execution engine, executing 720-step matches between any two agents. It guarantees exact reward extraction, error status detection, and replay persistence.
-* **`utils.progress` & `utils.plot`**: Provide real-time CLI terminal progress indicators and matplotlib distributions for iterative evaluation loops.
+
+- **`Episode`**: Wraps the Kaggle execution engine, executing 720-step matches between any two agents. It guarantees exact reward extraction, error status detection, and replay persistence.
+- **`utils.progress` & `utils.plot`**: Provide real-time CLI terminal progress indicators and matplotlib distributions for iterative evaluation loops.
 
 ### 4. Archive & Data Engineering (`src/archive`)
-* Operates as an independent analytical subsystem for crawling, compressing, and extracting features from thousands of public Kaggle matches.
+
+- Operates as an independent analytical subsystem for crawling, compressing, and extracting features from thousands of public Kaggle matches.

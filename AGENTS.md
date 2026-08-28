@@ -28,10 +28,9 @@ Consult these documents in [`docs/`](docs/index.md) before designing or changing
 | [`src/economy.py`](src/economy.py)                           | **Financial calculator**. Calculates `crop_roi()`, `should_expand()`, and affordable hiring counts.                            |
 | [`src/market.py`](src/market.py)                             | **Rolling market stats**. Single-pass price analysis and composite `sell_score()`.                                             |
 | [`src/scheduler.py`](src/scheduler.py)                       | **Multi-unit task dispatcher**. Allocates spatial crop and chore jobs to farmer and hired farmhands.                           |
-| [`src/controller.py`](src/controller.py)                     | **Lifecycle controller**. Manages phase transitions, crop selection, and quadrant expansion staging.                           |
-| [`src/evaluators/`](src/evaluators/)                         | **Evaluator subpackage**. Evaluates livestock feeding/care, market trades, and quadrant expansions.                            |
-| [`src/routes/`](src/routes/)                                 | **Scripted trajectories**. Replay-extracted traces for early-game opening and quadrant expansions.                             |
-| [`src/strategies/`](src/strategies/)                         | **End-game liquidation**. Fast harvest and market liquidation pipeline for Days 29–30.                                         |
+| [`src/evaluators.py`](src/evaluators.py)                     | **Evaluator module**. Evaluates livestock feeding/care, market trades, and quadrant expansions.                                |
+| [`src/explosion.py`](src/explosion.py)                       | **End-game liquidation**. Fast harvest and market liquidation pipeline for Days 29–30.                                         |
+| [`src/routes.json`](src/routes.json)                         | **Scripted trajectories**. Replay-extracted traces for early-game opening and quadrant expansions.                             |
 | [`simulation/episode.py`](simulation/episode.py)             | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs.                                       |
 | [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles modular `src/` tree into `.out/submission.py` and `.out/submission.tar.gz`.                              |
 

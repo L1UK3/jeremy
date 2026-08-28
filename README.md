@@ -34,11 +34,7 @@ jeremy/
 │   │   ├── __init__.py         # Evaluator exports
 │   │   ├── expansion.py        # Land expansion logic (Day ≥ 8, Day ≥ 22)
 │   │   ├── livestock.py        # Animal chore routines (feed, care, fertilizer, harvest)
-│   │   └── market.py           # Market trading & seed purchasing evaluator
-│   ├── routes/                 # Subpackage: Scripted opening/expansion trajectories
-│   │   ├── __init__.py         # Trace exports
-│   │   ├── opening.py          # Day 1 scripted opening trace (turns 0–23)
-│   │   └── expansion.py        # Days 8 & 12 quadrant expansion traces
+│   ├── routes.json             # Scripted opening (turns 0–23) & expansion trajectories
 │   └── strategies/             # Subpackage: Endgame algorithms
 │       ├── __init__.py         # Strategy exports
 │       └── explosion.py        # Days 29–30 fast harvest & market liquidation pipeline

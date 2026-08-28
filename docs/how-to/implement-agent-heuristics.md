@@ -73,17 +73,17 @@ def play(self) -> Action:
 
 Candidates are ranked by `score` in [`agent.search.Search`](file:///d:/Projects/jeremy/src/agent/search.py). When scoring actions, adhere to this calibration hierarchy:
 
-| Action Type | Typical Score Range | Rationale |
-| :--- | :--- | :--- |
-| **Harvest Peak Crop** | `100 + (units * price)` | Realizing immediate revenue takes top precedence. |
-| **Dig Weed Underfoot** | `90` | Frees up productive tile immediately. |
-| **Water Thirsty Crop** | `80` | Prevents plant decay and ensures yield bonus. |
-| **Plant Seed** | `60 + ROI` | Expands productive capacity on vacant tile. |
-| **Sell Produce Order** | `50` | Concurrent market order; processed without blocking farmer move. |
-| **Buy Seed Order** | `40` | Prepares inventory for next planting cycle. |
-| **Move to Harvestable** | `40` | Closes distance to high-value harvest target. |
-| **Move to Water Target** | `30` | Closes distance to unwatered crop. |
-| **Move to Empty Tile** | `20` | Repositions farmer toward available soil. |
+| Action Type              | Typical Score Range     | Rationale                                                        |
+| :----------------------- | :---------------------- | :--------------------------------------------------------------- |
+| **Harvest Peak Crop**    | `100 + (units * price)` | Realizing immediate revenue takes top precedence.                |
+| **Dig Weed Underfoot**   | `90`                    | Frees up productive tile immediately.                            |
+| **Water Thirsty Crop**   | `80`                    | Prevents plant decay and ensures yield bonus.                    |
+| **Plant Seed**           | `60 + ROI`              | Expands productive capacity on vacant tile.                      |
+| **Sell Produce Order**   | `50`                    | Concurrent market order; processed without blocking farmer move. |
+| **Buy Seed Order**       | `40`                    | Prepares inventory for next planting cycle.                      |
+| **Move to Harvestable**  | `40`                    | Closes distance to high-value harvest target.                    |
+| **Move to Water Target** | `30`                    | Closes distance to unwatered crop.                               |
+| **Move to Empty Tile**   | `20`                    | Repositions farmer toward available soil.                        |
 
 ---
 

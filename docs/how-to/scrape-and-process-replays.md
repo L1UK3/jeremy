@@ -26,13 +26,15 @@ python scrape.py --max-new 50
 ```
 
 ### CLI Arguments
-* `--max-new N`: Maximum number of new episodes to download in this batch. Defaults to polite rate-limiting (~1 request/second).
+
+- `--max-new N`: Maximum number of new episodes to download in this batch. Defaults to polite rate-limiting (~1 request/second).
 
 ### Outputs
-* `raw/{episode_id}.json.gz`: Gzipped raw replay JSONs from Kaggle CDN.
-* `episodes.csv`: Episode metadata (timestamps, seat submission IDs, final coin balances, post-match skill ratings).
-* `agents.csv`: Per-agent match results table.
-* `state.json`: Crawler checkpoint state.
+
+- `raw/{episode_id}.json.gz`: Gzipped raw replay JSONs from Kaggle CDN.
+- `episodes.csv`: Episode metadata (timestamps, seat submission IDs, final coin balances, post-match skill ratings).
+- `agents.csv`: Per-agent match results table.
+- `state.json`: Crawler checkpoint state.
 
 ---
 
@@ -45,7 +47,8 @@ python teams.py
 ```
 
 ### Output
-* `teams.csv`: Mapping table with columns `team_id,team_name,ladder_score,last_submission`.
+
+- `teams.csv`: Mapping table with columns `team_id,team_name,ladder_score,last_submission`.
 
 ---
 
@@ -58,7 +61,8 @@ python repack.py
 ```
 
 ### Output
-* `replays.parquet`: Single consolidated dataset with columns `episode_id` (int64) and `replay_json` (string).
+
+- `replays.parquet`: Single consolidated dataset with columns `episode_id` (int64) and `replay_json` (string).
 
 ---
 
@@ -71,13 +75,14 @@ python features.py
 ```
 
 ### Extracted Features in `episode_features.csv`
-* `peak_crew`: Maximum simultaneous farmhands active in a single day.
-* `total_hires`: Cumulative farmhand hire orders successfully executed.
-* `first_land_day`: In-game day when the first quadrant expansion (`BUY_LAND`) was bought.
-* `tiles_planted`: Total crop planting actions across the season.
-* `plants_<crop>`: Total plantings broken down by crop type (`WHEAT`, `CARROT`, `TOMATO`, `STRAWBERRY`, `MELON`).
-* `price_<item>_min` / `price_<item>_max`: Market price volatility bounds observed during the match.
-* `stream_hashes.csv`: SHA-256 action hash checkpoints at turns 24, 100, 200, 400, and 719 to detect identical strategy openings.
+
+- `peak_crew`: Maximum simultaneous farmhands active in a single day.
+- `total_hires`: Cumulative farmhand hire orders successfully executed.
+- `first_land_day`: In-game day when the first quadrant expansion (`BUY_LAND`) was bought.
+- `tiles_planted`: Total crop planting actions across the season.
+- `plants_<crop>`: Total plantings broken down by crop type (`WHEAT`, `CARROT`, `TOMATO`, `STRAWBERRY`, `MELON`).
+- `price_<item>_min` / `price_<item>_max`: Market price volatility bounds observed during the match.
+- `stream_hashes.csv`: SHA-256 action hash checkpoints at turns 24, 100, 200, 400, and 719 to detect identical strategy openings.
 
 ---
 
@@ -107,3 +112,4 @@ print(
     f"Loaded Replay {sample_id} containing {len(replay_data['steps'])} turns."
 )
 ```
+

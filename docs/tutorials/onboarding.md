@@ -7,6 +7,7 @@ This tutorial guides you through setting up your local development environment, 
 ## Learning Objectives
 
 By the end of this tutorial, you will:
+
 1. Have a working Python 3.12+ environment with required simulation packages.
 2. Understand where key subsystems live inside `src/`.
 3. Run a complete 720-turn match using [`simulation.episode.Episode`](file:///d:/Projects/jeremy/src/simulation/episode.py).
@@ -102,6 +103,7 @@ python test_match.py
 ## Step 4: Verify Output, Replays, and Visualizer
 
 When the simulation completes, you should observe:
+
 1. `result.score_challenger` reflecting the coins earned by your agent at step 720.
 2. `result.status_challenger` set to `"DONE"`.
 3. A JSON file written to `replays/test_replay.json` containing the full turn-by-turn state history.
@@ -123,6 +125,8 @@ env.render(mode="ipython", width=1200, height=800)
 ## Next Steps
 
 Now that your environment is running:
+
 - Learn how to modify the decision loop in [How-To: Implement Agent Heuristics](../how-to/implement-agent-heuristics.md).
 - Learn how to run automated multi-game tournaments in [How-To: Benchmark Agents & Plot Results](../how-to/benchmark-agents-and-plot.md).
 - Review the class contracts in [Agent API Reference](../reference/agent-api.md).
+
