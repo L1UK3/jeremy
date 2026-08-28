@@ -25,21 +25,14 @@ OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
     "board.py",
-    "controller.py",
     "economy.py",
-    "evaluators/__init__.py",
-    "evaluators/expansion.py",
-    "evaluators/livestock.py",
-    "evaluators/market.py",
+    "evaluators.py",
+    "explosion.py",
     "main.py",
     "market.py",
-    "routes/__init__.py",
-    "routes/expansion.py",
-    "routes/opening.py",
+    "routes.json",
     "scheduler.py",
     "state.py",
-    "strategies/__init__.py",
-    "strategies/explosion.py",
 ]
 
 MODULES = [
@@ -47,14 +40,9 @@ MODULES = [
     "board.py",
     "economy.py",
     "market.py",
-    "routes/opening.py",
-    "routes/expansion.py",
     "scheduler.py",
-    "controller.py",
-    "evaluators/livestock.py",
-    "evaluators/expansion.py",
-    "evaluators/market.py",
-    "strategies/explosion.py",
+    "evaluators.py",
+    "explosion.py",
     "main.py",
 ]
 
@@ -67,7 +55,7 @@ HEADER = """\
 # ==========================================================
 """
 
-INTERNAL_PACKAGES = {"src", "v1", "main", "evaluators", "routes", "strategies"}
+INTERNAL_PACKAGES = {"src", "v1", "main", "evaluators", "strategies"}
 INTERNAL_MODULES = (
     {Path(m).stem for m in MODULES}
     | {m.replace("/", ".").removesuffix(".py") for m in MODULES}
@@ -204,6 +192,11 @@ def build_submission() -> Path:
             f.write(line + "\n")
 
     format_with_ruff(OUTPUT)
+
+    # Copy routes.json alongside submission.py for standalone execution
+    routes_src = SRC_DIR / "routes.json"
+    if routes_src.exists():
+        shutil.copy2(routes_src, OUTPUT.parent / "routes.json")
 
     print(f"  Output Submission : {OUTPUT}")
     print(f"  Submission Size   : {OUTPUT.stat().st_size:,} bytes")

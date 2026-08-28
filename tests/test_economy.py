@@ -1,5 +1,5 @@
-from economy import Economy
-from state import GameState
+from src.economy import Economy
+from src.state import GameState
 
 
 def test_economy_calculations():
