@@ -30,8 +30,6 @@ FILES = [
     "explosion.py",
     "main.py",
     "market.py",
-    "routes.json",
-    "routes.json",
     "scheduler.py",
     "state.py",
 ]
