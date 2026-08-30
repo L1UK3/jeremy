@@ -27,8 +27,10 @@ __all__ = [
     "schedule_tasks",
 ]
 
+# priority scores
 FEED_URGENT: float = 350.0
 WATER_URGENT: float = 300.0
+HARVEST_PREMIUM: float = 250.0
 FEED: float = 200.0
 CARE: float = 180.0
 HARVEST_BASE: float = 150.0
@@ -83,10 +85,15 @@ def generate_jobs(
     for tile in board.harvestable():
         if tile.is_animal and tile.animal:
             prod = ANIMAL_PRODUCT.get(tile.animal, tile.animal)
-            val = HARVEST_BASE + (tile.yield_units * prices.get(prod, 0))
+            val = HARVEST_PREMIUM + (tile.yield_units * prices.get(prod, 0))
             jobs.append(Job(val, "HARVEST", tile.pos, item=prod))
         elif tile.crop:
-            val = HARVEST_BASE + (tile.yield_units * prices.get(tile.crop, 0))
+            base = (
+                HARVEST_PREMIUM
+                if tile.crop in ("MELON", "CARROT")
+                else HARVEST_BASE
+            )
+            val = base + (tile.yield_units * prices.get(tile.crop, 0))
             jobs.append(Job(val, "HARVEST", tile.pos, item=tile.crop))
 
     for tile in board.needs_water():
