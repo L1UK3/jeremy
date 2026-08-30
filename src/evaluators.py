@@ -9,7 +9,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from board import Board, step_toward
-from economy import Economy
+from economy import (
+    affordable_hires,
+    next_quadrant_target,
+    should_buy_seed,
+    should_expand,
+)
 from state import GameState
 
 if TYPE_CHECKING:
@@ -46,11 +51,6 @@ HIGH_VALUE_BYPRODUCTS: tuple[str, ...] = ("MILK", "WOOL", "EGG", "FERTILIZER")
 BYPRODUCTS: tuple[str, ...] = ("FERTILIZER", "MILK", "WOOL", "EGG")
 
 
-# =============================================================================
-# 1. LAND EXPANSION EVALUATOR & STEP HELPERS
-# =============================================================================
-
-
 def is_expansion_stage_allowed(
     day: int, num_unlocked: int, money: int = 0, max_limit: int = 3
 ) -> bool:
@@ -68,7 +68,6 @@ def is_expansion_stage_allowed(
 
 def evaluate_expansion(
     state: GameState,
-    eco: Economy,
     expand_land: bool = True,
 ) -> list[str | int] | None:
     """Evaluate land expansion orders based on day, unlocked quadrants, and economy."""
@@ -80,18 +79,13 @@ def evaluate_expansion(
     if not is_expansion_stage_allowed(state.day, num_unlocked, state.money):
         return None
 
-    if not eco.should_expand():
+    if not should_expand(state):
         return None
 
-    if target := eco.next_quadrant_target():
+    if target := next_quadrant_target(state):
         return ["BUY_LAND", target[0], target[1]]
 
     return None
-
-
-# =============================================================================
-# LIVESTOCK CHORE EVALUATOR & STEP HELPERS
-# =============================================================================
 
 
 def _livestock_tile_action(
@@ -282,11 +276,6 @@ def evaluate_livestock(
     return None
 
 
-# =============================================================================
-# MARKET EVALUATOR & STEP HELPERS
-# =============================================================================
-
-
 def _evaluate_animal_purchases(
     state: GameState, board: Board, quota: int
 ) -> list[list[Any]]:
@@ -339,7 +328,6 @@ def _evaluate_feed_purchases(
 def _evaluate_farmhand_hiring(
     state: GameState,
     board: Board,
-    eco: Economy,
     quota: int,
 ) -> list[list[Any]]:
     """Evaluate farmhand hiring orders up to daily limit and budget reserves."""
@@ -358,7 +346,7 @@ def _evaluate_farmhand_hiring(
     if budget <= 0:
         return []
 
-    count = eco.affordable_hires(max_budget=budget)
+    count = affordable_hires(state, max_budget=budget)
     hire_orders: list[list[Any]] = []
     for _ in range(min(MAX_HIRES_PER_BATCH, quota, count)):
         hire_orders.append(["HIRE"])
@@ -431,7 +419,6 @@ def _evaluate_produce_selling(
 def _evaluate_seed_purchases(
     state: GameState,
     board: Board,
-    eco: Economy,
     crop: str | None,
     quota: int,
 ) -> list[list[Any]]:
@@ -441,7 +428,7 @@ def _evaluate_seed_purchases(
 
     empty_tiles = board.empty_tiles_count
     target = min(DEFAULT_SEED_TARGET, empty_tiles)
-    if eco.should_buy_seed(crop, target):
+    if should_buy_seed(state, crop, target):
         qty = target - state.seed_count(crop)
         if qty > 0:
             return [["BUY_SEED", crop, qty]]
@@ -452,7 +439,6 @@ def _evaluate_seed_purchases(
 def evaluate_market(
     state: GameState,
     board: Board,
-    eco: Economy,
     market: Market,
     crop: str | None,
 ) -> list[list[Any]]:
@@ -468,9 +454,7 @@ def evaluate_market(
         )
     )
     orders.extend(
-        _evaluate_farmhand_hiring(
-            state, board, eco, MAX_MARKET_ORDERS - len(orders)
-        )
+        _evaluate_farmhand_hiring(state, board, MAX_MARKET_ORDERS - len(orders))
     )
     orders.extend(
         _evaluate_produce_selling(
@@ -479,7 +463,7 @@ def evaluate_market(
     )
     orders.extend(
         _evaluate_seed_purchases(
-            state, board, eco, crop, MAX_MARKET_ORDERS - len(orders)
+            state, board, crop, MAX_MARKET_ORDERS - len(orders)
         )
     )
 

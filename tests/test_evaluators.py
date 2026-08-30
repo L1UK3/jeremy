@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from src.board import Board
-from src.economy import Economy
 from src.evaluators import (
     BYPRODUCTS,
     MAX_MARKET_ORDERS,
@@ -96,25 +95,22 @@ def test_is_expansion_stage_allowed():
 def test_evaluate_expansion_disabled():
     obs = _base_obs(step=200, money=5000)
     state = GameState.from_obs(obs)
-    eco = Economy(state)
 
-    assert evaluate_expansion(state, eco, expand_land=False) is None
+    assert evaluate_expansion(state, expand_land=False) is None
 
 
 def test_evaluate_expansion_day_constraints():
     # Day 5 (< 8): Cannot expand to 2nd quadrant even with sufficient funds
     obs_early = _base_obs(step=5 * 24, money=5000)
     state_early = GameState.from_obs(obs_early)
-    eco_early = Economy(state_early)
 
-    assert evaluate_expansion(state_early, eco_early) is None
+    assert evaluate_expansion(state_early) is None
 
     # Day 8 (>= 8): Can expand to 2nd quadrant (NE)
     obs_day8 = _base_obs(step=8 * 24, money=5000)
     state_day8 = GameState.from_obs(obs_day8)
-    eco_day8 = Economy(state_day8)
 
-    order = evaluate_expansion(state_day8, eco_day8)
+    order = evaluate_expansion(state_day8)
     assert order is not None
     assert order == ["BUY_LAND", 5, 0]
 
@@ -127,9 +123,8 @@ def test_evaluate_expansion_third_quadrant():
         unlocked_quadrants=["NW", "NE"],
     )
     state_mid = GameState.from_obs(obs_mid)
-    eco_mid = Economy(state_mid)
 
-    assert evaluate_expansion(state_mid, eco_mid) is None
+    assert evaluate_expansion(state_mid) is None
 
     # Day 22 (>= 22): Can expand to 3rd quadrant (SW)
     obs_day22 = _base_obs(
@@ -138,9 +133,8 @@ def test_evaluate_expansion_third_quadrant():
         unlocked_quadrants=["NW", "NE"],
     )
     state_day22 = GameState.from_obs(obs_day22)
-    eco_day22 = Economy(state_day22)
 
-    order = evaluate_expansion(state_day22, eco_day22)
+    order = evaluate_expansion(state_day22)
     assert order is not None
     assert order == ["BUY_LAND", 0, 5]
 
@@ -153,9 +147,8 @@ def test_evaluate_expansion_max_reached():
         unlocked_quadrants=["NW", "NE", "SW"],
     )
     state_full = GameState.from_obs(obs_full)
-    eco_full = Economy(state_full)
 
-    assert evaluate_expansion(state_full, eco_full) is None
+    assert evaluate_expansion(state_full) is None
 
 
 # =========================================================================
@@ -272,10 +265,9 @@ def test_evaluate_market_feed_purchasing():
     obs = _base_obs(money=2000, tiles=tiles, shed={"WHEAT": 0})
     state = GameState.from_obs(obs)
     board = Board(state)
-    eco = Economy(state)
     market = Market(state)
 
-    orders = evaluate_market(state, board, eco, market, crop="WHEAT")
+    orders = evaluate_market(state, board, market, crop="WHEAT")
     assert len(orders) <= MAX_MARKET_ORDERS
     assert any(
         order[0] == "BUY_PRODUCT" and order[1] == "WHEAT" for order in orders
@@ -289,10 +281,9 @@ def test_evaluate_market_selling_and_hiring():
     )
     state = GameState.from_obs(obs)
     board = Board(state)
-    eco = Economy(state)
     market = Market(state)
 
-    orders = evaluate_market(state, board, eco, market, crop="WHEAT")
+    orders = evaluate_market(state, board, market, crop="WHEAT")
     assert len(orders) <= MAX_MARKET_ORDERS
     # Should include sell orders for high value byproducts
     assert any(
@@ -309,10 +300,9 @@ def test_evaluate_empty_pasture_animal_flow():
     obs = _base_obs(money=2000, tiles=tiles, shed={"SHEEP": 0, "WHEAT": 10})
     state = GameState.from_obs(obs)
     board = Board(state)
-    eco = Economy(state)
     market = Market(state)
 
-    orders = evaluate_market(state, board, eco, market, crop="WHEAT")
+    orders = evaluate_market(state, board, market, crop="WHEAT")
     # Should buy animal when empty pasture exists
     assert any(order[0] == "BUY_ANIMAL" for order in orders)
 

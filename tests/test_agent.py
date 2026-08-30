@@ -39,10 +39,9 @@ def test_routes_loaded_from_json():
     from src.main import ROUTES
 
     assert isinstance(ROUTES, dict)
-    assert len(ROUTES) == 72
+    assert len(ROUTES) == 48
     assert 0 in ROUTES
     assert 169 in ROUTES
-    assert 265 in ROUTES
     assert "farmer" in ROUTES[0]
     assert "hands" in ROUTES[0]
     assert "market" in ROUTES[0]

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
 import json
+import zlib
 from typing import Any
 
 from board import Board
-from economy import Economy
+from economy import best_crop
 from evaluators import (
     evaluate_expansion,
     evaluate_livestock,
@@ -12,20 +14,17 @@ from evaluators import (
 )
 from explosion import explosion
 from market import Market
-from scheduler import Scheduler
+from scheduler import schedule_tasks
 from state import GameState
 
 __all__ = [
+    "ROUTES",
     "agent",
     "expansion_agent",
     "explosion_agent",
     "main_agent",
     "opening_agent",
 ]
-
-
-import base64
-import zlib
 
 _ROUTES: dict[int, dict] = {
     int(k): v
@@ -37,6 +36,8 @@ _ROUTES: dict[int, dict] = {
         ).decode("utf-8")
     ).items()
 }
+
+ROUTES = _ROUTES
 
 
 def opening_agent(
@@ -92,26 +93,20 @@ def main_agent(
     obs: dict[str, Any],
     state: GameState | None = None,
     board: Board | None = None,
-    eco: Economy | None = None,
     market: Market | None = None,
-    scheduler: Scheduler | None = None,
 ) -> dict[str, Any]:
     """Dynamic mid-game agent managing crops, livestock, market, and scheduling."""
     if state is None:
         state = GameState.from_obs(obs)
     if board is None:
         board = Board(state)
-    if eco is None:
-        eco = Economy(state)
     if market is None:
         market = Market(state)
-    if scheduler is None:
-        scheduler = Scheduler(state)
 
-    crop = eco.best_crop()
-    market_orders = evaluate_market(state, board, eco, market, crop)
+    crop = best_crop(state)
+    market_orders = evaluate_market(state, board, market, crop)
 
-    if expansion_order := evaluate_expansion(state, eco):
+    if expansion_order := evaluate_expansion(state):
         if len(market_orders) < 10:
             market_orders.append(expansion_order)
 
@@ -119,8 +114,7 @@ def main_agent(
         state, board, worker_idx=0, worker_pos=state.farmer
     )
 
-    scheduler.populate(board, eco, crop)
-    default_farmer_act, hands_acts = scheduler.assign()
+    default_farmer_act, hands_acts = schedule_tasks(state, board, crop)
 
     farmer_act = (
         livestock_act if livestock_act is not None else default_farmer_act
