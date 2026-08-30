@@ -15,11 +15,15 @@ __all__ = [
     "DIG_WEED",
     "FEED",
     "FEED_URGENT",
+    "FERTILIZE",
     "HARVEST_BASE",
+    "HARVEST_PREMIUM",
     "PLANT_BASE",
     "WATER",
     "WATER_URGENT",
     "Job",
+    "_harvest_actions",
+    "_plant_task",
     "assign_jobs",
     "default_utility_scorer",
     "generate_jobs",
@@ -37,6 +41,7 @@ HARVEST_BASE: float = 150.0
 DIG_WEED: float = 140.0
 WATER: float = 120.0
 PLANT_BASE: float = 75.0
+FERTILIZE: float = 70.0
 COLLECT_FERTILIZER: float = 65.0
 
 ANIMAL_PRODUCT: dict[str, str] = {
@@ -55,6 +60,16 @@ class Job(NamedTuple):
     item: str | None = None
 
 
+def _plant_task(priority: float, pos: tuple[int, int], crop: str) -> Job:
+    """Generate a planting job specification."""
+    return Job(priority=priority, action="PLANT", target=pos, item=crop)
+
+
+def _harvest_actions(watered_today: bool = True, day: int = 0) -> list[str]:
+    """Determine immediate harvest or maintenance action for a crop tile."""
+    return ["WATER"] if not watered_today and day < 29 else ["HARVEST"]
+
+
 def default_utility_scorer(
     job: Job, x: int, y: int, dist_penalty: float = 2.0
 ) -> float:
@@ -64,13 +79,28 @@ def default_utility_scorer(
     )
 
 
-def job_to_action(job: Job, x: int, y: int) -> list[str]:
+def job_to_action(
+    job: Job,
+    x: int,
+    y: int,
+    state: GameState | None = None,
+    board: Board | None = None,
+) -> list[str]:
     """Convert a job into an immediate tile action or movement step."""
     tx, ty = job.target
     if (x, y) == (tx, ty):
         act = job.action
         if act == "PLANT" and job.item:
             return ["PLANT", job.item]
+        if act == "HARVEST":
+            tile = board.tile(x, y) if board else None
+            if tile and (
+                tile.is_animal or (tile.crop and tile.yield_units >= 4)
+            ):
+                return ["HARVEST"]
+            watered = tile.watered if tile else True
+            day = state.day if state else 0
+            return _harvest_actions(watered_today=watered, day=day)
         return [act]
     return [step_toward(x, y, tx, ty)]
 
@@ -114,6 +144,16 @@ def generate_jobs(
         if not tile.cared_today:
             jobs.append(Job(CARE, "CARE", tile.pos, item=tile.animal))
 
+    fertilizer_stock = state.inventory("FERTILIZER")
+    if fertilizer_stock > 0:
+        for tile in board.plants():
+            if not getattr(tile, "fertilized", False) and not tile.is_ripe(
+                state.day
+            ):
+                jobs.append(
+                    Job(FERTILIZE, "FERTILIZE", tile.pos, item="FERTILIZER")
+                )
+
     for tile in board.has_fertilizer_tiles():
         jobs.append(
             Job(
@@ -128,13 +168,18 @@ def generate_jobs(
     if crop and state.has_seed(crop):
         priority = PLANT_BASE + crop_roi(state, crop)
         for tile in board.empty_tiles(only_unlocked=True):
-            jobs.append(Job(priority, "PLANT", tile.pos, item=crop))
+            jobs.append(_plant_task(priority, tile.pos, crop))
 
     return jobs
 
 
 def _assign_one(
-    jobs: list[Job], x: int, y: int, used: set[tuple[int, int]]
+    jobs: list[Job],
+    x: int,
+    y: int,
+    used: set[tuple[int, int]],
+    state: GameState | None = None,
+    board: Board | None = None,
 ) -> list[str]:
     best_job: Job | None = None
     best_score: float = -1e9
@@ -148,18 +193,21 @@ def _assign_one(
                 best_job = j
     if best_job is not None:
         used.add(best_job.target)
-        return job_to_action(best_job, x, y)
+        return job_to_action(best_job, x, y, state=state, board=board)
     return ["PASS"]
 
 
 def assign_jobs(
-    state: GameState, jobs: list[Job]
+    state: GameState, jobs: list[Job], board: Board | None = None
 ) -> tuple[list[str], list[list[str]]]:
     """Assign optimal, non-overlapping actions across farmer and all hands."""
     used: set[tuple[int, int]] = set()
     fx, fy = state.farmer
-    farmer_act = _assign_one(jobs, fx, fy, used)
-    hands_acts = [_assign_one(jobs, h[0], h[1], used) for h in state.hands]
+    farmer_act = _assign_one(jobs, fx, fy, used, state=state, board=board)
+    hands_acts = [
+        _assign_one(jobs, h[0], h[1], used, state=state, board=board)
+        for h in state.hands
+    ]
     return farmer_act, hands_acts
 
 
@@ -168,4 +216,4 @@ def schedule_tasks(
 ) -> tuple[list[str], list[list[str]]]:
     """Top-level pipeline generating prioritized chores and assigning tasks to units."""
     jobs = generate_jobs(state, board, target_crop=target_crop)
-    return assign_jobs(state, jobs)
+    return assign_jobs(state, jobs, board=board)
