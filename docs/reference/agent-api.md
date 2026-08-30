@@ -114,24 +114,14 @@ class Job:
 - **`job_to_action(job: Job, x: int, y: int) -> list[str]`**:
   Translates a target job into a concrete action for actor at `(x, y)`: emits the task action if standing on `job.target`, or a navigation step toward `job.target`.
 
-### `class Scheduler`
+### Functional Task Dispatch Pipeline
 
-Multi-unit task allocation queue for assigning non-overlapping spatial tasks across the main farmer and hired farmhands.
-
-```python
-class Scheduler:
-    def __init__(
-        self, state: GameState, scorer: Callable = default_utility_scorer
-    ) -> None: ...
-```
-
-#### Methods
-
-- **`add_job(action: str, x: int, y: int, priority: float, actor: str = "farmer", item: str | None = None) -> None`**: Appends a job.
-- **`extend_jobs(jobs: Sequence[Job]) -> None`**: Batch appends a sequence of jobs.
-- **`clear() -> None`**: Empties the job list.
-- **`assign() -> tuple[list[str], list[list[str]]]`**:
+- **`generate_jobs(state: GameState, board: Board, target_crop: str | None = None) -> list[Job]`**:
+  Generates a list of spatial chores and farming jobs sorted by dynamic priority.
+- **`assign_jobs(state: GameState, jobs: list[Job]) -> tuple[list[str], list[list[str]]]`**:
   Dispatches optimal, non-overlapping tasks to the farmer and all hired farmhands. Returns `(farmer_action, [hand_action_1, hand_action_2, ...])`.
+- **`schedule_tasks(state: GameState, board: Board, target_crop: str | None = None) -> tuple[list[str], list[list[str]]]`**:
+  Top-level scheduler pipeline generating prioritized chores and assigning tasks to units in a single call.
 
 ---
 

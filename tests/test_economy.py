@@ -1,4 +1,14 @@
-from src.economy import Economy
+from src.economy import (
+    affordable_hires,
+    best_crop,
+    crop_cost,
+    crop_roi,
+    expansion_cost,
+    max_daily_hires,
+    next_quadrant_target,
+    should_buy_seed,
+    should_expand,
+)
 from src.state import GameState
 
 
@@ -19,6 +29,18 @@ def test_economy_calculations():
         "private": {"shed": {}, "seeds": {}},
     }
     state = GameState.from_obs(obs)
-    eco = Economy(state)
-    assert eco.crop_roi("MELON") > 0
-    assert eco.affordable_hires(max_hires_per_day=5, max_budget=100) >= 1
+
+    # Crop evaluation
+    assert crop_cost("MELON") > 0
+    assert crop_roi(state, "MELON") > 0
+    assert best_crop(state) in ("MELON", "WHEAT", "CARROT")
+    assert should_buy_seed(state, "MELON", target_count=1) is True
+
+    # Land expansion
+    assert expansion_cost(state) == 1000
+    assert next_quadrant_target(state) == (5, 0)
+    assert should_expand(state) is True
+
+    # Farmhand hiring
+    assert max_daily_hires(state) >= 4
+    assert affordable_hires(state, max_hires_per_day=5, max_budget=100) >= 1
