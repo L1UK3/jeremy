@@ -86,6 +86,7 @@ class Tile:
         "empty",
         "empty_pasture",
         "fed_today",
+        "fertilized",
         "fertilizer_available",
         "is_animal",
         "is_plant",
@@ -135,6 +136,7 @@ class Tile:
         self.animal = None
         self.crop = None
         self.watered = False
+        self.fertilized = False
         self.yield_units = 0
         self.planted_day = None
         self.fed_today = False
@@ -154,6 +156,10 @@ class Tile:
                 self.is_plant = True
                 self.crop = data.get("crop")
                 self.watered = bool(data.get("watered_today", False))
+                self.fertilized = bool(
+                    data.get("fertilized", False)
+                    or data.get("fertilizer", False)
+                )
                 self.yield_units = int(data.get("yield_units", 0))
                 self.planted_day = data.get("planted_day")
                 self.consecutive_unwatered = int(
