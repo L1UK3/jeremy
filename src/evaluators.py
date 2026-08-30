@@ -47,7 +47,15 @@ EMERGENCY_FEED_RESERVE: int = 100
 SHED_HIGH_CAPACITY_THRESHOLD: int = 50
 EXPEDITE_LIQUIDATION_DAY: int = 26
 DEFAULT_SEED_TARGET: int = 12
-HIGH_VALUE_BYPRODUCTS: tuple[str, ...] = ("MILK", "WOOL", "EGG", "FERTILIZER")
+HIGH_VALUE_BYPRODUCTS: tuple[str, ...] = (
+    "MILK",
+    "WOOL",
+    "EGG",
+    "FERTILIZER",
+    "MELON",
+    "WHEAT",
+    "CARROT",
+)
 BYPRODUCTS: tuple[str, ...] = ("FERTILIZER", "MILK", "WOOL", "EGG")
 
 
