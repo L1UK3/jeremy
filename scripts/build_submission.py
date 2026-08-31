@@ -18,6 +18,8 @@ import subprocess
 import tarfile
 from pathlib import Path
 
+from encode_trace import encode_routes
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "src"
 OUTPUT = ROOT / ".out" / "submission.py"
@@ -28,17 +30,7 @@ FILES = [
     "src/v1",
 ]
 
-MODULES = [
-    "v1/board.py",
-    "v1/economy.py",
-    "v1/evaluators.py",
-    "v1/explosion.py",
-    "v1/market.py",
-    "v1/scheduler.py",
-    "v1/state.py",
-    "v1/main.py",
-
-]
+MODULES = ["v2/main.py"]
 
 
 HEADER = """\
@@ -49,7 +41,15 @@ HEADER = """\
 # ==========================================================
 """
 
-INTERNAL_PACKAGES = {"src", "v1", "main", "evaluators", "strategies"}
+INTERNAL_PACKAGES = {
+    "src",
+    "v1",
+    "v2",
+    "main",
+    "evaluators",
+    "strategies",
+    "trace",
+}
 INTERNAL_MODULES = (
     {Path(m).stem for m in MODULES}
     | {m.replace("/", ".").removesuffix(".py") for m in MODULES}
@@ -181,6 +181,9 @@ def build_submission() -> Path:
     all_from_imports: dict[str, set[str]] = {}
     all_direct_imports: set[str] = set()
     all_body = []
+
+    encoded_routes = encode_routes()
+    all_body.append(encoded_routes)
 
     for module_rel in MODULES:
         path = SRC_DIR / module_rel
