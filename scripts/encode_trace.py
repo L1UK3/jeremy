@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-ROUTES_PATH = ROOT / "src" / "v2" / "trace.json"
+ROUTES_PATH = ROOT / "src" / "trace.json"
 OUT_PATH = ROOT / ".out" / "routes_encoded.py"
 
 

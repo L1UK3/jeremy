@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from board import Board
     from state import GameState
 
-__all__ = ["explosion"]
+__all__ = ["SELLABLE", "explosion", "pre_terminal_liquidation"]
 
 SELLABLE: tuple[str, ...] = (
     "MELON",
@@ -171,6 +171,25 @@ def _build_market_orders(
         ["SELL", item, min(100, qty)]
         for _, item, qty in sells[:MAX_MARKET_ORDERS]
     ]
+
+
+def pre_terminal_liquidation(
+    action: dict[str, Any], state: GameState, step: int
+) -> dict[str, Any]:
+    """Safety net: monetize stranded shed inventory for steps >= 680 before final explosion."""
+    if step < 680:
+        return action
+    market = action.setdefault("market", [])
+    already = {
+        order[1]
+        for order in market
+        if isinstance(order, list) and len(order) >= 2 and order[0] == "SELL"
+    }
+    for item in SELLABLE:
+        qty = state.inventory(item)
+        if qty > 0 and item not in already and len(market) < MAX_MARKET_ORDERS:
+            market.append(["SELL", item, qty])
+    return action
 
 
 def explosion(state: GameState, board: Board) -> dict[str, Any]:

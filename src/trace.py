@@ -1,6 +1,12 @@
-import logging
-from trace import TRACE
+"""Scripted trace loader and O(1) step trajectory pre-computation."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
 from typing import Any
+
+__all__ = ["FLAT_TRACE", "PHASE_SCHEDULE", "TRACE", "get_path_action", "select_phase"]
 
 PHASE_SCHEDULE: tuple[tuple[int, int, str], ...] = (
     (0, 24, "opening"),
@@ -12,8 +18,19 @@ PHASE_SCHEDULE: tuple[tuple[int, int, str], ...] = (
     (672, 720, "liquidation"),
 )
 
+if "TRACE" not in globals():
+    _TRACE_PATH = Path(__file__).parent / "trace.json"
+    if not _TRACE_PATH.exists():
+        _TRACE_PATH = Path("src/trace.json")
+    if _TRACE_PATH.exists():
+        with open(_TRACE_PATH, encoding="utf-8") as f:
+            TRACE: dict[str, list[dict[str, Any]]] = json.load(f)
+    else:
+        TRACE = {}
+
 
 def select_phase(step: int) -> tuple[str, int]:
+    """Select the active phase name and phase-relative turn offset."""
     for start, end, name in PHASE_SCHEDULE:
         if step < end:
             return name, step - start
@@ -21,6 +38,7 @@ def select_phase(step: int) -> tuple[str, int]:
 
 
 def get_path_action(path_name: str, local_index: int) -> dict[str, Any]:
+    """Extract deep-copied canonical action dictionary for given phase and offset."""
     actions = TRACE.get(path_name) or []
     act = (
         actions[local_index]
@@ -34,24 +52,7 @@ def get_path_action(path_name: str, local_index: int) -> dict[str, Any]:
     }
 
 
-def agent(obs: dict[str, Any]) -> dict[str, Any]:
-    farm = (obs.get("farms") or [{}])[obs.get("player", 0)]
-    n_hands = len(farm.get("hands") or ())
-    try:
-        path_name, local_index = select_phase(obs.get("step", 0))
-        act = get_path_action(path_name, local_index)
-        hands = [list(c) for c in act.get("hands", [])]
-        if len(hands) < n_hands:
-            hands.extend([["PASS"] for _ in range(n_hands - len(hands))])
-        return {
-            "farmer": list(act.get("farmer") or ["PASS"]),
-            "hands": hands[:n_hands],
-            "market": [list(o) for o in act.get("market", [])],
-        }
-    except Exception as e:
-        logging.error(f"Error in agent: {e}")
-        return {
-            "farmer": ["PASS"],
-            "hands": [["PASS"] for _ in range(n_hands)],
-            "market": [],
-        }
+# Pre-compute immutable 720-step trace lookup table on module initialization
+FLAT_TRACE: tuple[dict[str, Any], ...] = tuple(
+    get_path_action(*select_phase(s)) for s in range(720)
+)

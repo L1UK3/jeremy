@@ -12,6 +12,7 @@ submission.py / submission.tar.gz
 """
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -26,11 +27,37 @@ OUTPUT = ROOT / ".out" / "submission.py"
 OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
-    "agent.py",
-    "src/v1",
+    "main.py",
+    "board.py",
+    "state.py",
+    "economy.py",
+    "scheduler.py",
+    "clone_detector.py",
+    "debt_manager.py",
+    "explosion.py",
+    "front_runner.py",
+    "market_maker.py",
+    "weed_repair.py",
+    "trace.py",
+    "trace.json",
+    "supply.json",
+    "__init__.py",
 ]
 
-MODULES = ["v2/main.py"]
+MODULES = [
+    "board.py",
+    "state.py",
+    "economy.py",
+    "scheduler.py",
+    "clone_detector.py",
+    "debt_manager.py",
+    "explosion.py",
+    "front_runner.py",
+    "market_maker.py",
+    "weed_repair.py",
+    "trace.py",
+    "main.py",
+]
 
 
 HEADER = """\
@@ -43,11 +70,17 @@ HEADER = """\
 
 INTERNAL_PACKAGES = {
     "src",
-    "v1",
-    "v2",
     "main",
-    "evaluators",
-    "strategies",
+    "board",
+    "state",
+    "economy",
+    "scheduler",
+    "clone_detector",
+    "debt_manager",
+    "explosion",
+    "front_runner",
+    "market_maker",
+    "weed_repair",
     "trace",
 }
 INTERNAL_MODULES = (
@@ -185,6 +218,11 @@ def build_submission() -> Path:
     encoded_routes = encode_routes()
     all_body.append(encoded_routes)
 
+    supply_path = SRC_DIR / "supply.json"
+    if supply_path.exists():
+        supply_raw = supply_path.read_text(encoding="utf-8")
+        all_body.append(f"SUPPLY = json.loads({json.dumps(supply_raw)})\n")
+
     for module_rel in MODULES:
         path = SRC_DIR / module_rel
         if not path.exists():
@@ -215,11 +253,6 @@ def build_submission() -> Path:
             f.write(line + "\n")
 
     format_with_ruff(OUTPUT)
-
-    # Copy routes.json alongside submission.py for standalone execution
-    routes_src = SRC_DIR / "routes.json"
-    if routes_src.exists():
-        shutil.copy2(routes_src, OUTPUT.parent / "routes.json")
 
     print(f"  Output Submission : {OUTPUT}")
     print(f"  Submission Size   : {OUTPUT.stat().st_size:,} bytes")
