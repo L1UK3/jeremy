@@ -33,7 +33,7 @@ def encode_routes() -> str:
 import json
 import zlib
 
-_MOVESETS = json.loads(
+TRACE = json.loads(
     zlib.decompress(
         base64.b85decode(
             "{encoded}"
@@ -41,15 +41,13 @@ _MOVESETS = json.loads(
     ).decode("utf-8")
 )
 '''
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
-        f.write(code)
-
-    return encoded
+    return code
 
 
 if __name__ == "__main__":
     encoded_str = encode_routes()
-    routes_data = _load_routes()
-    print(f"Encoded {len(routes_data)} paths into {OUT_PATH}")
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(OUT_PATH, "w", encoding="utf-8") as f:
+        f.write(encoded_str)
+    print(f"Encoded {len(encoded_str)} paths into {OUT_PATH}")
     print(f"Base85 length: {len(encoded_str):,} chars")
