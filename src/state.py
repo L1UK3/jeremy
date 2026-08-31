@@ -3,11 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-__all__ = ["SHED_ADJACENT_TILES", "GameState"]
+from board import SHED_ACCESS_TILES
 
-SHED_ADJACENT_TILES: frozenset[tuple[int, int]] = frozenset(
-    ((4, 4), (4, 5), (5, 4), (5, 5))
-)
+__all__ = ["GameState"]
 
 
 @dataclass(slots=True)
@@ -98,4 +96,4 @@ class GameState:
         return {}
 
     def is_shed_adjacent(self, x: int, y: int) -> bool:
-        return (x, y) in SHED_ADJACENT_TILES
+        return (x, y) in SHED_ACCESS_TILES
