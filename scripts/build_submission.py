@@ -24,25 +24,20 @@ OUTPUT = ROOT / ".out" / "submission.py"
 OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
-    "board.py",
-    "economy.py",
-    "evaluators.py",
-    "explosion.py",
-    "main.py",
-    "market.py",
-    "scheduler.py",
-    "state.py",
+    "agent.py",
+    "src/v1",
 ]
 
 MODULES = [
-    "state.py",
-    "board.py",
-    "economy.py",
-    "market.py",
-    "scheduler.py",
-    "evaluators.py",
-    "explosion.py",
-    "main.py",
+    "v1/board.py",
+    "v1/economy.py",
+    "v1/evaluators.py",
+    "v1/explosion.py",
+    "v1/market.py",
+    "v1/scheduler.py",
+    "v1/state.py",
+    "v1/main.py",
+
 ]
 
 
