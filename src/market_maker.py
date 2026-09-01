@@ -36,14 +36,31 @@ __all__ = [
 ]
 
 SELLABLE: tuple[str, ...] = (
-    "STRAWBERRY", "MELON", "MILK", "WOOL", "EGG",
-    "TOMATO", "CARROT", "WHEAT", "FERTILIZER"
+    "STRAWBERRY",
+    "MELON",
+    "MILK",
+    "WOOL",
+    "EGG",
+    "TOMATO",
+    "CARROT",
+    "WHEAT",
+    "FERTILIZER",
 )
 
 FRONT_RUN_HORIZON: int = 1
 FRONT_RUN_ITEMS: tuple[str, ...] = ("MELON", "STRAWBERRY", "MILK", "WOOL")
-BASE_PRICE: dict[str, int] = {"MELON": 250, "STRAWBERRY": 120, "MILK": 160, "WOOL": 200}
-GLUT_WEIGHT: dict[str, float] = {"MELON": 3.5, "STRAWBERRY": 2.0, "MILK": 2.0, "WOOL": 3.2}
+BASE_PRICE: dict[str, int] = {
+    "MELON": 250,
+    "STRAWBERRY": 120,
+    "MILK": 160,
+    "WOOL": 200,
+}
+GLUT_WEIGHT: dict[str, float] = {
+    "MELON": 3.5,
+    "STRAWBERRY": 2.0,
+    "MILK": 2.0,
+    "WOOL": 3.2,
+}
 
 I0: int = 10000
 PRICE_FLOOR: int = 1
@@ -105,7 +122,9 @@ if "SUPPLY" not in globals():
     if not _supply_path.exists():
         _supply_path = Path("simulation/base/c95/supply.json")
     if _supply_path.exists():
-        SUPPLY: dict[str, list[float]] = json.loads(_supply_path.read_text(encoding="utf-8"))
+        SUPPLY: dict[str, list[float]] = json.loads(
+            _supply_path.read_text(encoding="utf-8")
+        )
     else:
         SUPPLY = {}
 
@@ -202,7 +221,9 @@ def opponent_scale(state: GameState, board: Board, item: str) -> float:
     return max(0.0, min(2.0, theirs / float(mine)))
 
 
-def reserve_price(item: str, step: int, state: GameState, board: Board, shops: list[str]) -> float:
+def reserve_price(
+    item: str, step: int, state: GameState, board: Board, shops: list[str]
+) -> float:
     """Reservation price calculation for inventory hold/sell decisions."""
     base = MP[item][0]
     frac = RESERVE.get(item, 1.0)
@@ -217,7 +238,9 @@ def reserve_price(item: str, step: int, state: GameState, board: Board, shops: l
     return base * frac
 
 
-def plan_sells(state: GameState, board: Board, step: int, slots: int, short_of_cash: float) -> list[list[Any]]:
+def plan_sells(
+    state: GameState, board: Board, step: int, slots: int, short_of_cash: float
+) -> list[list[Any]]:
     """Select optimal SELL orders for controlled products."""
     if slots <= 0 or not RESERVE:
         return []
@@ -248,7 +271,13 @@ def plan_sells(state: GameState, board: Board, step: int, slots: int, short_of_c
 
 def cash_needed(orders: list[Any], state: GameState) -> int:
     """Estimate gold requirement for this turn's buy orders."""
-    seeds = {"WHEAT": 10, "CARROT": 20, "TOMATO": 50, "STRAWBERRY": 100, "MELON": 80}
+    seeds = {
+        "WHEAT": 10,
+        "CARROT": 20,
+        "TOMATO": 50,
+        "STRAWBERRY": 100,
+        "MELON": 80,
+    }
     animals = {"GOOSE": 300, "COW": 400, "SHEEP": 500}
     prices = state.prices
     total = 0
@@ -281,7 +310,9 @@ def race_factor(item: str, step: int, state: GameState, board: Board) -> float:
     return 1.0 + RACE_WEIGHT * glut
 
 
-def sell_priority(order: Any, state: GameState, board: Board, step: int = 0) -> float:
+def sell_priority(
+    order: Any, state: GameState, board: Board, step: int = 0
+) -> float:
     """Priority ranking for ordering SELL orders in market resolution queue."""
     if not (isinstance(order, list) and len(order) >= 3 and order[0] == "SELL"):
         return -1.0
@@ -305,7 +336,9 @@ def sell_priority(order: Any, state: GameState, board: Board, step: int = 0) -> 
     return float(unit) * float(qty) * race
 
 
-def apply_market_controller(action: dict[str, Any], state: GameState, board: Board, step: int) -> dict[str, Any]:
+def apply_market_controller(
+    action: dict[str, Any], state: GameState, board: Board, step: int
+) -> dict[str, Any]:
     """Apply market ordering, slot promotion, and early liquidation."""
     try:
         if EARLY_TERMINAL and step == EARLY_TERMINAL:
@@ -313,7 +346,15 @@ def apply_market_controller(action: dict[str, Any], state: GameState, board: Boa
             for item in MP:
                 held = state.inventory(item)
                 if held > 0:
-                    rows.append((sell_priority(["SELL", item, held], state, board, step), item, held))
+                    rows.append(
+                        (
+                            sell_priority(
+                                ["SELL", item, held], state, board, step
+                            ),
+                            item,
+                            held,
+                        )
+                    )
             if rows:
                 rows.sort(reverse=True)
                 action["market"] = [["SELL", i, q] for _p, i, q in rows[:10]]
@@ -323,10 +364,13 @@ def apply_market_controller(action: dict[str, Any], state: GameState, board: Boa
 
         orders = list(action.get("market") or [])
         keep = [
-            order for order in orders
+            order
+            for order in orders
             if not (
-                isinstance(order, list) and len(order) >= 2
-                and order[0] == "SELL" and order[1] in RESERVE
+                isinstance(order, list)
+                and len(order) >= 2
+                and order[0] == "SELL"
+                and order[1] in RESERVE
             )
         ]
         player = state.player
@@ -365,16 +409,22 @@ def apply_market_controller(action: dict[str, Any], state: GameState, board: Boa
                 held = [o for o in keep if not (is_sell(o) and o[1] in LIFT)]
                 keep = lifted + held
 
-        merged = [o for o in sells if promotable(o)] + [o for o in keep if promotable(o)]
+        merged = [o for o in sells if promotable(o)] + [
+            o for o in keep if promotable(o)
+        ]
         merged.sort(key=lambda o: -sell_priority(o, state, board, step))
-        rest = [o for o in sells if not promotable(o)] + [o for o in keep if not promotable(o)]
+        rest = [o for o in sells if not promotable(o)] + [
+            o for o in keep if not promotable(o)
+        ]
         if SELLS_FIRST:
             action["market"] = (merged + rest)[:10]
         else:
             out: list[list[Any]] = []
             queue = list(merged)
             for order in keep:
-                out.append(queue.pop(0) if (promotable(order) and queue) else order)
+                out.append(
+                    queue.pop(0) if (promotable(order) and queue) else order
+                )
             out.extend(queue)
             action["market"] = out[:10]
         return action

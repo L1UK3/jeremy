@@ -6,7 +6,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-__all__ = ["FLAT_TRACE", "PHASE_SCHEDULE", "TRACE", "get_path_action", "select_phase"]
+__all__ = [
+    "FLAT_TRACE",
+    "PHASE_SCHEDULE",
+    "TRACE",
+    "get_path_action",
+    "select_phase",
+]
 
 PHASE_SCHEDULE: tuple[tuple[int, int, str], ...] = (
     (0, 24, "opening"),

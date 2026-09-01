@@ -132,6 +132,9 @@ def generate_jobs(
 
     for tile in board.weeds(only_unlocked=True):
         jobs.append(Job(DIG_WEED, "DIG", tile.pos))
+    if state.step < 672:
+        for tile in board.weeds(only_unlocked=True):
+            jobs.append(Job(DIG_WEED, "DIG", tile.pos))
 
     wheat_stock = state.inventory("WHEAT")
     if wheat_stock > 0:

@@ -7,12 +7,28 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from state import GameState
 
-__all__ = ["BASE_PRICE", "FRONT_RUN_HORIZON", "FRONT_RUN_ITEMS", "GLUT_WEIGHT", "front_run"]
+__all__ = [
+    "BASE_PRICE",
+    "FRONT_RUN_HORIZON",
+    "FRONT_RUN_ITEMS",
+    "GLUT_WEIGHT",
+    "front_run",
+]
 
 FRONT_RUN_HORIZON: int = 1
 FRONT_RUN_ITEMS: tuple[str, ...] = ("MELON", "STRAWBERRY", "MILK", "WOOL")
-BASE_PRICE: dict[str, int] = {"MELON": 250, "STRAWBERRY": 120, "MILK": 160, "WOOL": 200}
-GLUT_WEIGHT: dict[str, float] = {"MELON": 3.5, "STRAWBERRY": 2.0, "MILK": 2.0, "WOOL": 3.2}
+BASE_PRICE: dict[str, int] = {
+    "MELON": 250,
+    "STRAWBERRY": 120,
+    "MILK": 160,
+    "WOOL": 200,
+}
+GLUT_WEIGHT: dict[str, float] = {
+    "MELON": 3.5,
+    "STRAWBERRY": 2.0,
+    "MILK": 2.0,
+    "WOOL": 3.2,
+}
 
 
 def front_run(
@@ -31,7 +47,9 @@ def front_run(
     already: dict[str, int] = {}
     for order in orders:
         if isinstance(order, list) and len(order) >= 3 and order[0] == "SELL":
-            already[order[1]] = already.get(order[1], 0) + max(0, int(order[2] or 0))
+            already[order[1]] = already.get(order[1], 0) + max(
+                0, int(order[2] or 0)
+            )
     planned: dict[str, list[int]] = {}
     end = min(len(trace), step + FRONT_RUN_HORIZON + 1)
     for future_step in range(step + 1, end):

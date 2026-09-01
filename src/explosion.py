@@ -176,8 +176,7 @@ def _build_market_orders(
 def pre_terminal_liquidation(
     action: dict[str, Any], state: GameState, step: int
 ) -> dict[str, Any]:
-    """Safety net: monetize stranded shed inventory for steps >= 680 before final explosion."""
-    if step < 680:
+    if step < 672:
         return action
     market = action.setdefault("market", [])
     already = {

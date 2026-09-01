@@ -130,11 +130,7 @@ def split(
         return action
     future: dict[str, int] = {}
     for order in trace[future_step].get("market") or []:
-        if (
-            len(order) >= 3
-            and order[0] == "SELL"
-            and order[1] in SPLIT_ITEMS
-        ):
+        if len(order) >= 3 and order[0] == "SELL" and order[1] in SPLIT_ITEMS:
             future[order[1]] = future.get(order[1], 0) + max(
                 0, int(order[2] or 0)
             )
