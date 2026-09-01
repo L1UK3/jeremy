@@ -10037,7 +10037,7 @@
             "hands": [
                 ["CARE"],
                 ["CARE"],
-                ["DIG"],
+                ["PASS"],
                 ["FEED"],
                 ["FEED"],
                 ["EAST"],
@@ -10075,7 +10075,7 @@
             "hands": [
                 ["FEED"],
                 ["SOUTH"],
-                ["DIG"],
+                ["PASS"],
                 ["NORTH"],
                 ["NORTH"],
                 ["HARVEST"],
@@ -10112,8 +10112,8 @@
             "farmer": ["WEST"],
             "hands": [
                 ["COLLECT_FERTILIZER"],
-                ["DIG"],
-                ["DIG"],
+                ["PASS"],
+                ["PASS"],
                 ["FEED"],
                 ["FEED"],
                 ["WATER"],
@@ -10150,13 +10150,13 @@
             "farmer": ["HARVEST"],
             "hands": [
                 ["EAST"],
-                ["DIG"],
-                ["DIG"],
+                ["PASS"],
+                ["PASS"],
                 ["NORTH"],
                 ["COLLECT_FERTILIZER"],
                 ["NORTH"],
                 ["HARVEST"],
-                ["DIG"],
+                ["PASS"],
                 ["WEST"],
                 ["HARVEST"],
                 ["EAST"],
@@ -10188,8 +10188,8 @@
             "farmer": ["WATER"],
             "hands": [
                 ["HARVEST"],
-                ["DIG"],
-                ["DIG"],
+                ["PASS"],
+                ["PASS"],
                 ["HARVEST"],
                 ["EAST"],
                 ["HARVEST"],
@@ -10213,7 +10213,7 @@
                 ["WATER"],
                 ["SOUTH"],
                 ["HARVEST"],
-                ["DIG"],
+                ["PASS"],
                 ["WEST"],
                 ["HARVEST"],
                 ["HARVEST"],
@@ -10226,7 +10226,7 @@
             "farmer": ["EAST"],
             "hands": [
                 ["WEST"],
-                ["DIG"],
+                ["PASS"],
                 ["HARVEST"],
                 ["WATER"],
                 ["HARVEST"],
@@ -10246,7 +10246,7 @@
             "hands": [
                 ["WEST"],
                 ["NORTH"],
-                ["DIG"],
+                ["PASS"],
                 ["HARVEST"],
                 ["SOUTH"],
                 ["WEST"],
@@ -10307,7 +10307,7 @@
             "hands": [
                 ["DROP"],
                 ["EAST"],
-                ["DIG"],
+                ["PASS"],
                 ["SOUTH"],
                 ["NORTH"],
                 ["WEST"],
@@ -10372,7 +10372,7 @@
             "hands": [
                 ["PASS"],
                 ["COLLECT_FERTILIZER"],
-                ["DIG"],
+                ["PASS"],
                 ["PASS"],
                 ["COLLECT_FERTILIZER"],
                 ["PASS"],
@@ -10501,7 +10501,7 @@
                 ["WATER"],
                 ["HARVEST"],
                 ["NORTH"],
-                ["DIG"],
+                ["PASS"],
                 ["HARVEST"]
             ],
             "market": []

@@ -45,8 +45,12 @@ def public_signature(
 
 
 def signature_distance(
-    left: tuple[int, tuple[str, ...], tuple[tuple[int, int], ...], tuple[int, ...]],
-    right: tuple[int, tuple[str, ...], tuple[tuple[int, int], ...], tuple[int, ...]],
+    left: tuple[
+        int, tuple[str, ...], tuple[tuple[int, int], ...], tuple[int, ...]
+    ],
+    right: tuple[
+        int, tuple[str, ...], tuple[tuple[int, int], ...], tuple[int, ...]
+    ],
 ) -> int:
     """Compute distance metric between two public signatures."""
     distance = abs(left[0] - right[0])
