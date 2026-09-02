@@ -1,4 +1,4 @@
-from src.economy import (
+from economics.economy import (
     affordable_hires,
     best_crop,
     crop_cost,
@@ -9,7 +9,7 @@ from src.economy import (
     should_buy_seed,
     should_expand,
 )
-from src.state import GameState
+from environment.state import GameState
 
 
 def test_economy_calculations():

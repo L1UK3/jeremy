@@ -1,25 +1,19 @@
-"""Evaluator modules for land expansion, livestock management, and market trading.
-
-Implements pure heuristic decision evaluators following Single Responsibility Principle (SRP)
-and composed step pipelines for Kaggriculture.
-"""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from board import Board, step_toward
-from economy import (
+from economics.economy import (
     affordable_hires,
     next_quadrant_target,
     should_buy_seed,
     should_expand,
 )
-from state import GameState
+from environment.board import Board, step_toward
+from environment.state import GameState
 
 if TYPE_CHECKING:
-    from board import Tile
-    from market import Market
+    from economics.market import Market
+    from environment.board import Tile
 
 __all__ = [
     "ANIMAL_FEED_BUFFER_DAYS",

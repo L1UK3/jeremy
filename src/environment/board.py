@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 if TYPE_CHECKING:
-    from state import GameState
+    from environment.state import GameState
 
 __all__ = [
     "SHED_ACCESS_TILES",

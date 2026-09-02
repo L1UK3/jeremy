@@ -25,9 +25,18 @@ PHASE_SCHEDULE: tuple[tuple[int, int, str], ...] = (
 )
 
 if "TRACE" not in globals():
-    _TRACE_PATH = Path(__file__).parent / "trace.json"
+    if "__file__" in globals():
+        _TRACE_PATH = Path(__file__).parent / "trace.json"
+    else:
+        _TRACE_PATH = Path("src/trajectories/trace.json")
+    if not _TRACE_PATH.exists():
+        _TRACE_PATH = Path("trajectories/trace.json")
+    if not _TRACE_PATH.exists():
+        _TRACE_PATH = Path("src/trajectories/trace.json")
     if not _TRACE_PATH.exists():
         _TRACE_PATH = Path("src/trace.json")
+    if not _TRACE_PATH.exists():
+        _TRACE_PATH = Path("trace.json")
     if _TRACE_PATH.exists():
         with open(_TRACE_PATH, encoding="utf-8") as f:
             TRACE: dict[str, list[dict[str, Any]]] = json.load(f)

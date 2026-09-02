@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from board import SHED_ACCESS_TILES
+from environment.board import SHED_ACCESS_TILES
 
 __all__ = ["GameState"]
 

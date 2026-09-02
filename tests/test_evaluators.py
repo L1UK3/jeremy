@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.board import Board
-from src.evaluators import (
+from environment.board import Board
+from economics.evaluators import (
     BYPRODUCTS,
     MAX_MARKET_ORDERS,
     evaluate_expansion,
@@ -9,8 +9,8 @@ from src.evaluators import (
     evaluate_market,
     is_expansion_stage_allowed,
 )
-from src.market import Market
-from src.state import GameState
+from economics.market import Market
+from environment.state import GameState
 
 
 def _base_obs(

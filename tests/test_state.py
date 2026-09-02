@@ -1,4 +1,4 @@
-from src.state import GameState
+from environment.state import GameState
 
 
 def test_game_state_parsing():
