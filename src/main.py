@@ -1,26 +1,39 @@
-"""Jeremy V3 Main Agent Entrypoint with Dynamic Scheduler Integration."""
+"""Jeremy V2 Main Agent Entrypoint with NumPy Macro Controller Integration."""
 
 from __future__ import annotations
 
 import copy
 import logging
-from trace import FLAT_TRACE
 from typing import Any
 
-from board import Board
-from clone_detector import update_clone_profile
-from debt_manager import c94_opening, c94_repay, c94_reset, c94_split
-from explosion import explosion, pre_terminal_liquidation
-from front_runner import front_run
-from market_maker import apply_market_controller
-from scheduler import _assign_one, generate_jobs
-from state import GameState
-from weed_repair import weed_repair_productive_route, weed_use_guarded
+from controllers.numpy_macro import NumPyMacroController
+from environment.board import Board
+from environment.state import GameState
+from scheduler.dispatcher import _assign_one, generate_jobs
+from strategies.clone_detector import update_clone_profile
+from strategies.debt_manager import opening, repay, reset, split
+from strategies.explosion import explosion, pre_terminal_liquidation
+from strategies.front_runner import front_run
+from strategies.market_maker import apply_market_controller
+from strategies.weed_repair import (
+    weed_repair_productive_route,
+    weed_use_guarded,
+)
+from trajectories.trace import FLAT_TRACE
 
 __all__ = ["agent", "kaggle_submission_entrypoint"]
 
+_MACRO_CONTROLLER: NumPyMacroController | None = None
 _LAST_STEP: int = -1
 _CLONE_CONFIDENCE: int = 0
+
+
+def get_macro_controller() -> NumPyMacroController:
+    """Lazy initialize NumPyMacroController instance."""
+    global _MACRO_CONTROLLER
+    if _MACRO_CONTROLLER is None:
+        _MACRO_CONTROLLER = NumPyMacroController()
+    return _MACRO_CONTROLLER
 
 
 def agent(obs: dict[str, Any]) -> dict[str, Any]:
@@ -42,29 +55,30 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         return explosion(state, board)
 
     try:
+        controller = get_macro_controller()
+        macro = controller.evaluate(state, board)
         action = copy.deepcopy(FLAT_TRACE[min(step, len(FLAT_TRACE) - 1)])
         front_run(action, state, step, FLAT_TRACE, _CLONE_CONFIDENCE)
         pre_terminal_liquidation(action, state, step)
         action = apply_market_controller(action, state, board, step)
         action = weed_use_guarded(state, board, action, FLAT_TRACE)
         action = weed_repair_productive_route(state, board, action)
-        _seat, debt_schedule = c94_reset(state.player, step)
+        _seat, debt_schedule = reset(state.player, step)
         due = debt_schedule.pop(step, {})
-        action = c94_repay(action, due)
+        action = repay(action, due)
         if due:
             carry = debt_schedule.setdefault(step + 1, {})
             for item, quantity in due.items():
                 if quantity > 0:
                     carry[item] = carry.get(item, 0) + quantity
-        action = c94_opening(action, step)
-        action = c94_split(
+        action = opening(action, step)
+        action = split(
             action, state, step, debt_schedule, FLAT_TRACE, _CLONE_CONFIDENCE
         )
 
-        # Dynamic Extra Hand Dispatch via Scheduler
         hands = [list(c) for c in (action.get("hands") or [])]
         if len(hands) < n_hands:
-            jobs = generate_jobs(state, board)
+            jobs = generate_jobs(state, board, target_crop=macro.target_crop)
             used_targets: set[tuple[int, int]] = set()
 
             while len(hands) < n_hands:

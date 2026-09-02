@@ -22,3 +22,5 @@ raw/
 submission.py
 
 base/
+
+.github/prompts/

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from kaggle_environments.envs.kaggriculture.kaggriculture import CROPS
 
 if TYPE_CHECKING:
-    from state import GameState
+    from environment.state import GameState
 
 __all__ = [
     "CROP_PROPERTIES",

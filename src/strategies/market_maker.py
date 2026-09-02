@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from board import Board
-    from state import GameState
+    from environment.board import Board
+    from environment.state import GameState
 
 __all__ = [
     "BASE_PRICE",
@@ -116,9 +116,17 @@ SUPPLY_DRIVER: dict[str, tuple[str, str | None]] = {
 # Load supply curve lookup safely without relying on __file__
 if "SUPPLY" not in globals():
     if "__file__" in globals():
-        _supply_path = Path(__file__).parent / "supply.json"
+        _supply_path = Path(__file__).resolve().parents[1] / "data" / "supply.json"
+        if not _supply_path.exists():
+            _supply_path = Path(__file__).parent / "supply.json"
     else:
-        _supply_path = Path("src/supply.json")
+        _supply_path = Path("src/trajectories/supply.json")
+    if not _supply_path.exists():
+        _supply_path = Path("trajectories/supply.json")
+    if not _supply_path.exists():
+        _supply_path = Path("src/trajectories/supply.json")
+    if not _supply_path.exists():
+        _supply_path = Path("supply.json")
     if not _supply_path.exists():
         _supply_path = Path("simulation/base/c95/supply.json")
     if _supply_path.exists():

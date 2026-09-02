@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from state import GameState
+    from environment.state import GameState
 
 __all__ = [
     "CLONE_THRESHOLD",
@@ -15,10 +15,6 @@ __all__ = [
     "SPLIT_ITEMS",
     "SPLIT_START",
     "SPLIT_STOP",
-    "c94_opening",
-    "c94_repay",
-    "c94_reset",
-    "c94_split",
     "opening",
     "repay",
     "reset",
@@ -160,10 +156,3 @@ def split(
         due[item] = due.get(item, 0) + quantity
     action["market"] = market
     return action
-
-
-# Backward compatibility aliases
-c94_reset = reset
-c94_opening = opening
-c94_repay = repay
-c94_split = split

@@ -1,5 +1,6 @@
-from src.board import Board, CropSpec, Tile, manhattan_distance, step_toward
-from src.state import GameState
+
+from environment.board import Board, CropSpec, Tile, manhattan_distance, step_toward
+from environment.state import GameState
 
 
 def test_manhattan_and_step():

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from board import step_toward
-from economy import best_crop, crop_roi
+from economics.economy import best_crop, crop_roi
+from environment.board import step_toward
 
 if TYPE_CHECKING:
-    from board import Board
-    from state import GameState
+    from environment.board import Board
+    from environment.state import GameState
 
 __all__ = [
     "CARE",

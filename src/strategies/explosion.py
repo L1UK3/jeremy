@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from board import step_toward
+from environment.board import step_toward
 
 if TYPE_CHECKING:
-    from board import Board
-    from state import GameState
+    from environment.board import Board
+    from environment.state import GameState
 
 __all__ = ["SELLABLE", "explosion", "pre_terminal_liquidation"]
 
@@ -219,3 +219,4 @@ def explosion(state: GameState, board: Board) -> dict[str, Any]:
 
     market_orders = _build_market_orders(state, pending_deposits)
     return {"farmer": acts[0], "hands": acts[1:], "market": market_orders}
+
