@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from environment.board import Board
+from environment.state import GameState
 from scheduler.dispatcher import (
     Job,
     _harvest_actions,
@@ -11,7 +12,6 @@ from scheduler.dispatcher import (
     job_to_action,
     schedule_tasks,
 )
-from environment.state import GameState
 
 
 def _mock_obs() -> dict:

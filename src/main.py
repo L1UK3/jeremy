@@ -60,7 +60,18 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         action = copy.deepcopy(FLAT_TRACE[min(step, len(FLAT_TRACE) - 1)])
         front_run(action, state, step, FLAT_TRACE, _CLONE_CONFIDENCE)
         pre_terminal_liquidation(action, state, step)
-        action = apply_market_controller(action, state, board, step)
+
+        res_scales = macro.market_reservation_scales
+        if macro.predation_mode == "FRONT_RUN":
+            res_scales = {k: v * 0.85 for k, v in res_scales.items()}
+
+        action = apply_market_controller(
+            action,
+            state,
+            board,
+            step,
+            reservation_scales=res_scales,
+        )
         action = weed_use_guarded(state, board, action, FLAT_TRACE)
         action = weed_repair_productive_route(state, board, action)
         _seat, debt_schedule = reset(state.player, step)
@@ -76,9 +87,49 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             action, state, step, debt_schedule, FLAT_TRACE, _CLONE_CONFIDENCE
         )
 
+        market = list(action.get("market") or [])
+        if step >= 24 and len(market) < 10:
+            if (
+                len(state.hands) < macro.target_crew
+                and state.money >= 100 * (len(state.hands) + 1)
+                and not any(
+                    isinstance(o, list) and o and o[0] == "HIRE" for o in market
+                )
+            ):
+                market.append(["HIRE"])
+
+            if (
+                macro.target_animal != "NONE"
+                and step >= 48
+                and state.money >= 500
+                and state.inventory("WHEAT") >= 2
+                and not any(
+                    isinstance(o, list) and o and o[0] == "BUY_ANIMAL"
+                    for o in market
+                )
+            ):
+                market.append(["BUY_ANIMAL", macro.target_animal, 1])
+
+            if (
+                macro.target_crop
+                and state.seed_count(macro.target_crop) < 6
+                and state.money >= 300
+                and not any(
+                    isinstance(o, list) and len(o) >= 2 and o[0] == "BUY_SEED"
+                    for o in market
+                )
+            ):
+                market.append(["BUY_SEED", macro.target_crop, 6])
+        action["market"] = market[:10]
+
         hands = [list(c) for c in (action.get("hands") or [])]
         if len(hands) < n_hands:
-            jobs = generate_jobs(state, board, target_crop=macro.target_crop)
+            jobs = generate_jobs(
+                state,
+                board,
+                target_crop=macro.target_crop,
+                crop_weights=macro.crop_distribution_bias,
+            )
             used_targets: set[tuple[int, int]] = set()
 
             while len(hands) < n_hands:

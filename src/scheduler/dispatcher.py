@@ -106,7 +106,10 @@ def job_to_action(
 
 
 def generate_jobs(
-    state: GameState, board: Board, target_crop: str | None = None
+    state: GameState,
+    board: Board,
+    target_crop: str | None = None,
+    crop_weights: tuple[float, ...] | list[float] | None = None,
 ) -> list[Job]:
     """Streamlined single-pass job generation directly from board spatial indexes."""
     jobs: list[Job] = []
@@ -132,9 +135,6 @@ def generate_jobs(
 
     for tile in board.weeds(only_unlocked=True):
         jobs.append(Job(DIG_WEED, "DIG", tile.pos))
-    if state.step < 672:
-        for tile in board.weeds(only_unlocked=True):
-            jobs.append(Job(DIG_WEED, "DIG", tile.pos))
 
     wheat_stock = state.inventory("WHEAT")
     if wheat_stock > 0:
@@ -167,11 +167,33 @@ def generate_jobs(
             )
         )
 
-    crop = target_crop or best_crop(state)
-    if crop and state.has_seed(crop):
-        priority = PLANT_BASE + crop_roi(state, crop)
-        for tile in board.empty_tiles(only_unlocked=True):
-            jobs.append(_plant_task(priority, tile.pos, crop))
+    empty_tiles = board.empty_tiles(only_unlocked=True)
+    if empty_tiles:
+        if crop_weights and len(crop_weights) == 5:
+            crops_to_plant = [
+                c
+                for i, c in enumerate(
+                    ("WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON")
+                )
+                if crop_weights[i] > 0.15 and state.has_seed(c)
+            ]
+            if crops_to_plant:
+                for idx, tile in enumerate(empty_tiles):
+                    c = crops_to_plant[idx % len(crops_to_plant)]
+                    priority = PLANT_BASE + crop_roi(state, c)
+                    jobs.append(_plant_task(priority, tile.pos, c))
+            else:
+                crop = target_crop or best_crop(state)
+                if crop and state.has_seed(crop):
+                    priority = PLANT_BASE + crop_roi(state, crop)
+                    for tile in empty_tiles:
+                        jobs.append(_plant_task(priority, tile.pos, crop))
+        else:
+            crop = target_crop or best_crop(state)
+            if crop and state.has_seed(crop):
+                priority = PLANT_BASE + crop_roi(state, crop)
+                for tile in empty_tiles:
+                    jobs.append(_plant_task(priority, tile.pos, crop))
 
     return jobs
 

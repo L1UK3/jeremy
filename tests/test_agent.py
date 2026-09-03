@@ -64,4 +64,3 @@ def test_agent_phases_and_kaggle_entrypoint():
     act_explosion = agent(obs_end)
     assert isinstance(act_explosion, dict)
     assert "farmer" in act_explosion
-

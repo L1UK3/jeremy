@@ -51,7 +51,6 @@ FILES = [
     "trajectories/__init__.py",
     "controllers/base.py",
     "controllers/numpy_macro.py",
-    "controllers/inference_loader.py",
     "controllers/__init__.py",
     "models/model_weights.npz",
     "__init__.py",
@@ -111,7 +110,6 @@ INTERNAL_PACKAGES = {
     "controllers",
     "base",
     "numpy_macro",
-    "inference_loader",
     "models",
 }
 INTERNAL_MODULES = (

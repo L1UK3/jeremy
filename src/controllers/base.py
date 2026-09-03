@@ -19,6 +19,8 @@ class MacroDecision:
     crop_distribution_bias: tuple[float, ...]
     market_reservation_scales: dict[str, float]
     should_expand_land: bool
+    target_animal: str = "NONE"
+    predation_mode: str = "BALANCED"
 
 
 class MacroController(Protocol):

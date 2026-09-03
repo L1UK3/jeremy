@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from environment.board import Board
 from economics.evaluators import (
     BYPRODUCTS,
     MAX_MARKET_ORDERS,
@@ -10,6 +9,7 @@ from economics.evaluators import (
     is_expansion_stage_allowed,
 )
 from economics.market import Market
+from environment.board import Board
 from environment.state import GameState
 
 

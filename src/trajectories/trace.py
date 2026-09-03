@@ -24,24 +24,25 @@ PHASE_SCHEDULE: tuple[tuple[int, int, str], ...] = (
     (672, 720, "liquidation"),
 )
 
-if "TRACE" not in globals():
-    if "__file__" in globals():
-        _TRACE_PATH = Path(__file__).parent / "trace.json"
-    else:
-        _TRACE_PATH = Path("src/trajectories/trace.json")
-    if not _TRACE_PATH.exists():
-        _TRACE_PATH = Path("trajectories/trace.json")
-    if not _TRACE_PATH.exists():
-        _TRACE_PATH = Path("src/trajectories/trace.json")
-    if not _TRACE_PATH.exists():
-        _TRACE_PATH = Path("src/trace.json")
-    if not _TRACE_PATH.exists():
-        _TRACE_PATH = Path("trace.json")
-    if _TRACE_PATH.exists():
-        with open(_TRACE_PATH, encoding="utf-8") as f:
-            TRACE: dict[str, list[dict[str, Any]]] = json.load(f)
-    else:
-        TRACE = {}
+
+def _load_trace() -> dict[str, list[dict[str, Any]]]:
+    candidates = (
+        Path(__file__).parent / "trace.json"
+        if "__file__" in globals()
+        else None,
+        Path("src/trajectories/trace.json"),
+        Path("trajectories/trace.json"),
+        Path("src/trace.json"),
+        Path("trace.json"),
+    )
+    for p in candidates:
+        if p and p.exists():
+            with open(p, encoding="utf-8") as f:
+                return json.load(f)
+    return {}
+
+
+TRACE: dict[str, list[dict[str, Any]]] = _load_trace()
 
 
 def select_phase(step: int) -> tuple[str, int]:
