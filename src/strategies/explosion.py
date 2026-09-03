@@ -219,4 +219,3 @@ def explosion(state: GameState, board: Board) -> dict[str, Any]:
 
     market_orders = _build_market_orders(state, pending_deposits)
     return {"farmer": acts[0], "hands": acts[1:], "market": market_orders}
-

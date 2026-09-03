@@ -35,7 +35,9 @@ def encode_state_1706(state: GameState, board: Board) -> np.ndarray:
                 _FEATURE_BUFFER[0, idx + 0] = 1.0
             if tile.is_plant and tile.crop in CROP_INDEX:
                 _FEATURE_BUFFER[0, idx + CROP_INDEX[tile.crop]] = 1.0
-                _FEATURE_BUFFER[0, idx + 6] = float(tile.age(current_day)) / 10.0
+                _FEATURE_BUFFER[0, idx + 6] = (
+                    float(tile.age(current_day)) / 10.0
+                )
                 _FEATURE_BUFFER[0, idx + 7] = 1.0 if tile.watered else 0.0
             elif tile.is_animal and tile.animal in ANIMAL_INDEX:
                 _FEATURE_BUFFER[0, idx + ANIMAL_INDEX[tile.animal]] = 1.0
@@ -53,8 +55,9 @@ def encode_state_1706(state: GameState, board: Board) -> np.ndarray:
     _FEATURE_BUFFER[0, 1701] = min(1.0, state.money / 10000.0)
     _FEATURE_BUFFER[0, 1702] = len(state.hands) / 10.0
     _FEATURE_BUFFER[0, 1703] = float(state.prices.get("MELON", 250)) / 500.0
-    _FEATURE_BUFFER[0, 1704] = float(state.prices.get("STRAWBERRY", 120)) / 300.0
+    _FEATURE_BUFFER[0, 1704] = (
+        float(state.prices.get("STRAWBERRY", 120)) / 300.0
+    )
     _FEATURE_BUFFER[0, 1705] = float(state.prices.get("MILK", 160)) / 400.0
 
     return _FEATURE_BUFFER
-

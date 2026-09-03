@@ -20,19 +20,18 @@ Consult these documents in [`docs/`](docs/index.md) before designing or changing
 
 ## 2. Core Architecture & File Responsibilities
 
-| File / Subpackage                                            | Role & Invariants                                                                                                              |
-| :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
-| [`src/main.py`](src/main.py)                                 | **Top-level entrypoint**. Exports `def agent(obs: dict) -> dict:`. Orchestrates routes, evaluators, scheduler, and strategies. |
-| [`src/state.py`](src/state.py)                               | **State wrapper**. Typed `GameState.from_obs(obs)` dataclass for fast attribute access.                                        |
-| [`src/board.py`](src/board.py)                               | **Spatial grid manager**. `Board` and `Tile` with `__slots__`, precomputed neighbor lookups, and fast spatial queries.         |
-| [`src/economy.py`](src/economy.py)                           | **Financial calculator**. Calculates `crop_roi()`, `should_expand()`, and affordable hiring counts.                            |
-| [`src/market.py`](src/market.py)                             | **Rolling market stats**. Single-pass price analysis and composite `sell_score()`.                                             |
-| [`src/scheduler.py`](src/scheduler.py)                       | **Multi-unit task dispatcher**. Allocates spatial crop and chore jobs to farmer and hired farmhands.                           |
-| [`src/evaluators.py`](src/evaluators.py)                     | **Evaluator module**. Evaluates livestock feeding/care, market trades, and quadrant expansions.                                |
-| [`src/explosion.py`](src/explosion.py)                       | **End-game liquidation**. Fast harvest and market liquidation pipeline for Days 29–30.                                         |
-| [`src/routes.json`](src/routes.json)                         | **Scripted trajectories**. Replay-extracted traces for early-game opening and quadrant expansions.                             |
-| [`simulation/episode.py`](simulation/episode.py)             | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs.                                       |
-| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles modular `src/` tree into `.out/submission.py` and `.out/submission.tar.gz`.                              |
+| File / Subpackage                                            | Role & Invariants                                                                                                             |
+| :----------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| [`src/main.py`](src/main.py)                                 | **Top-level entrypoint**. Exports `agent(obs)` and `kaggle_submission_entrypoint(obs)`. Integrates macro and micro pipelines. |
+| [`src/environment/`](src/environment/)                       | **Spatial grid & state**. `GameState`, `Board` & `Tile` (`__slots__`), coordinate helpers, and 1706-dim feature vectorizer.   |
+| [`src/economics/`](src/economics/)                           | **Financial calculator**. `crop_roi()`, `should_expand()`, `Market` rolling stats, and pure heuristic `evaluators.py`.        |
+| [`src/scheduler/`](src/scheduler/)                           | **Spatial task dispatcher**. `Job` generator and greedy unit assignment in `dispatcher.py`.                                   |
+| [`src/strategies/`](src/strategies/)                         | **Tactical layers**. `clone_detector`, `debt_manager`, `front_runner`, `market_maker`, `weed_repair`, `explosion`.            |
+| [`src/trajectories/`](src/trajectories/)                     | **Replay traces**. Scripted opening traces (`trace.py`, `trace.json`) and market supply curves (`supply.json`).               |
+| [`src/controllers/`](src/controllers/)                       | **Macro policies**. `MacroController` Protocol, `MacroDecision` dataclass, and `NumPyMacroController` (pure NumPy inference). |
+| [`src/models/`](src/models/)                                 | **Model weights**. Serialized neural weights (`model_weights.npz`, 1706->256->128->35) and ONNX graph (`policy.onnx`).        |
+| [`simulation/episode.py`](simulation/episode.py)             | **Simulation harness**. Runs 720-turn matches between two agents and saves replay JSONs.                                      |
+| [`scripts/build_submission.py`](scripts/build_submission.py) | **Packager**. Bundles modular `src/` tree into `.out/submission.py` and `.out/submission.tar.gz`.                             |
 
 ---
 
@@ -44,6 +43,15 @@ Consult these documents in [`docs/`](docs/index.md) before designing or changing
 4. **Passability on Locked Tiles**: Units can walk across locked quadrants to access other areas or the shed. Tile actions (`PLANT`, `WATER`, `DIG`, `BUILD_*`) no-op on locked tiles.
 5. **Shed Adjacency**: Shed interaction coordinates are `(4,4)`, `(5,4)`, `(4,5)`, and `(5,5)` on the $10 \times 10$ board.
 6. **No bytecode in packages**: `build_submission.py` excludes all `__pycache__` and `.pyc` files.
+7. **Sandbox Safe Asset Loading**: Never assume `__file__` is available in `globals()`. Always load data or weights using fallback cascades:
+    ```python
+    if "__file__" in globals():
+        _path = Path(__file__).resolve().parents[1] / "data" / "asset.json"
+    else:
+        _path = Path("src/trajectories/asset.json")
+    if not _path.exists():
+        _path = Path("asset.json")
+    ```
 
 ---
 
@@ -91,7 +99,10 @@ Every AI agent must follow this 3-step loop:
 Run from project root:
 
 ```bash
-# 1. Run a 1-match smoke test simulation
+# 1. Run full test suite
+pytest -v
+
+# 2. Run a 1-match smoke test simulation
 python -c "
 import sys; sys.path.insert(0, 'src')
 from simulation.episode import Episode
@@ -101,11 +112,7 @@ print(f'Score: {res.score_challenger:,.2f} | Status: {res.status_challenger}')
 assert res.status_challenger == 'DONE'
 "
 
-# 2. Build and verify submission package
+# 3. Build and verify submission package
 python scripts/build_submission.py --build
 python scripts/build_submission.py --bundle
-
-# 3. Format and lint
-ruff check .
-ruff format .
 ```

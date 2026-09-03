@@ -1,5 +1,10 @@
-
-from environment.board import Board, CropSpec, Tile, manhattan_distance, step_toward
+from environment.board import (
+    Board,
+    CropSpec,
+    Tile,
+    manhattan_distance,
+    step_toward,
+)
 from environment.state import GameState
 
 

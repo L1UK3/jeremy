@@ -113,28 +113,23 @@ SUPPLY_DRIVER: dict[str, tuple[str, str | None]] = {
     "TOMATO": ("crop", "TOMATO"),
 }
 
-# Load supply curve lookup safely without relying on __file__
-if "SUPPLY" not in globals():
-    if "__file__" in globals():
-        _supply_path = Path(__file__).resolve().parents[1] / "data" / "supply.json"
-        if not _supply_path.exists():
-            _supply_path = Path(__file__).parent / "supply.json"
-    else:
-        _supply_path = Path("src/trajectories/supply.json")
-    if not _supply_path.exists():
-        _supply_path = Path("trajectories/supply.json")
-    if not _supply_path.exists():
-        _supply_path = Path("src/trajectories/supply.json")
-    if not _supply_path.exists():
-        _supply_path = Path("supply.json")
-    if not _supply_path.exists():
-        _supply_path = Path("simulation/base/c95/supply.json")
-    if _supply_path.exists():
-        SUPPLY: dict[str, list[float]] = json.loads(
-            _supply_path.read_text(encoding="utf-8")
-        )
-    else:
-        SUPPLY = {}
+
+def _load_supply() -> dict[str, list[float]]:
+    candidates = (
+        Path(__file__).resolve().parents[1] / "trajectories" / "supply.json"
+        if "__file__" in globals()
+        else None,
+        Path("src/trajectories/supply.json"),
+        Path("trajectories/supply.json"),
+        Path("supply.json"),
+    )
+    for p in candidates:
+        if p and p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    return {}
+
+
+SUPPLY: dict[str, list[float]] = _load_supply()
 
 
 def mshape(func: str, x: float) -> float:
@@ -230,11 +225,18 @@ def opponent_scale(state: GameState, board: Board, item: str) -> float:
 
 
 def reserve_price(
-    item: str, step: int, state: GameState, board: Board, shops: list[str]
+    item: str,
+    step: int,
+    state: GameState,
+    board: Board,
+    shops: list[str],
+    scale: float = 1.0,
 ) -> float:
     """Reservation price calculation for inventory hold/sell decisions."""
+    if item not in MP:
+        return 1.0
     base = MP[item][0]
-    frac = RESERVE.get(item, 1.0)
+    frac = scale
     if step >= RAMP_START:
         span = float(max(1, RAMP_END - RAMP_START))
         frac *= max(0.0, (RAMP_END - step) / span)
@@ -247,10 +249,16 @@ def reserve_price(
 
 
 def plan_sells(
-    state: GameState, board: Board, step: int, slots: int, short_of_cash: float
+    state: GameState,
+    board: Board,
+    step: int,
+    slots: int,
+    short_of_cash: float,
+    reservation_scales: dict[str, float] | None = None,
 ) -> list[list[Any]]:
     """Select optimal SELL orders for controlled products."""
-    if slots <= 0 or not RESERVE:
+    reserve = reservation_scales if reservation_scales is not None else RESERVE
+    if slots <= 0 or not reserve:
         return []
     shed = state.shed
     inventory = (state.raw.get("market") or {}).get("inventory") or {}
@@ -259,7 +267,7 @@ def plan_sells(
     forced = load >= SHED_PRESSURE or short_of_cash > 0
 
     candidates: list[tuple[int, str, int]] = []
-    for item in RESERVE:
+    for item, scale in reserve.items():
         held = state.inventory(item)
         if held <= 0:
             continue
@@ -267,7 +275,9 @@ def plan_sells(
         if forced:
             units = held
         else:
-            res_val = reserve_price(item, step, state, board, shops)
+            res_val = reserve_price(
+                item, step, state, board, shops, scale=scale
+            )
             units = 0
             while units < held and mprice(item, inv + units) >= res_val:
                 units += 1
@@ -345,7 +355,11 @@ def sell_priority(
 
 
 def apply_market_controller(
-    action: dict[str, Any], state: GameState, board: Board, step: int
+    action: dict[str, Any],
+    state: GameState,
+    board: Board,
+    step: int,
+    reservation_scales: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Apply market ordering, slot promotion, and early liquidation."""
     try:
@@ -371,6 +385,9 @@ def apply_market_controller(
             return action
 
         orders = list(action.get("market") or [])
+        reserve = (
+            reservation_scales if reservation_scales is not None else RESERVE
+        )
         keep = [
             order
             for order in orders
@@ -378,13 +395,20 @@ def apply_market_controller(
                 isinstance(order, list)
                 and len(order) >= 2
                 and order[0] == "SELL"
-                and order[1] in RESERVE
+                and order[1] in reserve
             )
         ]
         player = state.player
         money = float(state.money)
         short = max(0.0, cash_needed(keep, state) - money)
-        sells = plan_sells(state, board, step, 10 - len(keep), short)
+        sells = plan_sells(
+            state,
+            board,
+            step,
+            10 - len(keep),
+            short,
+            reservation_scales=reservation_scales,
+        )
         if not SORT_SELLS:
             action["market"] = (sells + keep)[:10]
             return action

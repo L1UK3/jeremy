@@ -96,23 +96,14 @@ def _livestock_tile_action(
     """Execute immediate interaction on the current animal tile underfoot."""
     if not tile or not tile.is_animal:
         return None
-
-    # Feed hungry animal if worker is holding feed
     if not tile.fed_today and carried_wheat > 0:
         return ["FEED"]
-
-    # Daily grooming and care
     if not tile.cared_today:
         return ["CARE"]
-
-    # Collect available byproduct fertilizer
     if tile.fertilizer_available:
         return ["COLLECT_FERTILIZER"]
-
-    # Harvest mature animal products (wool, milk, egg)
     if tile.yield_units > 0:
         return ["HARVEST"]
-
     return None
 
 
@@ -127,15 +118,11 @@ def _livestock_feed_pickup(
     """Evaluate shed navigation and wheat pickup when worker is empty-handed."""
     if needs_feed_count == 0 or carried_wheat > 0:
         return None
-
     shed_wheat = state.inventory("WHEAT")
     if shed_wheat <= 0:
         return None
-
     if state.is_shed_adjacent(fx, fy):
-        pickup_qty = min(needs_feed_count, shed_wheat)
-        return ["PICKUP", "WHEAT", pickup_qty]
-
+        return ["PICKUP", "WHEAT", min(needs_feed_count, shed_wheat)]
     target_shed = board.nearest_shed(fx, fy)
     return [step_toward(fx, fy, target_shed[0], target_shed[1])]
 
@@ -146,32 +133,17 @@ def _livestock_chore_navigation(
     """Select highest-priority chore target and compute directional navigation step."""
     needs_feed = board.needs_feed()
     urgent_feed = [t for t in needs_feed if t.consecutive_unfed >= 1]
-    needs_care = board.needs_care()
-    needs_fert = board.has_fertilizer_tiles()
-    needs_prod_harvest = [t for t in board.animals() if t.yield_units > 0]
-
-    if needs_feed and carried_wheat > 0:
-        target = board.nearest_to(
-            fx, fy, urgent_feed if urgent_feed else needs_feed
-        )
-        if target:
+    priority_groups = [
+        (urgent_feed if urgent_feed else needs_feed)
+        if carried_wheat > 0
+        else [],
+        board.needs_care(),
+        board.has_fertilizer_tiles(),
+        [t for t in board.animals() if t.yield_units > 0],
+    ]
+    for group in priority_groups:
+        if group and (target := board.nearest_to(fx, fy, group)):
             return [step_toward(fx, fy, target.x, target.y)]
-
-    if needs_care:
-        target = board.nearest_to(fx, fy, needs_care)
-        if target:
-            return [step_toward(fx, fy, target.x, target.y)]
-
-    if needs_fert:
-        target = board.nearest_to(fx, fy, needs_fert)
-        if target:
-            return [step_toward(fx, fy, target.x, target.y)]
-
-    if needs_prod_harvest:
-        target = board.nearest_to(fx, fy, needs_prod_harvest)
-        if target:
-            return [step_toward(fx, fy, target.x, target.y)]
-
     return None
 
 
@@ -446,27 +418,17 @@ def evaluate_market(
 ) -> list[list[Any]]:
     """Evaluate market orders for feed, animals, farmhands, produce, and seeds."""
     orders: list[list[Any]] = []
-
-    orders.extend(
-        _evaluate_feed_purchases(state, board, MAX_MARKET_ORDERS - len(orders))
+    evaluators = (
+        lambda q: _evaluate_feed_purchases(state, board, q),
+        lambda q: _evaluate_animal_purchases(state, board, q),
+        lambda q: _evaluate_farmhand_hiring(state, board, q),
+        lambda q: _evaluate_produce_selling(
+            state, market, len(board.animals()), q
+        ),
+        lambda q: _evaluate_seed_purchases(state, board, crop, q),
     )
-    orders.extend(
-        _evaluate_animal_purchases(
-            state, board, MAX_MARKET_ORDERS - len(orders)
-        )
-    )
-    orders.extend(
-        _evaluate_farmhand_hiring(state, board, MAX_MARKET_ORDERS - len(orders))
-    )
-    orders.extend(
-        _evaluate_produce_selling(
-            state, market, len(board.animals()), MAX_MARKET_ORDERS - len(orders)
-        )
-    )
-    orders.extend(
-        _evaluate_seed_purchases(
-            state, board, crop, MAX_MARKET_ORDERS - len(orders)
-        )
-    )
-
+    for ev in evaluators:
+        if len(orders) >= MAX_MARKET_ORDERS:
+            break
+        orders.extend(ev(MAX_MARKET_ORDERS - len(orders)))
     return orders[:MAX_MARKET_ORDERS]
