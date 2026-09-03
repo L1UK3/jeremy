@@ -1,4 +1,4 @@
-from simulation.episode import Episode
+from sample.simulation.episode import Episode
 
 
 def test_submission_against_starter():
