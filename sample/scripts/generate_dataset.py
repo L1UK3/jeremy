@@ -27,7 +27,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 
-from simulation.episode import Episode
+from sample.simulation.episode import Episode
 from sample.environment.board import Board
 from sample.environment.encode import encode_state_1706
 from sample.environment.state import GameState
