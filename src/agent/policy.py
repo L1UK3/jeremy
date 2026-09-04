@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 from constants import CROPS, LIVESTOCK, PREDATION_MODES
 from encoder import encode_observation
 
