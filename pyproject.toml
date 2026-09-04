@@ -10,18 +10,3 @@ dependencies = [
     "pytest>=9.1.1",
     "ruff>=0.16.5",
 ]
-
-[project.optional-dependencies]
-local = [
-    "torch[device-gfx1101]==2.12.0+rocm7.14.0",
-    "rocm[libraries,device-gfx1101]==7.14.0",
-]
-
-[[tool.uv.index]]
-name = "amd-rocm"
-url = "https://repo.amd.com/rocm/whl-multi-arch/"
-explicit = true
-
-[tool.uv.sources]
-torch = { index = "amd-rocm" }
-rocm = { index = "amd-rocm" }
