@@ -1,0 +1,5 @@
+kaggle-environments>=1.32.6
+pyarrow>=25.0.1
+pytest>=9.1.1
+ruff>=0.16.5
+torch>=2.12.0
