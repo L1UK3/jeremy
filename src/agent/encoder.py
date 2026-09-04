@@ -3,7 +3,6 @@
 from typing import Any
 
 import numpy as np
-
 from constants import CROPS, LIVESTOCK, QUAD_BOUNDS
 
 
