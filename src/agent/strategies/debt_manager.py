@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from deprecated.environment.state import GameState
+    from environment.state import GameState
 
 __all__ = [
     "CLONE_THRESHOLD",

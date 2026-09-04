@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from deprecated.environment.board import Board
-    from deprecated.environment.state import GameState
+    from environment.board import Board
+    from environment.state import GameState
 
 __all__ = [
     "BASE_PRICE",
