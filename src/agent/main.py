@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from policy import get_plan
+from model.policy import get_plan
 
 
 def agent(obs: dict[str, Any]) -> dict[str, Any]:
