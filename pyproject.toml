@@ -9,18 +9,19 @@ dependencies = [
     "pyarrow>=25.0.1",
     "pytest>=9.1.1",
     "ruff>=0.16.5",
-    "torch>=2.12.0",
 ]
 
-[tool.pytest.ini_options]
-pythonpath = ["src"]
-testpaths = ["tests"]
+[project.optional-dependencies]
+local = [
+    "torch[device-gfx1101]==2.12.0+rocm7.14.0",
+    "rocm[libraries,device-gfx1101]==7.14.0",
+]
 
-[tool.ruff]
-line-length = 88
-target-version = "py312"
+[[tool.uv.index]]
+name = "amd-rocm"
+url = "https://repo.amd.com/rocm/whl-multi-arch/"
+explicit = true
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP"]
-ignore = ["N812", "E402"]
-
+[tool.uv.sources]
+torch = { index = "amd-rocm" }
+rocm = { index = "amd-rocm" }
