@@ -47,7 +47,6 @@ FILES = [
     "strategies/__init__.py",
     "trajectories/trace.py",
     "trajectories/trace.json",
-    "trajectories/supply.json",
     "trajectories/__init__.py",
     "controllers/base.py",
     "controllers/numpy_macro.py",

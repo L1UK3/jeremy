@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import math
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from environment.board import CROP_SPECS
 
 if TYPE_CHECKING:
     from environment.board import Board
@@ -20,10 +20,10 @@ __all__ = [
     "PRICE_FLOOR",
     "SELLABLE",
     "SHOP_DEMAND",
-    "SUPPLY",
     "SUPPLY_DRIVER",
     "apply_market_controller",
     "cash_needed",
+    "compute_analytical_supply",
     "count_driver",
     "mprice",
     "mshape",
@@ -114,24 +114,67 @@ SUPPLY_DRIVER: dict[str, tuple[str, str | None]] = {
 }
 
 
-def _load_supply() -> dict[str, list[float]]:
-    candidates = (
-        Path(__file__).resolve().parents[1] / "trajectories" / "supply.json"
-        if "__file__" in globals()
-        else None,
-        Path("src/agent/trajectories/supply.json"),
-        Path("agent/trajectories/supply.json"),
-        Path("src/trajectories/supply.json"),
-        Path("trajectories/supply.json"),
-        Path("supply.json"),
-    )
-    for p in candidates:
-        if p and p.exists():
-            return json.loads(p.read_text(encoding="utf-8"))
-    return {}
+def compute_analytical_supply(
+    item: str,
+    step: int,
+    state: GameState,
+    board: Board,
+) -> float:
+    """Project remaining commodity supply over the season using active assets and game specs."""
+    driver = SUPPLY_DRIVER.get(item)
+    if driver is None:
+        return float(PRICE_FLOOR)
 
+    remaining_steps = max(0, 720 - step)
+    remaining_days = remaining_steps / 24.0
 
-SUPPLY: dict[str, list[float]] = _load_supply()
+    shed_stock = float(state.inventory(item))
+
+    standing_yield = 0.0
+    kind, name = driver
+
+    unlocked_quads = float(len(state.unlocked_quadrants) if state.unlocked_quadrants else 1)
+    quadrant_multiplier = 0.5 + 0.5 * (unlocked_quads / 4.0)
+
+    if kind == "animal":
+        animals = [t for t in board.animals() if t.animal == name] if name else board.animals()
+        for t in animals:
+            standing_yield += float(t.yield_units)
+
+        active_count = float(len(animals)) + float(state.inventory(name or ""))
+        future_yield = active_count * remaining_days * 1.5 if active_count > 0 else 0.0
+    else:
+        crops = board.crops(name) if name else []
+        for t in crops:
+            standing_yield += float(t.yield_units)
+
+        active_count = float(len(crops))
+        spec = CROP_SPECS.get(name or "")
+        cycle_days = float(spec.max_yield_day) if spec and spec.max_yield_day > 0 else 4.0
+        yield_per_cycle = float(spec.max_yield) if spec and spec.max_yield > 0 else 4.0
+        is_ongoing = spec.ongoing if spec else False
+
+        seed_stock = float(state.seeds.get(name or "", 0))
+        empty_unlocked = float(board.empty_tiles_count)
+
+        if active_count > 0:
+            effective_tiles = (active_count + min(seed_stock, empty_unlocked * 0.25)) * quadrant_multiplier
+            if is_ongoing:
+                future_yield = effective_tiles * remaining_days * 1.0
+            else:
+                cycles = remaining_days / cycle_days
+                future_yield = effective_tiles * cycles * yield_per_cycle
+        elif seed_stock > 0 and empty_unlocked > 0:
+            effective_tiles = min(seed_stock, empty_unlocked * 0.5) * quadrant_multiplier
+            if is_ongoing:
+                future_yield = effective_tiles * remaining_days * 1.0
+            else:
+                cycles = remaining_days / cycle_days
+                future_yield = effective_tiles * cycles * yield_per_cycle
+        else:
+            future_yield = 0.0
+
+    return max(float(PRICE_FLOOR), shed_stock + standing_yield + future_yield)
 
 
 def mshape(func: str, x: float) -> float:
@@ -217,7 +260,7 @@ def opponent_scale(state: GameState, board: Board, item: str) -> float:
     me = state.player
     kind, name = driver
     if kind == "animal":
-        mine = len(board.animals(name))
+        mine = sum(1 for t in board.animals() if t.animal == name) if name else len(board.animals())
     else:
         mine = len(board.crops(name)) if name else 0
     theirs = count_driver(farms[1 - me], kind, name)
@@ -236,18 +279,18 @@ def reserve_price(
 ) -> float:
     """Reservation price calculation for inventory hold/sell decisions."""
     if item not in MP:
-        return 1.0
+        return float(PRICE_FLOOR)
     base = MP[item][0]
     frac = scale
     if step >= RAMP_START:
         span = float(max(1, RAMP_END - RAMP_START))
         frac *= max(0.0, (RAMP_END - step) / span)
     drain = remaining_drain(item, step, shops)
-    supply = float(SUPPLY.get(item, [0] * 721)[min(step, 720)])
+    supply = compute_analytical_supply(item, step, state, board)
     ahead = supply * (1.0 + opponent_scale(state, board, item))
     if ahead > 0.0:
         frac *= min(1.0, drain / ahead)
-    return base * frac
+    return max(float(PRICE_FLOOR), base * frac)
 
 
 def plan_sells(
@@ -322,7 +365,7 @@ def race_factor(item: str, step: int, state: GameState, board: Board) -> float:
         return 1.0
     shops = (state.raw.get("town") or {}).get("unlocked_shops") or []
     drain = remaining_drain(item, step, shops)
-    supply = float(SUPPLY.get(item, [0] * 721)[min(step, 720)])
+    supply = compute_analytical_supply(item, step, state, board)
     ahead = supply * (1.0 + opponent_scale(state, board, item))
     if ahead <= 0.0:
         return 1.0
