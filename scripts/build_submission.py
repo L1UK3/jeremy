@@ -12,7 +12,6 @@ submission.py / submission.tar.gz
 """
 
 import argparse
-import json
 import re
 import shutil
 import subprocess
@@ -223,11 +222,6 @@ def build_submission() -> Path:
     all_from_imports: dict[str, set[str]] = {}
     all_direct_imports: set[str] = set()
     all_body = []
-
-    supply_path = SRC_DIR / "supply.json"
-    if supply_path.exists():
-        supply_raw = supply_path.read_text(encoding="utf-8")
-        all_body.append(f"SUPPLY = json.loads({json.dumps(supply_raw)})\n")
 
     for module_rel in MODULES:
         path = SRC_DIR / module_rel

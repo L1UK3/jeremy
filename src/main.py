@@ -29,13 +29,19 @@ _CLONE_CONFIDENCE: int = 0
 
 
 def agent(obs: dict[str, Any]) -> dict[str, Any]:
-    """Execute hybrid trace-and-reactive game turn."""
+    """Execute autonomous game turn via macro policy and reactive strategies."""
     global _LAST_STEP, _CLONE_CONFIDENCE
 
     state = GameState.from_obs(obs)
     board = Board(state)
     step = state.step
     n_hands = len(state.hands)
+
+    default_action: dict[str, Any] = {
+        "farmer": ["PASS"],
+        "hands": [["PASS"] for _ in range(n_hands)],
+        "market": [],
+    }
 
     if step == 0 or step <= _LAST_STEP:
         _CLONE_CONFIDENCE = 0
@@ -48,11 +54,7 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         return explosion(state, board)
 
     try:
-        action: dict[str, Any] = {
-            "farmer": ["PASS"],
-            "hands": [["PASS"] for _ in range(n_hands)],
-            "market": [],
-        }
+        action = default_action.copy()
         pre_terminal_liquidation(action, state, step)
         plan = get_plan(obs)
         predation = str(plan.get("predation") or "Balanced")
@@ -111,8 +113,4 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             "market": [list(o) for o in (action.get("market") or [])][:10],
         }
     except Exception:
-        return {
-            "farmer": ["PASS"],
-            "hands": [["PASS"] for _ in range(n_hands)],
-            "market": [],
-        }
+        return default_action
