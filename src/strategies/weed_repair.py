@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from environment.board import manhattan_distance, step_toward
+
 if TYPE_CHECKING:
     from environment.board import Board
     from environment.state import GameState
@@ -30,17 +32,9 @@ _weed_repair_day: int = -1
 
 def weed_step(position: tuple[int, int], target: tuple[int, int]) -> list[str]:
     """Navigate or dig toward weed target."""
-    x, y = position
-    tx, ty = target
-    if tx < x:
-        return ["WEST"]
-    if tx > x:
-        return ["EAST"]
-    if ty < y:
-        return ["NORTH"]
-    if ty > y:
-        return ["SOUTH"]
-    return ["DIG"]
+    if position == target:
+        return ["DIG"]
+    return [step_toward(position[0], position[1], target[0], target[1])]
 
 
 def weed_tile_at(board: Board, position: tuple[int, int]) -> bool:
@@ -63,38 +57,45 @@ def weed_clear_state_based(
     if not weeds:
         return action
 
-    positions = [state.farmer, *(tuple(h) for h in state.hands)]
-    ops: list[list[str]] = [
-        list(action.get("farmer") or ["PASS"]),
-        *[list(h) for h in (action.get("hands") or [])],
-    ]
-    ops.extend([["PASS"]] * (len(positions) - len(ops)))
+    farmer_act = list(action.get("farmer") or ["PASS"])
+    hands_acts = [list(h) for h in (action.get("hands") or [])]
     turns_left = ((step // 24) + 1) * 24 - step
     claimed: set[tuple[int, int]] = set()
 
-    for actor in range(len(positions)):
-        current = ops[actor] if ops[actor] else ["PASS"]
-        if current[0] != "PASS":
-            continue
-        inventory = state.worker_inventory(actor)
-        if sum(max(0, int(v or 0)) for v in inventory.values()) > 0:
-            continue
-        pos = positions[actor]
+    if farmer_act[0] == "PASS" and sum(state.worker_inventory(0).values()) == 0:
+        fx, fy = state.farmer
         choices = [target for target in weeds if target not in claimed]
-        if not choices:
-            break
-        target = min(
-            choices,
-            key=lambda p: (abs(pos[0] - p[0]) + abs(pos[1] - p[1]), p[1], p[0]),
-        )
-        distance = abs(pos[0] - target[0]) + abs(pos[1] - target[1])
-        if distance + 1 > turns_left:
-            continue
-        claimed.add(target)
-        ops[actor] = weed_step(pos, target)
+        if choices:
+            target = min(
+                choices,
+                key=lambda p: (manhattan_distance(fx, fy, p[0], p[1]), p[1], p[0]),
+            )
+            dist = manhattan_distance(fx, fy, target[0], target[1])
+            if dist + 1 <= turns_left:
+                claimed.add(target)
+                farmer_act = weed_step((fx, fy), target)
 
-    action["farmer"] = ops[0]
-    action["hands"] = ops[1:]
+    for h_idx, h_act in enumerate(hands_acts):
+        if (
+            h_idx < len(state.hands)
+            and h_act
+            and h_act[0] == "PASS"
+            and sum(state.worker_inventory(h_idx + 1).values()) == 0
+        ):
+            hx, hy = state.hands[h_idx]
+            choices = [target for target in weeds if target not in claimed]
+            if choices:
+                target = min(
+                    choices,
+                    key=lambda p: (manhattan_distance(hx, hy, p[0], p[1]), p[1], p[0]),
+                )
+                dist = manhattan_distance(hx, hy, target[0], target[1])
+                if dist + 1 <= turns_left:
+                    claimed.add(target)
+                    hands_acts[h_idx] = weed_step((hx, hy), target)
+
+    action["farmer"] = farmer_act
+    action["hands"] = hands_acts
     return action
 
 

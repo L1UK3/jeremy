@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = [
-    "CLONE_THRESHOLD",
     "OPENING",
     "opening",
     "repay",
@@ -13,7 +12,6 @@ __all__ = [
 ]
 
 OPENING: str = "feed5"
-CLONE_THRESHOLD: int = 0
 _DEBT: dict[int, dict[int, dict[str, int]]] = {0: {}, 1: {}}
 _LAST: dict[int, int] = {0: -1, 1: -1}
 
@@ -90,5 +88,3 @@ def repay(action: dict[str, Any], debt: dict[str, int]) -> dict[str, Any]:
         out.append(order)
     action["market"] = out
     return action
-
-
