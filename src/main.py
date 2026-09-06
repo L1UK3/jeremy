@@ -16,15 +16,11 @@ from strategies import (
     apply_procurement,
     explosion,
     filter_predation_sells,
-    front_run,
     opening,
     pre_terminal_liquidation,
-    repay,
-    reset,
-    split,
     update_clone_profile,
+    weed_clear_state_based,
     weed_repair_productive_route,
-    weed_use_guarded,
 )
 from trajectories.trace import FLAT_TRACE
 
@@ -55,7 +51,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
 
     try:
         action = copy.deepcopy(FLAT_TRACE[min(step, len(FLAT_TRACE) - 1)])
-        front_run(action, state, step, FLAT_TRACE, _CLONE_CONFIDENCE)
         pre_terminal_liquidation(action, state, step)
         plan = get_plan(obs)
         predation = str(plan.get("predation") or "Balanced")
@@ -70,21 +65,9 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             step,
             reservation_scales=res_scales,
         )
-        action = weed_use_guarded(state, board, action, FLAT_TRACE)
+        action = weed_clear_state_based(state, board, action)
         action = weed_repair_productive_route(state, board, action)
-
-        _seat, debt_schedule = reset(state.player, step)
-        due = debt_schedule.pop(step, {})
-        action = repay(action, due)
-        if due:
-            carry = debt_schedule.setdefault(step + 1, {})
-            for item, quantity in due.items():
-                if quantity > 0:
-                    carry[item] = carry.get(item, 0) + quantity
         action = opening(action, step)
-        action = split(
-            action, state, step, debt_schedule, FLAT_TRACE, _CLONE_CONFIDENCE
-        )
 
         market = list(action.get("market") or [])
         target_crew = int(plan.get("crew", 0))

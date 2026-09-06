@@ -2,31 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from environment.state import GameState
+from typing import Any
 
 __all__ = [
     "CLONE_THRESHOLD",
     "OPENING",
-    "SPLIT_CAPS",
-    "SPLIT_HORIZON",
-    "SPLIT_ITEMS",
-    "SPLIT_START",
-    "SPLIT_STOP",
     "opening",
     "repay",
     "reset",
-    "split",
 ]
 
 OPENING: str = "feed5"
-SPLIT_ITEMS: tuple[str, ...] = ("WHEAT", "FERTILIZER")
-SPLIT_CAPS: dict[str, int] = {"WHEAT": 10, "FERTILIZER": 5}
-SPLIT_START: int = 120
-SPLIT_STOP: int = 715
-SPLIT_HORIZON: int = 1
 CLONE_THRESHOLD: int = 0
 _DEBT: dict[int, dict[int, dict[str, int]]] = {0: {}, 1: {}}
 _LAST: dict[int, int] = {0: -1, 1: -1}
@@ -106,53 +92,3 @@ def repay(action: dict[str, Any], debt: dict[str, int]) -> dict[str, Any]:
     return action
 
 
-def split(
-    action: dict[str, Any],
-    state: GameState,
-    step: int,
-    debt_schedule: dict[int, dict[str, int]],
-    trace: tuple[dict[str, Any], ...] | list[dict[str, Any]],
-    clone_confidence: int,
-) -> dict[str, Any]:
-    """Split commodity sales into an earlier turn to smooth market supply."""
-    future_step = step + SPLIT_HORIZON
-    if (
-        not SPLIT_ITEMS
-        or step < SPLIT_START
-        or step >= SPLIT_STOP
-        or future_step >= len(trace)
-        or (CLONE_THRESHOLD > 0 and clone_confidence < CLONE_THRESHOLD)
-    ):
-        return action
-    future: dict[str, int] = {}
-    for order in trace[future_step].get("market") or []:
-        if len(order) >= 3 and order[0] == "SELL" and order[1] in SPLIT_ITEMS:
-            future[order[1]] = future.get(order[1], 0) + max(
-                0, int(order[2] or 0)
-            )
-    if not future:
-        return action
-    market = list(action.get("market") or [])
-    if len(market) >= 10:
-        return action
-    committed: dict[str, int] = {}
-    for order in market:
-        if len(order) >= 3 and order[0] == "SELL":
-            committed[order[1]] = committed.get(order[1], 0) + max(
-                0, int(order[2] or 0)
-            )
-    for item in SPLIT_ITEMS:
-        if len(market) >= 10:
-            break
-        planned = future.get(item, 0)
-        cap = int(SPLIT_CAPS.get(item, planned) or planned)
-        stock = state.inventory(item)
-        available = max(0, stock - committed.get(item, 0))
-        quantity = min(planned, cap, available)
-        if quantity <= 0:
-            continue
-        market.append(["SELL", item, quantity])
-        due = debt_schedule.setdefault(future_step, {})
-        due[item] = due.get(item, 0) + quantity
-    action["market"] = market
-    return action
