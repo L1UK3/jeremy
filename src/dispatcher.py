@@ -8,6 +8,7 @@ from environment.board import (
     manhattan_distance,
     step_toward,
 )
+from parameters import DispatcherParams, get_active_parameters
 
 if TYPE_CHECKING:
     from environment.board import Board
@@ -32,6 +33,7 @@ __all__ = [
     "Job",
     "_harvest_actions",
     "_plant_task",
+    "assign_chores",
     "assign_jobs",
     "default_utility_scorer",
     "generate_jobs",
@@ -70,7 +72,7 @@ ANIMAL_PRODUCT: dict[str, str] = {
 
 
 class Job(NamedTuple):
-    """Lightweight immutable task specification for multi-agent scheduling."""
+    """Lightweight immutable chore specification for multi-agent scheduling."""
 
     priority: float
     action: str
@@ -99,11 +101,16 @@ def _harvest_actions(watered_today: bool = True, day: int = 0) -> list[str]:
 
 
 def default_utility_scorer(
-    job: Job, x: int, y: int, dist_penalty: float = 2.0
+    job: Job, x: int, y: int, dist_penalty: float | None = None
 ) -> float:
     """Distance-discounted utility from an actor position (x, y)."""
+    penalty = (
+        dist_penalty
+        if dist_penalty is not None
+        else get_active_parameters().dispatcher.dist_penalty
+    )
     return job.priority - (
-        dist_penalty * (abs(x - job.target[0]) + abs(y - job.target[1]))
+        penalty * (abs(x - job.target[0]) + abs(y - job.target[1]))
     )
 
 
@@ -135,8 +142,10 @@ def generate_jobs(
     board: Board,
     target_crop: str | None = None,
     crop_weights: tuple[float, ...] | list[float] | None = None,
+    params: DispatcherParams | None = None,
 ) -> list[Job]:
     """Streamlined single-pass chore generation directly from board spatial indexes."""
+    dp = params or get_active_parameters().dispatcher
     jobs: list[Job] = []
     prices = state.prices
 
@@ -155,7 +164,9 @@ def generate_jobs(
     for tile in board.animals():
         if tile.yield_units > 0 and tile.animal:
             prod = ANIMAL_PRODUCT.get(tile.animal, tile.animal)
-            val = HARVEST_PREMIUM + (tile.yield_units * prices.get(prod, 0))
+            val = dp.prio_harvest_premium + (
+                tile.yield_units * prices.get(prod, 0)
+            )
             jobs.append(Job(val, "HARVEST", tile.pos, item=prod))
             harvest_positions.add(tile.pos)
 
@@ -179,9 +190,9 @@ def generate_jobs(
 
         if is_ripe:
             base = (
-                HARVEST_PREMIUM
+                dp.prio_harvest_premium
                 if tile.crop in ("MELON", "CARROT")
-                else HARVEST_BASE
+                else dp.prio_harvest_base
             )
             val = base + (tile.yield_units * prices.get(tile.crop, 0))
             jobs.append(Job(val, "HARVEST", tile.pos, item=tile.crop))
@@ -192,7 +203,7 @@ def generate_jobs(
         if tile.pos in harvest_positions:
             continue
         if tile.consecutive_unwatered >= 1:
-            prio = WATER_URGENT
+            prio = dp.prio_water_urgent
         elif tile.crop:
             spec = CROP_SPECS.get(tile.crop)
             bonus_start = (
@@ -206,29 +217,33 @@ def generate_jobs(
                 and not spec.ongoing
                 and bonus_start <= crop_age < spec.max_yield_day
             ):
-                prio = WATER_BONUS
+                prio = dp.prio_water_bonus
             else:
-                prio = WATER
+                prio = dp.prio_water
         else:
-            prio = WATER
+            prio = dp.prio_water
         jobs.append(Job(prio, "WATER", tile.pos))
 
     # 4. Dig weeds
     for tile in board.weeds(only_unlocked=True):
-        jobs.append(Job(DIG_WEED, "DIG", tile.pos))
+        jobs.append(Job(dp.prio_dig_weed, "DIG", tile.pos))
 
     # 5. Animal feeding
     wheat_stock = state.inventory("WHEAT")
     if wheat_stock > 0:
         for tile in board.needs_feed()[:wheat_stock]:
             if not tile.fed_today:
-                prio = FEED_URGENT if tile.consecutive_unfed >= 1 else FEED
+                prio = (
+                    dp.prio_feed_urgent
+                    if tile.consecutive_unfed >= 1
+                    else dp.prio_feed
+                )
                 jobs.append(Job(prio, "FEED", tile.pos, item=tile.animal))
 
     # 6. Animal care
     for tile in board.needs_care():
         if not tile.cared_today:
-            jobs.append(Job(CARE, "CARE", tile.pos, item=tile.animal))
+            jobs.append(Job(dp.prio_care, "CARE", tile.pos, item=tile.animal))
 
     # 7. Fertilize plants
     fertilizer_stock = state.inventory("FERTILIZER")
@@ -238,14 +253,19 @@ def generate_jobs(
                 tile, "fertilized", False
             ):
                 jobs.append(
-                    Job(FERTILIZE, "FERTILIZE", tile.pos, item="FERTILIZER")
+                    Job(
+                        dp.prio_fertilize,
+                        "FERTILIZE",
+                        tile.pos,
+                        item="FERTILIZER",
+                    )
                 )
 
     # 8. Collect animal fertilizer
     for tile in board.has_fertilizer_tiles():
         jobs.append(
             Job(
-                COLLECT_FERTILIZER,
+                dp.prio_collect_fertilizer,
                 "COLLECT_FERTILIZER",
                 tile.pos,
                 item="FERTILIZER",
@@ -271,7 +291,7 @@ def generate_jobs(
                 ),
             )
             used_shed_tiles.add(best_shed)
-            jobs.append(Job(DROP_SHED, "DROP_SHED", best_shed))
+            jobs.append(Job(dp.prio_drop_shed, "DROP_SHED", best_shed))
 
     # 10. Planting chores on unplanted unlocked tiles (excluding reserved animal tiles)
     if unplanted_unlocked:
@@ -294,15 +314,15 @@ def generate_jobs(
 
         for tile in unplanted_unlocked:
             chosen_crop: str | None = None
-            prio = PLANT_BASE
+            prio = dp.prio_plant_base
             if available_seeds.get(primary, 0) > 0:
                 chosen_crop = primary
-                prio = PLANT_BASE
+                prio = dp.prio_plant_base
             else:
                 for sec in secondary_crops:
                     if available_seeds.get(sec, 0) > 0:
                         chosen_crop = sec
-                        prio = PLANT_CASCADE
+                        prio = dp.prio_plant_cascade
                         break
 
             if chosen_crop is not None:
@@ -322,12 +342,18 @@ def _assign_one(
     used: set[tuple[int, int]],
     state: GameState | None = None,
     board: Board | None = None,
+    dist_penalty: float | None = None,
 ) -> list[str]:
+    penalty = (
+        dist_penalty
+        if dist_penalty is not None
+        else get_active_parameters().dispatcher.dist_penalty
+    )
     best_job: Job | None = None
     best_score: float = -1e9
     for j in jobs:
         if j.target not in used:
-            score = j.priority - 2.0 * (
+            score = j.priority - penalty * (
                 abs(x - j.target[0]) + abs(y - j.target[1])
             )
             if score > best_score:
@@ -340,9 +366,13 @@ def _assign_one(
 
 
 def assign_jobs(
-    state: GameState, jobs: list[Job], board: Board | None = None
+    state: GameState,
+    jobs: list[Job],
+    board: Board | None = None,
+    params: DispatcherParams | None = None,
 ) -> tuple[list[str], list[list[str]]]:
     """Assign optimal, non-overlapping actions across farmer and all hands from a single job pool."""
+    dp = params or get_active_parameters().dispatcher
     unit_positions: list[tuple[int, int]] = [state.farmer]
     for h in state.hands:
         unit_positions.append((h[0], h[1]))
@@ -370,7 +400,9 @@ def assign_jobs(
                     continue
                 if not is_eligible(u_idx, job):
                     continue
-                score = default_utility_scorer(job, ux, uy)
+                score = default_utility_scorer(
+                    job, ux, uy, dist_penalty=dp.dist_penalty
+                )
                 if score > best_score:
                     best_score = score
                     best_unit = u_idx
@@ -386,14 +418,19 @@ def assign_jobs(
         else:
             break
 
-    farmer_act = unit_actions[0]
-    hands_acts = unit_actions[1:]
-    return farmer_act, hands_acts
+    return unit_actions[0], unit_actions[1:]
 
 
-def schedule_tasks(
-    state: GameState, board: Board, target_crop: str | None = None
+def assign_chores(
+    state: GameState,
+    board: Board,
+    target_crop: str | None = None,
+    params: DispatcherParams | None = None,
 ) -> tuple[list[str], list[list[str]]]:
-    """Top-level pipeline generating prioritized chores and assigning tasks to units."""
-    jobs = generate_jobs(state, board, target_crop=target_crop)
-    return assign_jobs(state, jobs, board=board)
+    """Top-level pipeline generating prioritized chores and assigning them to units."""
+    dp = params or get_active_parameters().dispatcher
+    jobs = generate_jobs(state, board, target_crop=target_crop, params=dp)
+    return assign_jobs(state, jobs, board=board, params=dp)
+
+
+schedule_tasks = assign_chores

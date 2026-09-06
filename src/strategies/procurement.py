@@ -5,6 +5,12 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
+from parameters import (
+    DEFAULT_PARAMETERS,
+    ProcurementParams,
+    get_active_parameters,
+)
+
 if TYPE_CHECKING:
     from environment.board import Board, Tile
     from environment.state import GameState
@@ -48,9 +54,9 @@ LAND_COSTS: dict[str, int] = {
 FIBONACCI: tuple[int, ...] = (1, 1, 2, 3, 5, 8, 13, 21, 34, 55)
 
 # Hyperparameters exposed for Optuna tuning
-DEFAULT_LAND_COST_MULT: float = 2.0
-DEFAULT_LAND_MIN_CREW: int = 3
-DEFAULT_MAX_HIRE_HOUR: int = 2
+DEFAULT_LAND_COST_MULT: float = DEFAULT_PARAMETERS.procurement.land_cost_mult
+DEFAULT_LAND_MIN_CREW: int = DEFAULT_PARAMETERS.procurement.land_min_crew
+DEFAULT_MAX_HIRE_HOUR: int = DEFAULT_PARAMETERS.procurement.max_hire_hour
 DEFAULT_ANIMAL_RESERVED_TILES: frozenset[tuple[int, int]] = frozenset(
     {(3, 4), (4, 3)}
 )
@@ -240,31 +246,48 @@ def apply_procurement(
     target_crop: str,
     target_animal: str,
     target_crew: int,
-    cost_mult: float = DEFAULT_LAND_COST_MULT,
-    min_crew: int = DEFAULT_LAND_MIN_CREW,
-    max_hire_hour: int = DEFAULT_MAX_HIRE_HOUR,
+    cost_mult: float | None = None,
+    min_crew: int | None = None,
+    max_hire_hour: int | None = None,
     reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
     max_animals: int | None = None,
+    params: ProcurementParams | None = None,
 ) -> int:
     """Execute all asset and commodity procurement decisions.
 
     Tracks and deducts shared budget across each procurement order.
     """
+    pp = params or get_active_parameters().procurement
+    actual_cost_mult = cost_mult if cost_mult is not None else pp.land_cost_mult
+    actual_min_crew = min_crew if min_crew is not None else pp.land_min_crew
+    actual_max_hire_hour = (
+        max_hire_hour if max_hire_hour is not None else pp.max_hire_hour
+    )
+    capacity = (
+        max_animals
+        if max_animals is not None
+        else (
+            pp.max_animals
+            if pp.max_animals is not None
+            else len(reserved_tiles)
+        )
+    )
+
     budget = state.money
     budget = procure_crew(
         market,
         state,
         target_crew,
         budget=budget,
-        max_hire_hour=max_hire_hour,
+        max_hire_hour=actual_max_hire_hour,
     )
     budget = procure_land(
         market,
         state,
         target_crew,
         budget=budget,
-        cost_mult=cost_mult,
-        min_crew=min_crew,
+        cost_mult=actual_cost_mult,
+        min_crew=actual_min_crew,
     )
     budget = procure_seeds(
         market,
@@ -283,7 +306,6 @@ def apply_procurement(
         target_animal=target_animal,
         budget=budget,
     )
-    capacity = len(reserved_tiles) if max_animals is None else max_animals
     budget = procure_livestock(
         market,
         state,

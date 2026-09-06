@@ -6,6 +6,11 @@ import math
 from typing import TYPE_CHECKING, Any
 
 from environment.board import CROP_SPECS
+from parameters import (
+    DEFAULT_PARAMETERS,
+    MarketMakerParams,
+    get_active_parameters,
+)
 
 if TYPE_CHECKING:
     from environment.board import Board
@@ -47,7 +52,7 @@ SELLABLE: tuple[str, ...] = (
     "FERTILIZER",
 )
 
-FRONT_RUN_HORIZON: int = 1
+FRONT_RUN_HORIZON: int = DEFAULT_PARAMETERS.market_maker.front_run_horizon
 FRONT_RUN_ITEMS: tuple[str, ...] = ("MELON", "STRAWBERRY", "MILK", "WOOL")
 BASE_PRICE: dict[str, int] = {
     "MELON": 250,
@@ -56,10 +61,10 @@ BASE_PRICE: dict[str, int] = {
     "WOOL": 200,
 }
 GLUT_WEIGHT: dict[str, float] = {
-    "MELON": 3.5,
-    "STRAWBERRY": 2.0,
-    "MILK": 2.0,
-    "WOOL": 3.2,
+    "MELON": DEFAULT_PARAMETERS.market_maker.glut_weight_melon,
+    "STRAWBERRY": DEFAULT_PARAMETERS.market_maker.glut_weight_strawberry,
+    "MILK": DEFAULT_PARAMETERS.market_maker.glut_weight_milk,
+    "WOOL": DEFAULT_PARAMETERS.market_maker.glut_weight_wool,
 }
 
 I0: int = 10000
@@ -88,18 +93,18 @@ SHOP_DEMAND: dict[str, tuple[str, ...]] = {
 CENTER_ITEMS: tuple[str, ...] = tuple(k for k in MP if k != "FERTILIZER")
 
 RESERVE: dict[str, float] = {}
-SORT_SELLS: bool = True
-SORT_KEY: str = "impact"
-SELLS_FIRST: bool = True
+SORT_SELLS: bool = DEFAULT_PARAMETERS.market_maker.sort_sells
+SORT_KEY: str = DEFAULT_PARAMETERS.market_maker.sort_key
+SELLS_FIRST: bool = DEFAULT_PARAMETERS.market_maker.sells_first
 PROMOTE: tuple[str, ...] = ("MELON", "STRAWBERRY", "MILK", "WOOL")
-RACE_WEIGHT: float = 0.0
+RACE_WEIGHT: float = DEFAULT_PARAMETERS.market_maker.race_weight
 PROMOTE_AFTER: dict[str, int] = {}
 PROMOTE_IF_OPP_MONEY: dict[str, float] = {}
 LIFT: tuple[str, ...] = ()
-EARLY_TERMINAL: int = 0
-SHED_PRESSURE: int = 80
-RAMP_START: int = 576
-RAMP_END: int = 716
+EARLY_TERMINAL: int = DEFAULT_PARAMETERS.market_maker.early_terminal
+SHED_PRESSURE: int = DEFAULT_PARAMETERS.market_maker.shed_pressure
+RAMP_START: int = DEFAULT_PARAMETERS.market_maker.ramp_start
+RAMP_END: int = DEFAULT_PARAMETERS.market_maker.ramp_end
 
 SUPPLY_DRIVER: dict[str, tuple[str, str | None]] = {
     "MILK": ("animal", "COW"),
@@ -298,15 +303,17 @@ def reserve_price(
     board: Board,
     shops: list[str],
     scale: float = 1.0,
+    params: MarketMakerParams | None = None,
 ) -> float:
     """Reservation price calculation for inventory hold/sell decisions."""
+    mp = params or get_active_parameters().market_maker
     if item not in MP:
         return float(PRICE_FLOOR)
     base = MP[item][0]
     frac = scale
-    if step >= RAMP_START:
-        span = float(max(1, RAMP_END - RAMP_START))
-        frac *= max(0.0, (RAMP_END - step) / span)
+    if step >= mp.ramp_start:
+        span = float(max(1, mp.ramp_end - mp.ramp_start))
+        frac *= max(0.0, (mp.ramp_end - step) / span)
     drain = remaining_drain(item, step, shops)
     supply = compute_analytical_supply(item, step, state, board)
     ahead = supply * (1.0 + opponent_scale(state, board, item))
@@ -322,8 +329,10 @@ def plan_sells(
     slots: int,
     short_of_cash: float,
     reservation_scales: dict[str, float] | None = None,
+    params: MarketMakerParams | None = None,
 ) -> list[list[Any]]:
     """Select optimal SELL orders for controlled products."""
+    mp = params or get_active_parameters().market_maker
     reserve = reservation_scales if reservation_scales is not None else RESERVE
     if slots <= 0 or not reserve:
         return []
@@ -331,7 +340,7 @@ def plan_sells(
     inventory = (state.raw.get("market") or {}).get("inventory") or {}
     shops = (state.raw.get("town") or {}).get("unlocked_shops") or []
     load = sum(max(0, int(v or 0)) for v in shed.values())
-    forced = load >= SHED_PRESSURE or short_of_cash > 0
+    forced = load >= mp.shed_pressure or short_of_cash > 0
 
     candidates: list[tuple[int, str, int]] = []
     for item, scale in reserve.items():
@@ -343,7 +352,7 @@ def plan_sells(
             units = held
         else:
             res_val = reserve_price(
-                item, step, state, board, shops, scale=scale
+                item, step, state, board, shops, scale=scale, params=mp
             )
             units = 0
             while units < held and mprice(item, inv + units) >= res_val:
@@ -381,9 +390,16 @@ def cash_needed(orders: list[Any], state: GameState) -> int:
     return total
 
 
-def race_factor(item: str, step: int, state: GameState, board: Board) -> float:
+def race_factor(
+    item: str,
+    step: int,
+    state: GameState,
+    board: Board,
+    params: MarketMakerParams | None = None,
+) -> float:
     """Glut factor adjusting slot priority for oversupplied items."""
-    if RACE_WEIGHT <= 0.0:
+    mp = params or get_active_parameters().market_maker
+    if mp.race_weight <= 0.0:
         return 1.0
     shops = (state.raw.get("town") or {}).get("unlocked_shops") or []
     drain = remaining_drain(item, step, shops)
@@ -392,11 +408,15 @@ def race_factor(item: str, step: int, state: GameState, board: Board) -> float:
     if ahead <= 0.0:
         return 1.0
     glut = max(0.0, 1.0 - drain / ahead)
-    return 1.0 + RACE_WEIGHT * glut
+    return 1.0 + mp.race_weight * glut
 
 
 def sell_priority(
-    order: Any, state: GameState, board: Board, step: int = 0
+    order: Any,
+    state: GameState,
+    board: Board,
+    step: int = 0,
+    params: MarketMakerParams | None = None,
 ) -> float:
     """Priority ranking for ordering SELL orders in market resolution queue."""
     if not (isinstance(order, list) and len(order) >= 3 and order[0] == "SELL"):
@@ -408,15 +428,16 @@ def sell_priority(
         return -1.0
     if qty <= 0 or item not in MP:
         return -1.0
+    mp = params or get_active_parameters().market_maker
     inventory = (state.raw.get("market") or {}).get("inventory") or {}
     inv = int(inventory.get(item, I0) or I0)
     unit = mprice(item, inv)
     held = state.inventory(item)
     qty = min(qty, held) if held > 0 else qty
-    race = race_factor(item, step, state, board)
-    if SORT_KEY == "unit":
+    race = race_factor(item, step, state, board, params=mp)
+    if mp.sort_key == "unit":
         return float(unit) * race
-    if SORT_KEY == "impact":
+    if mp.sort_key == "impact":
         return float(qty) * float(unit - mprice(item, inv + qty)) * race
     return float(unit) * float(qty) * race
 
@@ -427,10 +448,12 @@ def apply_market_controller(
     board: Board,
     step: int,
     reservation_scales: dict[str, float] | None = None,
+    params: MarketMakerParams | None = None,
 ) -> dict[str, Any]:
     """Apply market ordering, slot promotion, and early liquidation."""
+    mp = params or get_active_parameters().market_maker
     try:
-        if EARLY_TERMINAL and step == EARLY_TERMINAL:
+        if mp.early_terminal and step == mp.early_terminal:
             rows: list[tuple[float, str, int]] = []
             for item in MP:
                 held = state.inventory(item)
@@ -438,7 +461,11 @@ def apply_market_controller(
                     rows.append(
                         (
                             sell_priority(
-                                ["SELL", item, held], state, board, step
+                                ["SELL", item, held],
+                                state,
+                                board,
+                                step,
+                                params=mp,
                             ),
                             item,
                             held,
@@ -475,8 +502,9 @@ def apply_market_controller(
             10 - len(keep),
             short,
             reservation_scales=reservation_scales,
+            params=mp,
         )
-        if not SORT_SELLS:
+        if not mp.sort_sells:
             action["market"] = (sells + keep)[:10]
             return action
 
@@ -504,18 +532,24 @@ def apply_market_controller(
         if LIFT:
             lifted = [o for o in keep if is_sell(o) and o[1] in LIFT]
             if lifted:
-                lifted.sort(key=lambda o: -sell_priority(o, state, board, step))
+                lifted.sort(
+                    key=lambda o: (
+                        -sell_priority(o, state, board, step, params=mp)
+                    )
+                )
                 held = [o for o in keep if not (is_sell(o) and o[1] in LIFT)]
                 keep = lifted + held
 
         merged = [o for o in sells if promotable(o)] + [
             o for o in keep if promotable(o)
         ]
-        merged.sort(key=lambda o: -sell_priority(o, state, board, step))
+        merged.sort(
+            key=lambda o: -sell_priority(o, state, board, step, params=mp)
+        )
         rest = [o for o in sells if not promotable(o)] + [
             o for o in keep if not promotable(o)
         ]
-        if SELLS_FIRST:
+        if mp.sells_first:
             action["market"] = (merged + rest)[:10]
         else:
             out: list[list[Any]] = []

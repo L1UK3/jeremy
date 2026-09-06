@@ -25,6 +25,7 @@ OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
     "main.py",
+    "parameters.py",
     "dispatcher.py",
     "environment/board.py",
     "environment/state.py",
@@ -46,6 +47,7 @@ FILES = [
 ]
 
 MODULES = [
+    "parameters.py",
     "environment/board.py",
     "environment/state.py",
     "model/constants.py",
@@ -74,6 +76,7 @@ HEADER = """\
 INTERNAL_PACKAGES = {
     "src",
     "main",
+    "parameters",
     "environment",
     "board",
     "state",
@@ -100,9 +103,12 @@ INTERNAL_MODULES = (
 
 def is_internal_import(module_name: str) -> bool:
     """Check if an imported module belongs to internal agent/environment code."""
-    root_pkg = module_name.split(".")[0].strip()
+    mod = module_name.lstrip(".")
+    root_pkg = mod.split(".")[0].strip()
     return (
-        root_pkg in INTERNAL_MODULES or module_name.strip() in INTERNAL_MODULES
+        root_pkg in INTERNAL_MODULES
+        or mod.strip() in INTERNAL_MODULES
+        or module_name.strip() in INTERNAL_MODULES
     )
 
 

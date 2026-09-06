@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from environment.board import step_toward
+from parameters import (
+    DEFAULT_PARAMETERS,
+    ExplosionParams,
+    get_active_parameters,
+)
 
 if TYPE_CHECKING:
     from environment.board import Board
@@ -23,12 +28,12 @@ SELLABLE: tuple[str, ...] = (
 )
 
 GLUT_WEIGHT: dict[str, float] = {
-    "MELON": 3.6,
-    "WOOL": 3.2,
-    "MILK": 2.0,
-    "STRAWBERRY": 2.0,
-    "EGG": 1.5,
-    "TOMATO": 1.3,
+    "MELON": DEFAULT_PARAMETERS.explosion.terminal_glut_weight_melon,
+    "WOOL": DEFAULT_PARAMETERS.explosion.terminal_glut_weight_wool,
+    "MILK": DEFAULT_PARAMETERS.explosion.terminal_glut_weight_milk,
+    "STRAWBERRY": DEFAULT_PARAMETERS.explosion.terminal_glut_weight_strawberry,
+    "EGG": DEFAULT_PARAMETERS.explosion.terminal_glut_weight_egg,
+    "TOMATO": DEFAULT_PARAMETERS.explosion.terminal_glut_weight_tomato,
     "CARROT": 1.0,
     "WHEAT": 1.0,
     "FERTILIZER": 1.0,
@@ -145,9 +150,23 @@ def _dispatch_worker(
 
 
 def _build_market_orders(
-    state: GameState, pending_deposits: dict[str, int]
+    state: GameState,
+    pending_deposits: dict[str, int],
+    params: ExplosionParams | None = None,
 ) -> list[list[Any]]:
     """Build glut-weighted sell orders including same-turn projected deposits."""
+    ep = params or get_active_parameters().explosion
+    weights = {
+        "MELON": ep.terminal_glut_weight_melon,
+        "WOOL": ep.terminal_glut_weight_wool,
+        "MILK": ep.terminal_glut_weight_milk,
+        "STRAWBERRY": ep.terminal_glut_weight_strawberry,
+        "EGG": ep.terminal_glut_weight_egg,
+        "TOMATO": ep.terminal_glut_weight_tomato,
+        "CARROT": 1.0,
+        "WHEAT": 1.0,
+        "FERTILIZER": 1.0,
+    }
     projected = {k: max(0, int(state.shed.get(k, 0))) for k in SELLABLE}
     cap = sum(projected.values())
 
@@ -159,7 +178,7 @@ def _build_market_orders(
 
     sells = [
         (
-            float(state.price(item) * qty) * GLUT_WEIGHT.get(item, 1.0),
+            float(state.price(item) * qty) * weights.get(item, 1.0),
             item,
             qty,
         )
@@ -174,9 +193,13 @@ def _build_market_orders(
 
 
 def pre_terminal_liquidation(
-    action: dict[str, Any], state: GameState, step: int
+    action: dict[str, Any],
+    state: GameState,
+    step: int,
+    params: ExplosionParams | None = None,
 ) -> dict[str, Any]:
-    if step < 672:
+    ep = params or get_active_parameters().explosion
+    if step < ep.pre_terminal_step:
         return action
     market = action.setdefault("market", [])
     already = {
@@ -191,8 +214,13 @@ def pre_terminal_liquidation(
     return action
 
 
-def explosion(state: GameState, board: Board) -> dict[str, Any]:
+def explosion(
+    state: GameState,
+    board: Board,
+    params: ExplosionParams | None = None,
+) -> dict[str, Any]:
     """Final 8-turn liquidation controller (turns 712-719)."""
+    ep = params or get_active_parameters().explosion
     turns_left = max(1, 720 - state.step)
     targets = _collect_harvest_targets(state, board)
     claimed_tiles: set[tuple[int, int]] = set()
@@ -217,5 +245,5 @@ def explosion(state: GameState, board: Board) -> dict[str, Any]:
         for idx, pos in enumerate(positions)
     ]
 
-    market_orders = _build_market_orders(state, pending_deposits)
+    market_orders = _build_market_orders(state, pending_deposits, params=ep)
     return {"farmer": acts[0], "hands": acts[1:], "market": market_orders}

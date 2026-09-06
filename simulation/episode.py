@@ -106,27 +106,52 @@ def run_episode(
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser(description="Run a Kaggriculture episode.")
-    args.add_argument(
+    parser = argparse.ArgumentParser(description="Run a Kaggriculture episode.")
+    parser.add_argument(
         "--challenger",
         type=str,
-        default="main.py",
-        help="Path to the challenger agent (default: main.py)",
+        default="src/main.py",
+        help="Path to the challenger agent (default: src/main.py)",
     )
-    args.add_argument(
+    parser.add_argument(
         "--baseline",
         type=str,
         default="starter",
         help="Path to the baseline agent (default: starter)",
     )
-
-    args.add_argument(
+    parser.add_argument(
         "--replay_path",
         type=str,
         help="Path to save the replay (JSON or HTML format)",
     )
+    parser.add_argument(
+        "--seat",
+        type=int,
+        default=0,
+        help="Seat of challenger (0 or 1)",
+    )
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=720,
+        help="Episode steps (default: 720)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Game random seed",
+    )
 
-    res = run_episode()
+    parsed = parser.parse_args()
+    res = run_episode(
+        challenger=parsed.challenger,
+        baseline=parsed.baseline,
+        seat=parsed.seat,
+        steps=parsed.steps,
+        seed=parsed.seed,
+        save_replay_path=parsed.replay_path,
+    )
     print(
         f"Episode {res.episode_idx} (Seat {res.seat}) in {res.duration_sec:.2f}s | "
         f"Winner: {res.winner} | Score: {res.score_challenger:.0f} vs {res.score_baseline:.0f}"

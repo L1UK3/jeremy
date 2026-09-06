@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from environment.board import manhattan_distance, step_toward
+from parameters import WeedRepairParams, get_active_parameters
 
 if TYPE_CHECKING:
     from environment.board import Board
@@ -47,10 +48,12 @@ def weed_clear_state_based(
     state: GameState,
     board: Board,
     action: dict[str, Any],
+    params: WeedRepairParams | None = None,
 ) -> dict[str, Any]:
     """Clear reachable weeds dynamically when units are idle."""
+    wp = params or get_active_parameters().weed_repair
     step = state.step
-    if step >= 672:
+    if step >= wp.weed_repair_cutoff_step:
         return action
 
     weeds = [tile.pos for tile in board.weeds(only_unlocked=True)]
@@ -111,16 +114,18 @@ def weed_repair_productive_route(
     state: GameState,
     board: Board,
     action: dict[str, Any],
+    params: WeedRepairParams | None = None,
 ) -> dict[str, Any]:
     """Delay planned productive operations blocked by weeds underfoot."""
     global _weed_repair_pending, _weed_repair_last_step, _weed_repair_day
+    wp = params or get_active_parameters().weed_repair
     step = state.step
     day = state.day
     if step == 0 or step <= _weed_repair_last_step or day != _weed_repair_day:
         _weed_repair_pending = {}
     _weed_repair_last_step = step
     _weed_repair_day = day
-    if step >= 672:
+    if step >= wp.weed_repair_cutoff_step:
         return action
 
     positions = [state.farmer, *(tuple(h) for h in state.hands)]

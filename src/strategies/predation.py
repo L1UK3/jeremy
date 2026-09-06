@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from parameters import PredationParams, get_active_parameters
+
 if TYPE_CHECKING:
     from environment.board import Board
     from environment.state import GameState
@@ -35,8 +37,10 @@ def apply_predation(
     state: GameState,
     board: Board,
     predation_mode: str,
+    params: PredationParams | None = None,
 ) -> None:
     """Execute active predatory order logic."""
+    pp = params or get_active_parameters().predation
     mode = predation_mode.lower()
     n_animals = len(board.animals())
 
@@ -44,11 +48,14 @@ def apply_predation(
         # Choke market wheat supply if opponent has animals relying on feed
         if opponent_has_livestock(state):
             wheat_price = state.price("WHEAT") or 25
-            if state.can_afford(wheat_price * 5):
-                market.append(["BUY_PRODUCT", "WHEAT", 5])
+            qty = pp.corner_wheat_buy_qty
+            if state.can_afford(wheat_price * qty):
+                market.append(["BUY_PRODUCT", "WHEAT", qty])
     else:
         # When not cornering, sell surplus wheat above our animals' feed buffer
-        surplus_wheat = state.inventory("WHEAT") - (n_animals * 2)
+        surplus_wheat = state.inventory("WHEAT") - (
+            n_animals * pp.surplus_wheat_mult
+        )
         if surplus_wheat > 0 and len(market) < 10:
             market.append(["SELL", "WHEAT", min(100, surplus_wheat)])
 
@@ -56,10 +63,14 @@ def apply_predation(
 def adjust_reservation_scales(
     reservation_scales: dict[str, float],
     predation_mode: str,
+    params: PredationParams | None = None,
 ) -> dict[str, float]:
     """Discount reservation sell price to front-run competitor produce when aggressive."""
+    pp = params or get_active_parameters().predation
     if "front" in predation_mode.lower():
-        return {k: v * 0.85 for k, v in reservation_scales.items()}
+        return {
+            k: v * pp.front_run_discount for k, v in reservation_scales.items()
+        }
     return reservation_scales
 
 

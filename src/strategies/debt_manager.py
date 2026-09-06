@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from parameters import (
+    DEFAULT_PARAMETERS,
+    DebtManagerParams,
+    get_active_parameters,
+)
+
 __all__ = [
     "OPENING",
     "opening",
@@ -11,7 +17,7 @@ __all__ = [
     "reset",
 ]
 
-OPENING: str = "feed5"
+OPENING: str = DEFAULT_PARAMETERS.debt_manager.opening_strategy
 _DEBT: dict[int, dict[int, dict[str, int]]] = {0: {}, 1: {}}
 _LAST: dict[int, int] = {0: -1, 1: -1}
 
@@ -25,11 +31,16 @@ def reset(seat: int, step: int) -> tuple[int, dict[int, dict[str, int]]]:
     return seat_idx, _DEBT[seat_idx]
 
 
-def opening(action: dict[str, Any], step: int) -> dict[str, Any]:
+def opening(
+    action: dict[str, Any],
+    step: int,
+    params: DebtManagerParams | None = None,
+) -> dict[str, Any]:
     """Adjust turn 0/1 opening orders for feed and initial animal purchase."""
+    strategy = (params or get_active_parameters().debt_manager).opening_strategy
     market = [list(order) for order in (action.get("market") or [])]
-    if step == 0 and OPENING in {"feed5", "feed6"}:
-        wanted = 5 if OPENING == "feed5" else 6
+    if step == 0 and strategy in {"feed5", "feed6"}:
+        wanted = 5 if strategy == "feed5" else 6
         rest = [
             order
             for order in market
@@ -40,8 +51,8 @@ def opening(action: dict[str, Any], step: int) -> dict[str, Any]:
             )
         ]
         action["market"] = [["BUY_PRODUCT", "WHEAT", wanted], *rest][:10]
-    elif step == 0 and OPENING in {"bridge14", "bridge19"}:
-        wanted = 14 if OPENING == "bridge14" else 19
+    elif step == 0 and strategy in {"bridge14", "bridge19"}:
+        wanted = 14 if strategy == "bridge14" else 19
         rest = [
             order
             for order in market
@@ -59,8 +70,8 @@ def opening(action: dict[str, Any], step: int) -> dict[str, Any]:
             )
         ]
         action["market"] = [["BUY_PRODUCT", "WHEAT", wanted], *rest][:10]
-    elif step == 1 and OPENING in {"bridge14", "bridge19"}:
-        surplus = 9 if OPENING == "bridge14" else 14
+    elif step == 1 and strategy in {"bridge14", "bridge19"}:
+        surplus = 9 if strategy == "bridge14" else 14
         action["market"] = [
             ["SELL", "WHEAT", surplus],
             ["BUY_ANIMAL", "COW", 1],

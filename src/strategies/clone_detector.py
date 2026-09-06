@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from parameters import CloneDetectorParams, get_active_parameters
+
 __all__ = ["public_signature", "signature_distance", "update_clone_profile"]
 
 SIGNATURE_ITEMS: tuple[str, ...] = (
@@ -62,7 +64,10 @@ def signature_distance(
 
 
 def update_clone_profile(
-    obs: dict[str, Any], step: int, current_confidence: int
+    obs: dict[str, Any],
+    step: int,
+    current_confidence: int,
+    params: CloneDetectorParams | None = None,
 ) -> int:
     """Evaluate opponent farm similarity and return updated clone confidence."""
     if step not in (4, 24) and not (step >= 48 and step % 24 == 0):
@@ -70,14 +75,15 @@ def update_clone_profile(
     farms = obs.get("farms", []) or []
     if len(farms) < 2:
         return current_confidence
+    cp = params or get_active_parameters().clone_detector
     player = int(obs.get("player", 0) or 0)
     distance = signature_distance(
         public_signature(farms[player]),
         public_signature(farms[1 - player]),
     )
-    if distance <= 1:
+    if distance <= cp.clone_distance_high:
         return min(8, current_confidence + 1)
-    elif distance <= 4:
+    elif distance <= cp.clone_distance_medium:
         return max(0, current_confidence - 1)
     else:
         return max(0, current_confidence - 3)

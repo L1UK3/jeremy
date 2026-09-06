@@ -9,9 +9,7 @@ from .encoder import encode_observation
 if "__file__" in globals():
     DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parent / "model_weights.npz"
 else:
-    DEFAULT_WEIGHTS_PATH = (
-        Path.cwd() / "src" / "agent" / "model" / "model_weights.npz"
-    )
+    DEFAULT_WEIGHTS_PATH = Path.cwd() / "src" / "model" / "model_weights.npz"
     if not DEFAULT_WEIGHTS_PATH.exists():
         DEFAULT_WEIGHTS_PATH = Path("model_weights.npz")
 
