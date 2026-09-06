@@ -5,9 +5,8 @@ from .clone_detector import (
     signature_distance,
     update_clone_profile,
 )
-from .debt_manager import opening, repay, reset, split
+from .debt_manager import opening, repay, reset
 from .explosion import explosion, pre_terminal_liquidation
-from .front_runner import front_run
 from .market_maker import (
     BASE_PRICE,
     GLUT_WEIGHT,
@@ -40,8 +39,8 @@ from .procurement import (
     procure_seeds,
 )
 from .weed_repair import (
+    weed_clear_state_based,
     weed_repair_productive_route,
-    weed_use_guarded,
 )
 
 __all__ = [
@@ -62,7 +61,6 @@ __all__ = [
     "compute_analytical_supply",
     "explosion",
     "filter_predation_sells",
-    "front_run",
     "mprice",
     "mshape",
     "opening",
@@ -78,8 +76,7 @@ __all__ = [
     "reset",
     "sell_priority",
     "signature_distance",
-    "split",
     "update_clone_profile",
+    "weed_clear_state_based",
     "weed_repair_productive_route",
-    "weed_use_guarded",
 ]
