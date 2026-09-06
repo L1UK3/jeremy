@@ -1,4 +1,4 @@
-"""Procurement strategy for crew, seeds, livestock, feed, and land expansion."""
+"""Procurement strategy for crew, seeds, livestock, feed, and land."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from environment.board import Board
+    from environment.board import Board, Tile
     from environment.state import GameState
 
 __all__ = [
@@ -14,7 +14,6 @@ __all__ = [
     "DEFAULT_ANIMAL_RESERVED_TILES",
     "DEFAULT_LAND_COST_MULT",
     "DEFAULT_LAND_MIN_CREW",
-    "DEFAULT_MAX_ANIMALS",
     "DEFAULT_MAX_HIRE_HOUR",
     "FIBONACCI",
     "LAND_COSTS",
@@ -55,24 +54,25 @@ DEFAULT_MAX_HIRE_HOUR: int = 2
 DEFAULT_ANIMAL_RESERVED_TILES: frozenset[tuple[int, int]] = frozenset(
     {(3, 4), (4, 3)}
 )
-DEFAULT_MAX_ANIMALS: int = 2
 
 
 def procure_land(
     market: list[list[Any]],
     state: GameState,
     target_crew: int,
+    budget: int | None = None,
     cost_mult: float = DEFAULT_LAND_COST_MULT,
     min_crew: int = DEFAULT_LAND_MIN_CREW,
-) -> None:
-    """Selectively purchase NE ($1,000) and SW ($2,000) land quadrants when capital and crew thresholds are met.
+) -> int:
+    """Purchase NE ($1k) or SW ($2k) quadrant when thresholds are met.
 
     Quadrant SE ($4,000) is strictly ignored.
     """
+    avail_budget = state.money if budget is None else budget
     if len(market) >= 10:
-        return
+        return avail_budget
     if target_crew < min_crew:
-        return
+        return avail_budget
 
     unlocked = state.unlocked_quadrants_set
     if "NE" not in unlocked:
@@ -80,40 +80,41 @@ def procure_land(
     elif "SW" not in unlocked:
         next_quad = "SW"
     else:
-        # Next would be SE, which is never purchased
-        return
+        return avail_budget
 
     cost = LAND_COSTS[next_quad]
-    required_funds = cost * cost_mult
-    if state.money >= required_funds and state.can_afford(cost):
+    required_funds = int(cost * cost_mult)
+    if state.money >= required_funds and avail_budget >= cost:
         market.append(["BUY_LAND"])
+        avail_budget -= cost
+    return avail_budget
 
 
 def procure_crew(
     market: list[list[Any]],
     state: GameState,
     target_crew: int,
+    budget: int | None = None,
     max_hire_hour: int = DEFAULT_MAX_HIRE_HOUR,
-) -> None:
-    """Hire additional hands in early hours if within target crew and affordable on Fibonacci curve."""
-    if len(market) >= 10:
-        return
-    if state.hour > max_hire_hour:
-        return
+) -> int:
+    """Hire hands in early hours if within target crew and affordable."""
+    avail_budget = state.money if budget is None else budget
+    if len(market) >= 10 or state.hour > max_hire_hour:
+        return avail_budget
 
     current_crew = len(state.hands)
     hires_queued = 0
-    simulated_money = state.money
 
     while current_crew + hires_queued < target_crew and len(market) < 10:
         hire_idx = state.hires_today + hires_queued
         hire_cost = FIBONACCI[min(hire_idx, len(FIBONACCI) - 1)]
-        if simulated_money >= hire_cost:
+        if avail_budget >= hire_cost:
             market.append(["HIRE"])
-            simulated_money -= hire_cost
+            avail_budget -= hire_cost
             hires_queued += 1
         else:
             break
+    return avail_budget
 
 
 def procure_seeds(
@@ -121,11 +122,13 @@ def procure_seeds(
     state: GameState,
     board: Board,
     target_crop: str,
+    budget: int | None = None,
     reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
-) -> None:
-    """Procure seeds to match unplanted empty unlocked tiles, prioritizing target_crop with wheat fallback."""
+) -> int:
+    """Procure seeds to match unplanted empty tiles with wheat fallback."""
+    avail_budget = state.money if budget is None else budget
     if len(market) >= 10:
-        return
+        return avail_budget
 
     reserved_set = set(reserved_tiles)
     empty_unlocked = [
@@ -134,67 +137,70 @@ def procure_seeds(
         if t.pos not in reserved_set
     ]
     if not empty_unlocked:
-        return
+        return avail_budget
 
     crop = target_crop if target_crop in SEED_COSTS else "WHEAT"
     crop_cost = SEED_COSTS[crop]
-    held_target_seeds = state.seed_count(crop)
-    needed = len(empty_unlocked) - held_target_seeds
+    total_held_seeds = sum(state.seeds.values())
+    needed = len(empty_unlocked) - total_held_seeds
 
     if needed <= 0:
-        return
-
-    simulated_money = state.money
+        return avail_budget
 
     # Prioritize target_crop
-    target_buy = min(needed, simulated_money // crop_cost)
+    target_buy = min(needed, avail_budget // crop_cost)
     if target_buy > 0 and len(market) < 10:
         market.append(["BUY_SEED", crop, target_buy])
-        simulated_money -= target_buy * crop_cost
+        avail_budget -= target_buy * crop_cost
         needed -= target_buy
 
     # Fall back to WHEAT if target_crop could not satisfy all empty tiles
     if needed > 0 and crop != "WHEAT" and len(market) < 10:
         wheat_cost = SEED_COSTS["WHEAT"]
-        wheat_buy = min(needed, simulated_money // wheat_cost)
+        wheat_buy = min(needed, avail_budget // wheat_cost)
         if wheat_buy > 0:
             market.append(["BUY_SEED", "WHEAT", wheat_buy])
+            avail_budget -= wheat_buy * wheat_cost
+
+    return avail_budget
 
 
 def procure_livestock(
     market: list[list[Any]],
     state: GameState,
     target_animal: str,
-    animal_tiles: list[Any],
-    max_animals: int = DEFAULT_MAX_ANIMALS,
-) -> None:
-    """Purchase livestock during productive window when budget allows and slots are available."""
-    if len(market) >= 10:
-        return
-    if target_animal not in ANIMAL_COSTS:
-        return
+    animal_tiles: Collection[Tile],
+    budget: int | None = None,
+    max_animals: int | None = None,
+) -> int:
+    """Purchase livestock when budget allows and animal slots are open."""
+    avail_budget = state.money if budget is None else budget
+    if len(market) >= 10 or target_animal not in ANIMAL_COSTS:
+        return avail_budget
 
-    step = state.step
-    if step > 576:
-        return
-
-    # Check capacity and existing unplaced animals in shed
     shed_count = state.inventory(target_animal)
     if shed_count > 0:
-        return
+        return avail_budget
 
+    capacity = (
+        len(DEFAULT_ANIMAL_RESERVED_TILES)
+        if max_animals is None
+        else max_animals
+    )
     active_count = sum(
         1
         for t in animal_tiles
         if getattr(t, "animal", None) == target_animal
         or getattr(t, "is_animal", False)
     )
-    if active_count + shed_count >= max_animals:
-        return
+    if active_count + shed_count >= capacity:
+        return avail_budget
 
     cost = ANIMAL_COSTS[target_animal]
-    if state.can_afford(cost):
+    if avail_budget >= cost:
         market.append(["BUY_ANIMAL", target_animal, 1])
+        avail_budget -= cost
+    return avail_budget
 
 
 def procure_feed(
@@ -202,27 +208,29 @@ def procure_feed(
     state: GameState,
     n_animals: int,
     target_animal: str = "NONE",
-) -> None:
-    """Maintain adequate wheat reserves for active animals or planned livestock."""
+    budget: int | None = None,
+) -> int:
+    """Maintain adequate wheat feed reserves for active or target livestock."""
+    avail_budget = state.money if budget is None else budget
     if len(market) >= 10:
-        return
+        return avail_budget
 
     desired_reserve = max(
         n_animals * 2, 2 if target_animal in ANIMAL_COSTS else 0
     )
     if desired_reserve == 0:
-        return
+        return avail_budget
 
     current_wheat = state.inventory("WHEAT")
-    if current_wheat < desired_reserve:
+    needed = desired_reserve - current_wheat
+    if needed > 0:
         wheat_price = state.price("WHEAT") or 25
-        qty_needed = max(5, desired_reserve - current_wheat)
-        if state.can_afford(wheat_price * qty_needed):
-            market.append(["BUY_PRODUCT", "WHEAT", qty_needed])
-        elif state.can_afford(wheat_price * (desired_reserve - current_wheat)):
-            market.append(
-                ["BUY_PRODUCT", "WHEAT", desired_reserve - current_wheat]
-            )
+        qty = min(needed, avail_budget // wheat_price)
+        if qty > 0:
+            market.append(["BUY_PRODUCT", "WHEAT", qty])
+            avail_budget -= qty * wheat_price
+
+    return avail_budget
 
 
 def apply_procurement(
@@ -236,32 +244,52 @@ def apply_procurement(
     min_crew: int = DEFAULT_LAND_MIN_CREW,
     max_hire_hour: int = DEFAULT_MAX_HIRE_HOUR,
     reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
-    max_animals: int = DEFAULT_MAX_ANIMALS,
-) -> None:
-    """Execute all asset and commodity procurement decisions for this turn."""
-    procure_crew(market, state, target_crew, max_hire_hour=max_hire_hour)
-    procure_land(
-        market, state, target_crew, cost_mult=cost_mult, min_crew=min_crew
+    max_animals: int | None = None,
+) -> int:
+    """Execute all asset and commodity procurement decisions.
+
+    Tracks and deducts shared budget across each procurement order.
+    """
+    budget = state.money
+    budget = procure_crew(
+        market,
+        state,
+        target_crew,
+        budget=budget,
+        max_hire_hour=max_hire_hour,
     )
-    procure_seeds(
+    budget = procure_land(
+        market,
+        state,
+        target_crew,
+        budget=budget,
+        cost_mult=cost_mult,
+        min_crew=min_crew,
+    )
+    budget = procure_seeds(
         market,
         state,
         board,
         target_crop,
+        budget=budget,
         reserved_tiles=reserved_tiles,
     )
 
     animal_tiles = board.animals()
-    procure_feed(
+    budget = procure_feed(
         market,
         state,
         len(animal_tiles),
         target_animal=target_animal,
+        budget=budget,
     )
-    procure_livestock(
+    capacity = len(reserved_tiles) if max_animals is None else max_animals
+    budget = procure_livestock(
         market,
         state,
         target_animal,
         animal_tiles,
-        max_animals=max_animals,
+        budget=budget,
+        max_animals=capacity,
     )
+    return budget

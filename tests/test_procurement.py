@@ -104,7 +104,7 @@ def make_obs(
 
 
 def test_procurement_default_constants() -> None:
-    """Default hyperparameters match ticket spec and provide clean baseline for Optuna."""
+    """Default hyperparameters match ticket spec and provide baseline."""
     assert DEFAULT_LAND_COST_MULT == 2.0
     assert DEFAULT_LAND_MIN_CREW == 3
     assert DEFAULT_MAX_HIRE_HOUR == 2
@@ -120,25 +120,24 @@ def test_procurement_default_constants() -> None:
 
 
 def test_procure_land_ne_quadrant_success() -> None:
-    """NE land ($1,000) is purchased when money >= 2 * 1000 and target_crew >= 3."""
+    """NE land ($1,000) bought when money >= 2 * 1000 and target_crew >= 3."""
     obs = make_obs(money=2000, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    procure_land(market, state, target_crew=3)
+    rem = procure_land(market, state, target_crew=3)
     assert market == [["BUY_LAND"]]
+    assert rem == 1000
 
 
 def test_procure_land_ne_quadrant_fails_under_thresholds() -> None:
     """NE land is not purchased if money < $2,000 or target_crew < 3."""
-    # Under money threshold
     obs_low_money = make_obs(money=1999, unlocked_quadrants=["NW"])
     state_low_money = GameState.from_obs(obs_low_money)
     market: list[list[Any]] = []
     procure_land(market, state_low_money, target_crew=3)
     assert market == []
 
-    # Under crew threshold
     obs_low_crew = make_obs(money=3000, unlocked_quadrants=["NW"])
     state_low_crew = GameState.from_obs(obs_low_crew)
     market.clear()
@@ -147,13 +146,14 @@ def test_procure_land_ne_quadrant_fails_under_thresholds() -> None:
 
 
 def test_procure_land_sw_quadrant_success() -> None:
-    """SW land ($2,000) is purchased when NE is unlocked, money >= 2 * 2000, and target_crew >= 3."""
+    """SW land bought when NE is unlocked, money >= 4000, target_crew >= 3."""
     obs = make_obs(money=4000, unlocked_quadrants=["NW", "NE"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    procure_land(market, state, target_crew=3)
+    rem = procure_land(market, state, target_crew=3)
     assert market == [["BUY_LAND"]]
+    assert rem == 2000
 
 
 def test_procure_land_sw_quadrant_fails_under_money() -> None:
@@ -167,7 +167,7 @@ def test_procure_land_sw_quadrant_fails_under_money() -> None:
 
 
 def test_procure_land_se_quadrant_never_purchased() -> None:
-    """SE quadrant ($4,000) must NEVER be purchased even with abundant funds and high crew."""
+    """SE quadrant ($4,000) must NEVER be purchased under any circumstance."""
     obs = make_obs(money=20000, unlocked_quadrants=["NW", "NE", "SW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
@@ -177,16 +177,16 @@ def test_procure_land_se_quadrant_never_purchased() -> None:
 
 
 def test_procure_land_parameterized_for_optuna() -> None:
-    """procure_land supports custom cost_mult and min_crew parameters for Optuna."""
+    """procure_land supports custom cost_mult and min_crew for Optuna."""
     obs = make_obs(money=1500, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    # With default cost_mult=2.0, $1500 is not enough for NE (cost $1000 * 2.0 = $2000)
+    # Default cost_mult=2.0 requires $2000
     procure_land(market, state, target_crew=2)
     assert market == []
 
-    # With tuned parameters cost_mult=1.5 and min_crew=2, $1500 qualifies!
+    # Tuned parameters cost_mult=1.5 and min_crew=2 qualify
     procure_land(market, state, target_crew=2, cost_mult=1.5, min_crew=2)
     assert market == [["BUY_LAND"]]
 
@@ -197,15 +197,15 @@ def test_procure_land_parameterized_for_optuna() -> None:
 
 
 def test_procure_crew_hires_up_to_target_in_early_hours() -> None:
-    """Hands are hired up to target_crew during hour <= 2 along the Fibonacci cost curve."""
+    """Hands hired up to target_crew during hour <= 2 on Fibonacci costs."""
     obs = make_obs(hour=0, money=100, hands=[], hires_today=0)
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    procure_crew(market, state, target_crew=3)
-    # Target crew 3 with 0 hands -> 3 hires
-    # Costs: fib(0)=1, fib(1)=1, fib(2)=2 -> Total $4
+    rem = procure_crew(market, state, target_crew=3)
+    # Target crew 3: fib(0)=1, fib(1)=1, fib(2)=2 -> $4 spent
     assert market == [["HIRE"], ["HIRE"], ["HIRE"]]
+    assert rem == 96
 
 
 def test_procure_crew_skipped_past_max_hire_hour() -> None:
@@ -224,24 +224,22 @@ def test_procure_crew_max_hire_hour_override_for_optuna() -> None:
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    # Default max_hire_hour=2 skips hour 5
     procure_crew(market, state, target_crew=2)
     assert market == []
 
-    # Tuned max_hire_hour=6 allows hour 5
     procure_crew(market, state, target_crew=2, max_hire_hour=6)
     assert market == [["HIRE"], ["HIRE"]]
 
 
 def test_procure_crew_respects_budget_limits() -> None:
     """Only affordable hires on the Fibonacci curve are queued."""
-    # Money is 2. fib(0)=1 (rem 1), fib(1)=1 (rem 0), fib(2)=2 (cannot afford)
     obs = make_obs(hour=1, money=2, hands=[], hires_today=0)
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    procure_crew(market, state, target_crew=4)
+    rem = procure_crew(market, state, target_crew=4)
     assert market == [["HIRE"], ["HIRE"]]
+    assert rem == 0
 
 
 def test_procure_crew_noop_when_crew_target_met() -> None:
@@ -260,9 +258,7 @@ def test_procure_crew_noop_when_crew_target_met() -> None:
 
 
 def test_procure_seeds_matches_empty_unlocked_tiles() -> None:
-    """Procures target_crop seeds to match empty unlocked tiles, excluding animal reserved slots."""
-    # Only NW unlocked (25 tiles: x in [0..4], y in [0..4]).
-    # Reserved animal tiles {(3,4), (4,3)} are excluded -> 23 plantable empty tiles.
+    """Procures target seeds to match empty tiles minus animal slots."""
     obs = make_obs(money=5000, unlocked_quadrants=["NW"], seeds={"MELON": 0})
     state = GameState.from_obs(obs)
     board = Board(state)
@@ -273,8 +269,19 @@ def test_procure_seeds_matches_empty_unlocked_tiles() -> None:
 
 
 def test_procure_seeds_accounts_for_held_seeds() -> None:
-    """Does not buy unnecessary seeds when held target seeds already satisfy demand."""
+    """Does not buy seeds when held target seeds already satisfy demand."""
     obs = make_obs(money=5000, unlocked_quadrants=["NW"], seeds={"MELON": 23})
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    procure_seeds(market, state, board, target_crop="MELON")
+    assert market == []
+
+
+def test_procure_seeds_accounts_for_non_target_held_seeds() -> None:
+    """Does not re-purchase seeds when non-target seeds cover empty tiles."""
+    obs = make_obs(money=5000, unlocked_quadrants=["NW"], seeds={"WHEAT": 23})
     state = GameState.from_obs(obs)
     board = Board(state)
     market: list[list[Any]] = []
@@ -291,14 +298,11 @@ def test_procure_seeds_deficit_calculation() -> None:
     market: list[list[Any]] = []
 
     procure_seeds(market, state, board, target_crop="MELON")
-    # 23 empty plantable - 10 held = 13 needed
     assert market == [["BUY_SEED", "MELON", 13]]
 
 
 def test_procure_seeds_wheat_fallback_on_budget_shortage() -> None:
-    """When target_crop is expensive and funds are limited, buys what is possible then falls back to WHEAT."""
-    # 23 empty plantable tiles. STRAWBERRY costs $100, WHEAT costs $10.
-    # Money = $250 -> Can buy 2 STRAWBERRY ($200), leaving $50 -> Can buy 5 WHEAT ($50).
+    """Buys affordable target crop then falls back to WHEAT for remainder."""
     obs = make_obs(
         money=250, unlocked_quadrants=["NW"], seeds={"STRAWBERRY": 0}
     )
@@ -311,8 +315,7 @@ def test_procure_seeds_wheat_fallback_on_budget_shortage() -> None:
 
 
 def test_procure_seeds_complete_wheat_fallback() -> None:
-    """When target_crop cannot be afforded at all, all available budget buys WHEAT."""
-    # STRAWBERRY costs $100. Money = $40. Buys 4 WHEAT.
+    """When target crop cannot be afforded, available budget buys WHEAT."""
     obs = make_obs(money=40, unlocked_quadrants=["NW"], seeds={"STRAWBERRY": 0})
     state = GameState.from_obs(obs)
     board = Board(state)
@@ -323,13 +326,12 @@ def test_procure_seeds_complete_wheat_fallback() -> None:
 
 
 def test_procure_seeds_custom_reserved_tiles_for_optuna() -> None:
-    """procure_seeds supports custom reserved animal coordinates for Optuna optimization."""
+    """procure_seeds supports custom animal coordinates for Optuna."""
     obs = make_obs(money=5000, unlocked_quadrants=["NW"], seeds={"MELON": 0})
     state = GameState.from_obs(obs)
     board = Board(state)
     market: list[list[Any]] = []
 
-    # Tuning reserved tiles to only 1 tile {(3,4)} -> 25 - 1 = 24 plantable
     procure_seeds(
         market,
         state,
@@ -346,7 +348,7 @@ def test_procure_seeds_custom_reserved_tiles_for_optuna() -> None:
 
 
 def test_procure_livestock_and_feed_when_selected() -> None:
-    """Purchases wheat feed reserves and animal when target_animal != NONE and budget allows."""
+    """Purchases wheat feed reserves and animal when selected with budget."""
     obs = make_obs(
         step=50,
         money=3000,
@@ -357,18 +359,18 @@ def test_procure_livestock_and_feed_when_selected() -> None:
     board = Board(state)
     market: list[list[Any]] = []
 
-    # When target_animal="COW" ($400) and wheat=0, feed reserve (5 wheat) and cow should be bought
     procure_feed(market, state, n_animals=0, target_animal="COW")
     procure_livestock(
         market, state, target_animal="COW", animal_tiles=board.animals()
     )
 
-    assert ["BUY_PRODUCT", "WHEAT", 5] in market
+    # Exact feed deficit is 2 units (reserve 2 - 0 held = 2)
+    assert ["BUY_PRODUCT", "WHEAT", 2] in market
     assert ["BUY_ANIMAL", "COW", 1] in market
 
 
 def test_procure_livestock_none_target_does_nothing() -> None:
-    """When target_animal is NONE, no animal or extra feed orders are placed."""
+    """When target_animal is NONE, no animal or extra feed orders placed."""
     obs = make_obs(step=50, money=3000, shed={"WHEAT": 0})
     state = GameState.from_obs(obs)
     board = Board(state)
@@ -382,7 +384,7 @@ def test_procure_livestock_none_target_does_nothing() -> None:
 
 
 def test_procure_livestock_waits_for_unplaced_animal_in_shed() -> None:
-    """Does not purchase another animal if one is already waiting in the shed."""
+    """Does not purchase another animal if one is waiting in the shed."""
     obs = make_obs(step=50, money=3000, shed={"COW": 1, "WHEAT": 10})
     state = GameState.from_obs(obs)
     board = Board(state)
@@ -394,26 +396,13 @@ def test_procure_livestock_waits_for_unplaced_animal_in_shed() -> None:
     assert market == []
 
 
-def test_procure_livestock_late_season_cutoff() -> None:
-    """Does not purchase livestock after step 576."""
-    obs = make_obs(step=600, money=3000, shed={"WHEAT": 10})
-    state = GameState.from_obs(obs)
-    board = Board(state)
-    market: list[list[Any]] = []
-
-    procure_livestock(
-        market, state, target_animal="COW", animal_tiles=board.animals()
-    )
-    assert market == []
-
-
 # =========================================================================
-# Integration Orchestration Tests
+# Integration & Shared Budget Tests
 # =========================================================================
 
 
 def test_apply_procurement_orchestrates_all_orders_within_market_cap() -> None:
-    """apply_procurement executes crew, land, seeds, livestock, and feed within the 10 order cap."""
+    """apply_procurement executes operations within the 10 order cap."""
     obs = make_obs(
         step=50,
         hour=1,
@@ -436,10 +425,48 @@ def test_apply_procurement_orchestrates_all_orders_within_market_cap() -> None:
     )
 
     assert len(market) <= 10
-    # Must include HIRE (crew), BUY_LAND (NE), BUY_SEED (MELON), BUY_PRODUCT (WHEAT feed), BUY_ANIMAL (COW)
     ops = [order[0] for order in market]
     assert "HIRE" in ops
     assert "BUY_LAND" in ops
     assert "BUY_SEED" in ops
     assert "BUY_PRODUCT" in ops
     assert "BUY_ANIMAL" in ops
+
+
+def test_apply_procurement_shared_budget_deduction() -> None:
+    """Committed expenditures reduce budget for subsequent orders."""
+    # Money = 2000. NE land costs 1000. HIRE 3 costs $4.
+    # Total remaining for seeds is 2000 - 4 - 1000 = 996.
+    # MELON costs $80. 23 tiles * 80 = 1840 > 996.
+    # Seeds bought should be constrained by 996 budget, not 2000!
+    obs = make_obs(
+        step=50,
+        hour=0,
+        money=2000,
+        unlocked_quadrants=["NW"],
+        shed={"WHEAT": 0},
+        seeds={"MELON": 0},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    rem_budget = apply_procurement(
+        market,
+        state,
+        board,
+        target_crop="MELON",
+        target_animal="NONE",
+        target_crew=3,
+    )
+
+    ops = [order[0] for order in market]
+    assert "HIRE" in ops
+    assert "BUY_LAND" in ops
+    # Seed orders must fit in remaining budget without overdraft
+    seed_orders = [o for o in market if o[0] == "BUY_SEED"]
+    total_seed_spent = sum(
+        qty * SEED_COSTS[crop] for _, crop, qty in seed_orders
+    )
+    assert total_seed_spent <= (2000 - 4 - 1000)
+    assert rem_budget >= 0
