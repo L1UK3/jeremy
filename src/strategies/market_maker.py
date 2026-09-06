@@ -133,16 +133,24 @@ def compute_analytical_supply(
     standing_yield = 0.0
     kind, name = driver
 
-    unlocked_quads = float(len(state.unlocked_quadrants) if state.unlocked_quadrants else 1)
+    unlocked_quads = float(
+        len(state.unlocked_quadrants) if state.unlocked_quadrants else 1
+    )
     quadrant_multiplier = 0.5 + 0.5 * (unlocked_quads / 4.0)
 
     if kind == "animal":
-        animals = [t for t in board.animals() if t.animal == name] if name else board.animals()
+        animals = (
+            [t for t in board.animals() if t.animal == name]
+            if name
+            else board.animals()
+        )
         for t in animals:
             standing_yield += float(t.yield_units)
 
         active_count = float(len(animals)) + float(state.inventory(name or ""))
-        future_yield = active_count * remaining_days * 1.5 if active_count > 0 else 0.0
+        future_yield = (
+            active_count * remaining_days * 1.5 if active_count > 0 else 0.0
+        )
     else:
         crops = board.crops(name) if name else []
         for t in crops:
@@ -150,22 +158,32 @@ def compute_analytical_supply(
 
         active_count = float(len(crops))
         spec = CROP_SPECS.get(name or "")
-        cycle_days = float(spec.max_yield_day) if spec and spec.max_yield_day > 0 else 4.0
-        yield_per_cycle = float(spec.max_yield) if spec and spec.max_yield > 0 else 4.0
+        cycle_days = (
+            float(spec.max_yield_day)
+            if spec and spec.max_yield_day > 0
+            else 4.0
+        )
+        yield_per_cycle = (
+            float(spec.max_yield) if spec and spec.max_yield > 0 else 4.0
+        )
         is_ongoing = spec.ongoing if spec else False
 
         seed_stock = float(state.seeds.get(name or "", 0))
         empty_unlocked = float(board.empty_tiles_count)
 
         if active_count > 0:
-            effective_tiles = (active_count + min(seed_stock, empty_unlocked * 0.25)) * quadrant_multiplier
+            effective_tiles = (
+                active_count + min(seed_stock, empty_unlocked * 0.25)
+            ) * quadrant_multiplier
             if is_ongoing:
                 future_yield = effective_tiles * remaining_days * 1.0
             else:
                 cycles = remaining_days / cycle_days
                 future_yield = effective_tiles * cycles * yield_per_cycle
         elif seed_stock > 0 and empty_unlocked > 0:
-            effective_tiles = min(seed_stock, empty_unlocked * 0.5) * quadrant_multiplier
+            effective_tiles = (
+                min(seed_stock, empty_unlocked * 0.5) * quadrant_multiplier
+            )
             if is_ongoing:
                 future_yield = effective_tiles * remaining_days * 1.0
             else:
@@ -260,7 +278,11 @@ def opponent_scale(state: GameState, board: Board, item: str) -> float:
     me = state.player
     kind, name = driver
     if kind == "animal":
-        mine = sum(1 for t in board.animals() if t.animal == name) if name else len(board.animals())
+        mine = (
+            sum(1 for t in board.animals() if t.animal == name)
+            if name
+            else len(board.animals())
+        )
     else:
         mine = len(board.crops(name)) if name else 0
     theirs = count_driver(farms[1 - me], kind, name)
