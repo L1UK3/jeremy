@@ -84,18 +84,51 @@ def make_obs(
 def test_analytical_supply_positive_and_decays() -> None:
     """Supply projection should be positive and decrease as season advances toward step 720."""
     tiles = [[None for _ in range(10)] for _ in range(10)]
-    tiles[0][0] = {"kind": "PLANT", "crop": "MELON", "planted_day": 0, "watered_today": True, "yield_units": 2, "consecutive_unwatered": 0}
-    tiles[0][1] = {"kind": "PLANT", "crop": "STRAWBERRY", "planted_day": 0, "watered_today": True, "yield_units": 2, "consecutive_unwatered": 0}
-    tiles[0][2] = {"kind": "PLANT", "crop": "WHEAT", "planted_day": 0, "watered_today": True, "yield_units": 2, "consecutive_unwatered": 0}
+    tiles[0][0] = {
+        "kind": "PLANT",
+        "crop": "MELON",
+        "planted_day": 0,
+        "watered_today": True,
+        "yield_units": 2,
+        "consecutive_unwatered": 0,
+    }
+    tiles[0][1] = {
+        "kind": "PLANT",
+        "crop": "STRAWBERRY",
+        "planted_day": 0,
+        "watered_today": True,
+        "yield_units": 2,
+        "consecutive_unwatered": 0,
+    }
+    tiles[0][2] = {
+        "kind": "PLANT",
+        "crop": "WHEAT",
+        "planted_day": 0,
+        "watered_today": True,
+        "yield_units": 2,
+        "consecutive_unwatered": 0,
+    }
     tiles[1][0] = {
-        "kind": "PASTURE", "animal": "COW", "placed_day": 0, "yield_units": 1,
-        "fed_today": True, "consecutive_unfed": 0, "cared_today": True,
-        "fertilizer_available": False, "pending_care_bonus": 0,
+        "kind": "PASTURE",
+        "animal": "COW",
+        "placed_day": 0,
+        "yield_units": 1,
+        "fed_today": True,
+        "consecutive_unfed": 0,
+        "cared_today": True,
+        "fertilizer_available": False,
+        "pending_care_bonus": 0,
     }
     tiles[1][1] = {
-        "kind": "PASTURE", "animal": "SHEEP", "placed_day": 0, "yield_units": 1,
-        "fed_today": True, "consecutive_unfed": 0, "cared_today": True,
-        "fertilizer_available": False, "pending_care_bonus": 0,
+        "kind": "PASTURE",
+        "animal": "SHEEP",
+        "placed_day": 0,
+        "yield_units": 1,
+        "fed_today": True,
+        "consecutive_unfed": 0,
+        "cared_today": True,
+        "fertilizer_available": False,
+        "pending_care_bonus": 0,
     }
 
     obs_early = make_obs(step=24, day=1, tiles=tiles)
@@ -107,11 +140,17 @@ def test_analytical_supply_positive_and_decays() -> None:
     board_late = Board(state_late)
 
     for item in ("MELON", "STRAWBERRY", "MILK", "WOOL", "WHEAT"):
-        supply_early = compute_analytical_supply(item, 24, state_early, board_early)
-        supply_late = compute_analytical_supply(item, 600, state_late, board_late)
+        supply_early = compute_analytical_supply(
+            item, 24, state_early, board_early
+        )
+        supply_late = compute_analytical_supply(
+            item, 600, state_late, board_late
+        )
 
         assert supply_early > 0, f"Early supply for {item} must be positive"
-        assert supply_early >= supply_late, f"Supply for {item} should decay from early ({supply_early}) to late ({supply_late})"
+        assert supply_early >= supply_late, (
+            f"Supply for {item} should decay from early ({supply_early}) to late ({supply_late})"
+        )
 
 
 def test_analytical_supply_incorporates_active_board_yield_and_shed() -> None:
@@ -135,8 +174,12 @@ def test_analytical_supply_incorporates_active_board_yield_and_shed() -> None:
     state_loaded = GameState.from_obs(obs_loaded)
     board_loaded = Board(state_loaded)
 
-    supply_empty = compute_analytical_supply("MELON", 100, state_empty, board_empty)
-    supply_loaded = compute_analytical_supply("MELON", 100, state_loaded, board_loaded)
+    supply_empty = compute_analytical_supply(
+        "MELON", 100, state_empty, board_empty
+    )
+    supply_loaded = compute_analytical_supply(
+        "MELON", 100, state_loaded, board_loaded
+    )
 
     assert supply_loaded > supply_empty
     # Difference should reflect at least the 10 shed items + 5 standing yield
@@ -152,8 +195,12 @@ def test_reserve_price_bounded_with_supply_projection() -> None:
 
     for item in ("MELON", "STRAWBERRY", "MILK", "WOOL"):
         price = reserve_price(item, 48, state, board, shops, scale=1.0)
-        assert price >= float(PRICE_FLOOR), f"Reservation price for {item} must be at least PRICE_FLOOR"
-        assert price <= 300.0, f"Reservation price for {item} abnormally high: {price}"
+        assert price >= float(PRICE_FLOOR), (
+            f"Reservation price for {item} must be at least PRICE_FLOOR"
+        )
+        assert price <= 300.0, (
+            f"Reservation price for {item} abnormally high: {price}"
+        )
 
 
 def test_reserve_price_enforces_price_floor_at_terminal_steps() -> None:
@@ -165,16 +212,27 @@ def test_reserve_price_enforces_price_floor_at_terminal_steps() -> None:
 
     for item in ("MELON", "STRAWBERRY", "WHEAT", "MILK"):
         price = reserve_price(item, 718, state, board, shops, scale=1.0)
-        assert price >= float(PRICE_FLOOR), f"Price at step 718 for {item} must be at least {PRICE_FLOOR}"
+        assert price >= float(PRICE_FLOOR), (
+            f"Price at step 718 for {item} must be at least {PRICE_FLOOR}"
+        )
 
 
 def test_unlocked_quadrant_scales_active_crop_projection() -> None:
     """Expanding from 1 quadrant to 2 quadrants increases future capacity projection for active crops."""
     tiles = [[None for _ in range(10)] for _ in range(10)]
-    tiles[0][0] = {"kind": "PLANT", "crop": "MELON", "planted_day": 0, "watered_today": True, "yield_units": 1, "consecutive_unwatered": 0}
+    tiles[0][0] = {
+        "kind": "PLANT",
+        "crop": "MELON",
+        "planted_day": 0,
+        "watered_today": True,
+        "yield_units": 1,
+        "consecutive_unwatered": 0,
+    }
 
     obs_nw = make_obs(step=100, day=4, tiles=tiles, unlocked_quadrants=["NW"])
-    obs_nw_ne = make_obs(step=100, day=4, tiles=tiles, unlocked_quadrants=["NW", "NE"])
+    obs_nw_ne = make_obs(
+        step=100, day=4, tiles=tiles, unlocked_quadrants=["NW", "NE"]
+    )
 
     state_nw = GameState.from_obs(obs_nw)
     board_nw = Board(state_nw)
@@ -183,9 +241,13 @@ def test_unlocked_quadrant_scales_active_crop_projection() -> None:
     board_nw_ne = Board(state_nw_ne)
 
     supply_nw = compute_analytical_supply("MELON", 100, state_nw, board_nw)
-    supply_nw_ne = compute_analytical_supply("MELON", 100, state_nw_ne, board_nw_ne)
+    supply_nw_ne = compute_analytical_supply(
+        "MELON", 100, state_nw_ne, board_nw_ne
+    )
 
-    assert supply_nw_ne > supply_nw, "More unlocked quadrants should yield higher supply projection for active crops"
+    assert supply_nw_ne > supply_nw, (
+        "More unlocked quadrants should yield higher supply projection for active crops"
+    )
 
 
 def test_zero_active_assets_returns_minimal_baseline() -> None:
@@ -196,7 +258,9 @@ def test_zero_active_assets_returns_minimal_baseline() -> None:
 
     # Bare farm has no melon plants, melon seeds, or melon in shed
     supply = compute_analytical_supply("MELON", 100, state_bare, board_bare)
-    assert supply == float(PRICE_FLOOR), "Zero-asset commodity must equal PRICE_FLOOR (no phantom assets)"
+    assert supply == float(PRICE_FLOOR), (
+        "Zero-asset commodity must equal PRICE_FLOOR (no phantom assets)"
+    )
 
 
 def test_plan_sells_generates_orders_using_analytical_reserves() -> None:
