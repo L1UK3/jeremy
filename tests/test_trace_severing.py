@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import inspect
 from pathlib import Path
@@ -101,8 +101,8 @@ def test_front_runner_file_deleted():
     assert not front_runner_path.exists(), "front_runner.py should be deleted"
 
 
-def test_weed_clear_state_based_dispatches_idle_worker():
-    """Verify weed_clear_state_based assigns idle worker to clear nearest unlocked weed."""
+def test_weed_clear_state_based_dispatches_idle_unit():
+    """Verify weed_clear_state_based assigns idle unit to clear nearest unlocked weed."""
     from src.strategies.weed_repair import weed_clear_state_based
 
     obs = _make_minimal_obs(step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(1, 0)])
@@ -117,7 +117,7 @@ def test_weed_clear_state_based_dispatches_idle_worker():
 
 
 def test_weed_clear_state_based_skips_when_inventory_not_empty():
-    """Verify weed_clear_state_based skips workers who have items in their inventory."""
+    """Verify weed_clear_state_based skips units that have items in their inventory."""
     from src.strategies.weed_repair import weed_clear_state_based
 
     obs = _make_minimal_obs(
@@ -134,7 +134,7 @@ def test_weed_clear_state_based_skips_when_inventory_not_empty():
     action = {"farmer": ["PASS"], "hands": [], "market": []}
     result = weed_clear_state_based(state, board, action)
 
-    # Worker has items in inventory, should remain PASS
+    # Unit has items in inventory, should remain PASS
     assert result["farmer"] == ["PASS"]
 
 
