@@ -68,7 +68,11 @@ def weed_clear_state_based(
         if choices:
             target = min(
                 choices,
-                key=lambda p: (manhattan_distance(fx, fy, p[0], p[1]), p[1], p[0]),
+                key=lambda p: (
+                    manhattan_distance(fx, fy, p[0], p[1]),
+                    p[1],
+                    p[0],
+                ),
             )
             dist = manhattan_distance(fx, fy, target[0], target[1])
             if dist + 1 <= turns_left:
@@ -87,7 +91,11 @@ def weed_clear_state_based(
             if choices:
                 target = min(
                     choices,
-                    key=lambda p: (manhattan_distance(hx, hy, p[0], p[1]), p[1], p[0]),
+                    key=lambda p: (
+                        manhattan_distance(hx, hy, p[0], p[1]),
+                        p[1],
+                        p[0],
+                    ),
                 )
                 dist = manhattan_distance(hx, hy, target[0], target[1])
                 if dist + 1 <= turns_left:
