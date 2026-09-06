@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from environment.state import GameState
 
 __all__ = [
+    "CROP_SPECS",
     "SHED_ACCESS_TILES",
     "Board",
     "CropSpec",
