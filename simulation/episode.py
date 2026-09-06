@@ -11,7 +11,7 @@ from kaggle_environments import make
 
 
 def run_episode(
-    challenger: Any = "main.py",
+    challenger: Any = "src/main.py",
     baseline: Any = "starter",
     seat: int = 0,
     replay_path: Path | str | None = None,
