@@ -1,4 +1,7 @@
-"""Kaggriculture agent entrypoint combining macro policy with spatial chore dispatching."""
+"""Kaggriculture agent entrypoint.
+
+Combines macro policy with spatial chore dispatching.
+"""
 
 from __future__ import annotations
 
@@ -78,15 +81,14 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         target_animal = str(plan.get("livestock") or "NONE").upper()
         target_crop = str(plan.get("crop") or "WHEAT")
 
-        if step >= 24:
-            apply_procurement(
-                market,
-                state,
-                board,
-                target_crop=target_crop,
-                target_animal=target_animal,
-                target_crew=target_crew,
-            )
+        apply_procurement(
+            market,
+            state,
+            board,
+            target_crop=target_crop,
+            target_animal=target_animal,
+            target_crew=target_crew,
+        )
         apply_predation(market, state, board, predation)
         action["market"] = market[:10]
         action = filter_predation_sells(action, predation)

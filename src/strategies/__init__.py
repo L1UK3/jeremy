@@ -31,10 +31,12 @@ from .predation import (
 from .procurement import (
     ANIMAL_COSTS,
     FIBONACCI,
+    LAND_COSTS,
     SEED_COSTS,
     apply_procurement,
     procure_crew,
     procure_feed,
+    procure_land,
     procure_livestock,
     procure_seeds,
 )
@@ -49,6 +51,7 @@ __all__ = [
     "FIBONACCI",
     "GLUT_WEIGHT",
     "I0",
+    "LAND_COSTS",
     "MP",
     "PRICE_FLOOR",
     "SEED_COSTS",
@@ -68,6 +71,7 @@ __all__ = [
     "pre_terminal_liquidation",
     "procure_crew",
     "procure_feed",
+    "procure_land",
     "procure_livestock",
     "procure_seeds",
     "public_signature",
