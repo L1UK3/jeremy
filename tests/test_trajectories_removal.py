@@ -10,9 +10,7 @@ SRC = ROOT / "src"
 def test_trajectories_directory_does_not_exist() -> None:
     """The src/trajectories directory must be completely removed."""
     trajectories_dir = SRC / "trajectories"
-    assert not trajectories_dir.exists(), (
-        f"{trajectories_dir} still exists on disk"
-    )
+    assert not trajectories_dir.exists(), f"{trajectories_dir} still exists on disk"
 
 
 def test_no_references_to_trajectories_or_flat_trace_in_src() -> None:
@@ -21,17 +19,11 @@ def test_no_references_to_trajectories_or_flat_trace_in_src() -> None:
     for py_file in SRC.rglob("*.py"):
         content = py_file.read_text(encoding="utf-8")
         if "from trajectories" in content or "import trajectories" in content:
-            violations.append(
-                f"{py_file.relative_to(ROOT)} imports trajectories"
-            )
+            violations.append(f"{py_file.relative_to(ROOT)} imports trajectories")
         if "FLAT_TRACE" in content:
-            violations.append(
-                f"{py_file.relative_to(ROOT)} references FLAT_TRACE"
-            )
+            violations.append(f"{py_file.relative_to(ROOT)} references FLAT_TRACE")
 
-    assert not violations, "Found trace references in src:\n" + "\n".join(
-        violations
-    )
+    assert not violations, f"Found trace references in src:\n" + "\n".join(violations)
 
 
 def test_main_agent_runs_without_trace_dependencies() -> None:
@@ -99,3 +91,4 @@ def test_main_agent_runs_without_trace_dependencies() -> None:
     assert isinstance(action["farmer"], list)
     assert isinstance(action["hands"], list)
     assert isinstance(action["market"], list)
+
