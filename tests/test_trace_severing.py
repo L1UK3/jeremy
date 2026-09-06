@@ -65,9 +65,15 @@ def test_strategies_zero_trajectories_imports():
     strategies_dir = Path(__file__).resolve().parents[1] / "src" / "strategies"
     for py_file in strategies_dir.glob("*.py"):
         content = py_file.read_text(encoding="utf-8")
-        assert "from trajectories" not in content, f"{py_file.name} imports from trajectories"
-        assert "import trajectories" not in content, f"{py_file.name} imports trajectories"
-        assert "FLAT_TRACE" not in content, f"{py_file.name} references FLAT_TRACE"
+        assert "from trajectories" not in content, (
+            f"{py_file.name} imports from trajectories"
+        )
+        assert "import trajectories" not in content, (
+            f"{py_file.name} imports trajectories"
+        )
+        assert "FLAT_TRACE" not in content, (
+            f"{py_file.name} references FLAT_TRACE"
+        )
 
 
 def test_no_trace_parameters_in_exported_strategy_functions():
@@ -79,17 +85,27 @@ def test_no_trace_parameters_in_exported_strategy_functions():
         if callable(obj) and not isinstance(obj, type):
             sig = inspect.signature(obj)
             param_names = [p.lower() for p in sig.parameters]
-            assert "trace" not in param_names, f"Strategy function '{name}' accepts 'trace' parameter"
-            assert "flat_trace" not in param_names, f"Strategy function '{name}' accepts 'flat_trace' parameter"
+            assert "trace" not in param_names, (
+                f"Strategy function '{name}' accepts 'trace' parameter"
+            )
+            assert "flat_trace" not in param_names, (
+                f"Strategy function '{name}' accepts 'flat_trace' parameter"
+            )
 
 
 def test_trace_functions_removed_from_strategies():
     """Verify front_run, split, and weed_use_guarded are no longer exported."""
     import src.strategies as strat
 
-    assert not hasattr(strat, "front_run"), "front_run should be removed from strategies"
-    assert not hasattr(strat, "split"), "split should be removed from strategies"
-    assert not hasattr(strat, "weed_use_guarded"), "weed_use_guarded should be removed from strategies"
+    assert not hasattr(strat, "front_run"), (
+        "front_run should be removed from strategies"
+    )
+    assert not hasattr(strat, "split"), (
+        "split should be removed from strategies"
+    )
+    assert not hasattr(strat, "weed_use_guarded"), (
+        "weed_use_guarded should be removed from strategies"
+    )
     assert "front_run" not in strat.__all__
     assert "split" not in strat.__all__
     assert "weed_use_guarded" not in strat.__all__
@@ -97,7 +113,12 @@ def test_trace_functions_removed_from_strategies():
 
 def test_front_runner_file_deleted():
     """Verify front_runner.py has been removed from src/strategies."""
-    front_runner_path = Path(__file__).resolve().parents[1] / "src" / "strategies" / "front_runner.py"
+    front_runner_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "strategies"
+        / "front_runner.py"
+    )
     assert not front_runner_path.exists(), "front_runner.py should be deleted"
 
 
@@ -105,7 +126,9 @@ def test_weed_clear_state_based_dispatches_idle_unit():
     """Verify weed_clear_state_based assigns idle unit to clear nearest unlocked weed."""
     from src.strategies.weed_repair import weed_clear_state_based
 
-    obs = _make_minimal_obs(step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(1, 0)])
+    obs = _make_minimal_obs(
+        step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(1, 0)]
+    )
     state = GameState.from_obs(obs)
     board = Board(state)
 
@@ -143,7 +166,9 @@ def test_weed_clear_state_based_skips_unreachable_weeds():
     from src.strategies.weed_repair import weed_clear_state_based
 
     # Step 47 is hour 23 (last turn of day 1). Distance to (3, 3) is 6 steps, unreachable.
-    obs = _make_minimal_obs(step=47, day=1, hour=23, farmer_pos=[0, 0], weeds_coords=[(3, 3)])
+    obs = _make_minimal_obs(
+        step=47, day=1, hour=23, farmer_pos=[0, 0], weeds_coords=[(3, 3)]
+    )
     state = GameState.from_obs(obs)
     board = Board(state)
 
@@ -157,7 +182,9 @@ def test_weed_clear_state_based_preserves_active_op():
     """Verify weed_clear_state_based does not overwrite an existing non-PASS action."""
     from src.strategies.weed_repair import weed_clear_state_based
 
-    obs = _make_minimal_obs(step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(1, 0)])
+    obs = _make_minimal_obs(
+        step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(1, 0)]
+    )
     state = GameState.from_obs(obs)
     board = Board(state)
 
@@ -171,7 +198,9 @@ def test_weed_repair_productive_route():
     """Verify weed_repair_productive_route intercepts blocked op underfoot with DIG and replays next step."""
     from src.strategies.weed_repair import weed_repair_productive_route
 
-    obs = _make_minimal_obs(step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(0, 0)])
+    obs = _make_minimal_obs(
+        step=24, day=1, hour=0, farmer_pos=[0, 0], weeds_coords=[(0, 0)]
+    )
     state = GameState.from_obs(obs)
     board = Board(state)
 
@@ -188,4 +217,7 @@ def test_debt_manager_opening():
 
     action = {"farmer": ["PASS"], "hands": [], "market": []}
     res0 = opening(action, step=0)
-    assert any(o[0] == "BUY_PRODUCT" and o[1] == "WHEAT" for o in res0.get("market", []))
+    assert any(
+        o[0] == "BUY_PRODUCT" and o[1] == "WHEAT"
+        for o in res0.get("market", [])
+    )

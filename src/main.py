@@ -1,8 +1,7 @@
-"""Kaggriculture agent entrypoint combining static expert traces with reactive strategies."""
+"""Kaggriculture agent entrypoint combining macro policy with spatial chore dispatching."""
 
 from __future__ import annotations
 
-import copy
 from typing import Any
 
 from dispatcher import _assign_one, generate_jobs
@@ -22,7 +21,6 @@ from strategies import (
     weed_clear_state_based,
     weed_repair_productive_route,
 )
-from trajectories.trace import FLAT_TRACE
 
 __all__ = ["agent"]
 
@@ -50,7 +48,11 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         return explosion(state, board)
 
     try:
-        action = copy.deepcopy(FLAT_TRACE[min(step, len(FLAT_TRACE) - 1)])
+        action: dict[str, Any] = {
+            "farmer": ["PASS"],
+            "hands": [["PASS"] for _ in range(n_hands)],
+            "market": [],
+        }
         pre_terminal_liquidation(action, state, step)
         plan = get_plan(obs)
         predation = str(plan.get("predation") or "Balanced")
@@ -109,9 +111,8 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             "market": [list(o) for o in (action.get("market") or [])][:10],
         }
     except Exception:
-        fallback = copy.deepcopy(FLAT_TRACE[min(step, len(FLAT_TRACE) - 1)])
         return {
-            "farmer": list(fallback.get("farmer") or ["PASS"]),
-            "hands": [list(c) for c in fallback.get("hands", [])][:n_hands],
-            "market": [list(o) for o in fallback.get("market", [])][:10],
+            "farmer": ["PASS"],
+            "hands": [["PASS"] for _ in range(n_hands)],
+            "market": [],
         }

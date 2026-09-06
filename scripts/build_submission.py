@@ -19,8 +19,6 @@ import subprocess
 import tarfile
 from pathlib import Path
 
-from scripts.encode_trace import encode_routes
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "src"
 OUTPUT = ROOT / ".out" / "submission.py"
@@ -28,48 +26,40 @@ OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 
 FILES = [
     "main.py",
+    "dispatcher.py",
     "environment/board.py",
     "environment/state.py",
-    "environment/encode.py",
     "environment/__init__.py",
-    "economics/economy.py",
-    "economics/market.py",
-    "economics/evaluators.py",
-    "economics/__init__.py",
-    "scheduler/dispatcher.py",
-    "scheduler/__init__.py",
+    "model/constants.py",
+    "model/encoder.py",
+    "model/policy.py",
+    "model/model_weights.npz",
+    "model/__init__.py",
     "strategies/clone_detector.py",
     "strategies/debt_manager.py",
     "strategies/explosion.py",
     "strategies/market_maker.py",
+    "strategies/predation.py",
+    "strategies/procurement.py",
     "strategies/weed_repair.py",
     "strategies/__init__.py",
-    "trajectories/trace.py",
-    "trajectories/trace.json",
-    "trajectories/__init__.py",
-    "controllers/base.py",
-    "controllers/numpy_macro.py",
-    "controllers/__init__.py",
-    "models/model_weights.npz",
     "__init__.py",
 ]
 
 MODULES = [
     "environment/board.py",
     "environment/state.py",
-    "environment/encode.py",
-    "economics/economy.py",
-    "economics/market.py",
-    "economics/evaluators.py",
-    "scheduler/dispatcher.py",
+    "model/constants.py",
+    "model/encoder.py",
+    "model/policy.py",
     "strategies/clone_detector.py",
     "strategies/debt_manager.py",
     "strategies/explosion.py",
     "strategies/market_maker.py",
+    "strategies/predation.py",
+    "strategies/procurement.py",
     "strategies/weed_repair.py",
-    "trajectories/trace.py",
-    "controllers/base.py",
-    "controllers/numpy_macro.py",
+    "dispatcher.py",
     "main.py",
 ]
 
@@ -88,26 +78,19 @@ INTERNAL_PACKAGES = {
     "environment",
     "board",
     "state",
-    "encode",
-    "economics",
-    "economy",
-    "market",
-    "evaluators",
-    "scheduler",
     "dispatcher",
+    "model",
+    "constants",
+    "encoder",
+    "policy",
     "strategies",
     "clone_detector",
     "debt_manager",
     "explosion",
-    "front_runner",
     "market_maker",
+    "predation",
+    "procurement",
     "weed_repair",
-    "trajectories",
-    "trace",
-    "controllers",
-    "base",
-    "numpy_macro",
-    "models",
 }
 INTERNAL_MODULES = (
     {Path(m).stem for m in MODULES}
@@ -240,9 +223,6 @@ def build_submission() -> Path:
     all_from_imports: dict[str, set[str]] = {}
     all_direct_imports: set[str] = set()
     all_body = []
-
-    encoded_routes = encode_routes()
-    all_body.append(encoded_routes)
 
     supply_path = SRC_DIR / "supply.json"
     if supply_path.exists():
