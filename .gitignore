@@ -24,3 +24,5 @@ submission.py
 base/
 
 .github/prompts/
+
+.scratch/
