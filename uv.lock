@@ -1189,6 +1189,7 @@ name = "jeremy"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "attrs" },
     { name = "kaggle-environments" },
     { name = "optuna" },
     { name = "pyarrow" },
@@ -1198,6 +1199,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "attrs", specifier = ">=23.0.0" },
     { name = "kaggle-environments", specifier = ">=1.32.6" },
     { name = "optuna", specifier = ">=4.9.0" },
     { name = "pyarrow", specifier = ">=25.0.1" },

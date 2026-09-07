@@ -12,6 +12,7 @@ submission.py / submission.tar.gz
 """
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -223,8 +224,29 @@ def submit_to_kaggle(submission_path: Path) -> None:
         print(f"  Error: {result.stderr}")
 
 
-def build_submission() -> Path:
+def resolve_params_path(params_arg: str | Path | None) -> Path | None:
+    """Resolve parameter file from explicit argument or default output directory."""
+    if params_arg:
+        p = Path(params_arg)
+        if not p.is_file():
+            raise FileNotFoundError(f"Specified parameters file not found: {p}")
+        return p
+    default_best = ROOT / ".out" / "best_parameters.json"
+    if default_best.is_file():
+        return default_best
+    return None
+
+
+def build_submission(params_arg: str | Path | None = None) -> Path:
     """Combine modular source files into a single standalone submission.py."""
+    params_file = resolve_params_path(params_arg)
+    embedded_json_repr: str | None = None
+    if params_file:
+        raw_json = params_file.read_text(encoding="utf-8")
+        json.loads(raw_json)
+        embedded_json_repr = repr(raw_json)
+        print(f"  Embedding parameters from: {params_file}")
+
     all_from_imports: dict[str, set[str]] = {}
     all_direct_imports: set[str] = set()
     all_body = []
@@ -235,6 +257,12 @@ def build_submission() -> Path:
             raise FileNotFoundError(f"Required module not found: {path}")
 
         text = path.read_text(encoding="utf-8")
+        if module_rel == "parameters.py" and embedded_json_repr is not None:
+            text = text.replace(
+                "EMBEDDED_PARAMS_JSON: str | None = None",
+                f"EMBEDDED_PARAMS_JSON: str | None = {embedded_json_repr}",
+            )
+
         from_imps, direct_imps, body = clean_source(text)
 
         for mod, names in from_imps.items():
@@ -265,8 +293,9 @@ def build_submission() -> Path:
     return OUTPUT
 
 
-def bundle_submission() -> None:
+def bundle_submission(params_arg: str | Path | None = None) -> None:
     """Build submission.tar.gz."""
+    params_file = resolve_params_path(params_arg)
     OUTPUT_TAR.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(OUTPUT_TAR, "w:gz") as tar:
         for file in FILES:
@@ -277,6 +306,11 @@ def bundle_submission() -> None:
                     arcname=file,
                     filter=lambda ti: None if "__pycache__" in ti.name else ti,
                 )
+        if params_file:
+            print(
+                f"  Packaging parameters from: {params_file} as parameters.json"
+            )
+            tar.add(params_file, arcname="parameters.json")
 
     print(f"  Output Archive : {OUTPUT_TAR}")
     print(f"  Created        : {OUTPUT_TAR.stat().st_mtime}")
@@ -301,16 +335,25 @@ if __name__ == "__main__":
         action="store_true",
         help="Submit the generated submission.py to Kaggle",
     )
+    args.add_argument(
+        "--params",
+        type=str,
+        default=None,
+        help=(
+            "Path to parameters JSON to bundle or embed "
+            "(defaults to .out/best_parameters.json if present)"
+        ),
+    )
 
     parsed_args = args.parse_args()
 
     if parsed_args.submit and parsed_args.build:
-        submission_path = build_submission()
+        submission_path = build_submission(parsed_args.params)
         submit_to_kaggle(submission_path)
     elif parsed_args.build:
-        build_submission()
+        build_submission(parsed_args.params)
     elif parsed_args.bundle:
-        bundle_submission()
+        bundle_submission(parsed_args.params)
     elif parsed_args.submit:
         print("Submitting to Kaggle requires --build to be specified.")
         print("Please run with --build first to generate submission.py.")

@@ -19,10 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Sequence
 from pathlib import Path
-
-import optuna
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -31,44 +28,8 @@ SRC_DIR = ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from main import make_agent
-from parameters import Parameters
-from simulation.episode import run_episode
-
-
-def create_objective(
-    groups: Sequence[str] | None,
-    baseline: str,
-    seats: Sequence[int],
-    seeds: Sequence[int],
-    steps: int,
-):
-    """Factory returning an Optuna objective function with fixed evaluation settings."""
-
-    def objective(trial: optuna.Trial) -> float:
-        params = Parameters.from_trial(trial, groups=groups)
-        agent = make_agent(params)
-
-        scores: list[float] = []
-        for seat in seats:
-            for seed in seeds:
-                res = run_episode(
-                    challenger=agent,
-                    baseline=baseline,
-                    seat=seat,
-                    seed=seed,
-                    steps=steps,
-                    save_replay=False,
-                )
-                # Penalize timeouts, exceptions, or disqualified runs heavily
-                if res.status_challenger != "DONE" or res.error_challenger:
-                    return -1.0
-
-                scores.append(res.score_challenger)
-
-        return float(sum(scores) / len(scores)) if scores else 0.0
-
-    return objective
+from simulation.tuning.study import run_study
+from src.parameters import Parameters
 
 
 def main() -> None:
@@ -146,49 +107,36 @@ def main() -> None:
         default=None,
         help="Database storage URI (e.g. 'sqlite:///.out/optuna.db')",
     )
+    parser.add_argument(
+        "--base-params",
+        type=str,
+        default=None,
+        help="Path to base parameters JSON to inherit non-tuned groups from",
+    )
 
     args = parser.parse_args()
 
-    # Determine targeted groups
-    if "all" in args.groups:
-        selected_groups: list[str] | None = None
-        print("Tuning all parameter groups simultaneously.")
-    else:
-        invalid = [g for g in args.groups if g not in Parameters.GROUPS]
-        if invalid:
-            print(
-                f"Error: Unknown groups {invalid}. Valid: {list(Parameters.GROUPS)}"
-            )
-            sys.exit(1)
-        selected_groups = list(args.groups)
-        print(f"Tuning targeted groups: {selected_groups}")
+    base_params = (
+        Parameters.from_json(args.base_params) if args.base_params else None
+    )
 
     print(
         f"Config: {args.n_trials} trials | {args.n_jobs} jobs | "
         f"Seats: {args.seats} | Seeds: {args.seeds} | Steps: {args.steps} vs '{args.baseline}'"
     )
 
-    study = optuna.create_study(
+    study, _ = run_study(
         study_name=args.study_name,
         storage=args.storage,
-        load_if_exists=True,
-        direction="maximize",
-        sampler=optuna.samplers.TPESampler(seed=42),
-    )
-
-    objective_fn = create_objective(
-        groups=selected_groups,
+        n_trials=args.n_trials,
+        n_jobs=args.n_jobs,
+        groups=args.groups,
         baseline=args.baseline,
         seats=args.seats,
         seeds=args.seeds,
         steps=args.steps,
-    )
-
-    study.optimize(
-        objective_fn,
-        n_trials=args.n_trials,
-        n_jobs=args.n_jobs,
-        show_progress_bar=(args.n_jobs == 1),
+        output_path=args.output,
+        base_params=base_params,
     )
 
     print("\n" + "=" * 60)
@@ -197,15 +145,7 @@ def main() -> None:
     print(f"Best Score     : {study.best_value:.1f}")
     print(f"Best Trial #   : {study.best_trial.number}")
     print("=" * 60)
-
-    # Export best parameters
-    best_params = Parameters.from_trial(
-        study.best_trial, groups=selected_groups
-    )
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    best_params.to_json(out_path)
-    print(f"Saved optimal parameters to: {out_path.resolve()}")
+    print(f"Saved optimal parameters to: {Path(args.output).resolve()}")
 
 
 if __name__ == "__main__":
