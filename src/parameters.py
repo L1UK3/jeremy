@@ -8,7 +8,6 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
-
 # =============================================================================
 # Subsystem Parameter Groups
 # =============================================================================
@@ -167,7 +166,9 @@ class Parameters:
                     ),
                     land_min_crew=trial.suggest_int("land_min_crew", 1, 6),
                     max_hire_hour=trial.suggest_int("max_hire_hour", 0, 6),
-                    feed_buffer_mult=trial.suggest_int("feed_buffer_mult", 1, 5),
+                    feed_buffer_mult=trial.suggest_int(
+                        "feed_buffer_mult", 1, 5
+                    ),
                     feed_target_buffer=trial.suggest_int(
                         "feed_target_buffer", 0, 6
                     ),
@@ -491,4 +492,3 @@ __all__ = [
     "set_active_parameters",
     "use_parameters",
 ]
-

@@ -210,3 +210,29 @@ def test_simulation_run_episode_integration() -> None:
     assert res.status_challenger == "DONE"
     assert res.error_challenger is None
     assert res.score_challenger > 0
+    assert res.replay_path is None
+
+
+def test_simulation_run_episode_save_replay_boolean() -> None:
+    """save_replay=True saves to .out/replays/ by default, and returns valid replay_path."""
+    from pathlib import Path
+
+    from simulation.episode import DEFAULT_REPLAY_DIR, run_episode
+
+    res = run_episode(
+        agent,
+        "starter",
+        seat=0,
+        episode_idx=99,
+        steps=5,
+        seed=42,
+        save_replay=True,
+    )
+    assert res.replay_path is not None
+    saved_file = Path(res.replay_path)
+    assert saved_file.exists()
+    assert saved_file.parent.resolve() == DEFAULT_REPLAY_DIR.resolve()
+    assert saved_file.name == "episode_99_seat_0.html"
+    assert saved_file.stat().st_size > 0
+    # Clean up test artifact
+    saved_file.unlink(missing_ok=True)

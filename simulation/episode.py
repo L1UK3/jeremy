@@ -12,6 +12,7 @@ from kaggle_environments import make
 
 AgentType = str | Callable[[dict, dict | None], dict]
 WinnerType = Literal["challenger", "baseline", "tie"]
+DEFAULT_REPLAY_DIR = Path(".out/replays")
 
 
 @dataclass(slots=True)
@@ -40,6 +41,7 @@ def run_episode(
     seed: int | None = None,
     steps: int = 720,
     debug: bool = False,
+    save_replay: bool = False,
     save_replay_path: Path | str | None = None,
     replay_format: Literal["html", "json"] = "html",
     keep_env: bool = False,
@@ -77,10 +79,20 @@ def run_episode(
     )
 
     replay_str: str | None = None
-    if save_replay_path:
-        out_path = Path(save_replay_path)
+    should_save = bool(save_replay) or (save_replay_path is not None)
+    if should_save:
+        target = (
+            Path(save_replay_path) if save_replay_path else DEFAULT_REPLAY_DIR
+        )
+        if target.suffix.lower() in (".html", ".json"):
+            out_path = target
+        else:
+            out_path = (
+                target / f"episode_{episode_idx}_seat_{seat}.{replay_format}"
+            )
+
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        if replay_format == "json":
+        if replay_format == "json" or out_path.suffix.lower() == ".json":
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(env.toJSON(), f)
         else:
@@ -120,9 +132,25 @@ if __name__ == "__main__":
         help="Path to the baseline agent (default: starter)",
     )
     parser.add_argument(
+        "--save_replay",
+        "--save-replay",
+        action="store_true",
+        default=False,
+        help="Save replay (default output: .out/replays/)",
+    )
+    parser.add_argument(
         "--replay_path",
+        "--replay-path",
         type=str,
-        help="Path to save the replay (JSON or HTML format)",
+        default=None,
+        help="Path or directory to save the replay (default: .out/replays/)",
+    )
+    parser.add_argument(
+        "--replay_format",
+        "--replay-format",
+        choices=["html", "json"],
+        default="html",
+        help="Replay format: html or json (default: html)",
     )
     parser.add_argument(
         "--seat",
@@ -144,15 +172,21 @@ if __name__ == "__main__":
     )
 
     parsed = parser.parse_args()
+    save_replay = parsed.save_replay or (parsed.replay_path is not None)
     res = run_episode(
         challenger=parsed.challenger,
         baseline=parsed.baseline,
         seat=parsed.seat,
         steps=parsed.steps,
         seed=parsed.seed,
+        save_replay=save_replay,
         save_replay_path=parsed.replay_path,
+        replay_format=parsed.replay_format,
     )
-    print(
+    msg = (
         f"Episode {res.episode_idx} (Seat {res.seat}) in {res.duration_sec:.2f}s | "
         f"Winner: {res.winner} | Score: {res.score_challenger:.0f} vs {res.score_baseline:.0f}"
     )
+    if res.replay_path:
+        msg += f" | Replay: {res.replay_path}"
+    print(msg)
