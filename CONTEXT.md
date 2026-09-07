@@ -28,3 +28,23 @@ _Avoid_: Worker, clone, minion
 An analytical estimation of remaining commodity yield across the season computed dynamically from game parameters, active assets, and unlocked quadrants.
 _Avoid_: Static supply, supply trace, supply JSON
 
+**Episode Invariant**:
+A behavioral assertion evaluated against game step observations and actions from a live headless simulation or replay file to verify strategic correctness.
+_Avoid_: Post-mortem check, log audit, replay inspection script
+
+**Land Expansion**:
+The unlocking of additional farm quadrants (`NE`, `SW`, `SE`) via `BUY_LAND` at verified capital and timing thresholds.
+_Avoid_: Buying land turn, map expansion, territory buy
+
+**Replay Provider**:
+An abstraction supplying game steps for testing, dynamically resolving to either an in-memory headless episode execution or a pre-recorded replay file.
+_Avoid_: Hardcoded replay, html parser, trace scraper
+
+**Runtime Parameters**:
+The frozen schema of subsystem configurations and default weights in `src/parameters.py` parsed by the agent at game start.
+_Avoid_: Tuning knobs, trial config, search space
+
+**Tuning Search Space**:
+The optimization domain, distribution bounds, and trial sampling routines in `simulation/tuning/` explored by Optuna.
+_Avoid_: Model parameters, hardcoded hyperparams, trial dataclass
+

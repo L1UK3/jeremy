@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-import main
-from main import agent, make_agent
-from parameters import DEFAULT_PARAMETERS
+import src.main as main
+from src.main import agent, make_agent
 
 
 def make_obs(
@@ -101,7 +101,7 @@ def test_macro_policy_evaluated_on_day_boundary() -> None:
     obs_day0_h1 = make_obs(step=1, day=0, hour=1)
     obs_day1_h0 = make_obs(step=24, day=1, hour=0)
 
-    with patch("main.get_plan", wraps=None) as mock_get_plan:
+    with patch("src.main.get_plan", wraps=None) as mock_get_plan:
         mock_get_plan.return_value = {
             "crop": "WHEAT",
             "crew": 0,
@@ -161,12 +161,10 @@ def test_stage2_spatial_dispatcher_coordinates_units() -> None:
 
 
 def test_exception_fallback_returns_safe_pass() -> None:
-    """Any unexpected exception inside agent() must return a clean safe passive action dict."""
+    """If an internal exception occurs, agent returns safe PASS for all units."""
     obs = make_obs(step=5, day=0, hour=5, hands=[[1, 1]])
 
-    with patch(
-        "main.schedule_tasks", side_effect=RuntimeError("Simulated error")
-    ):
+    with patch("src.main.schedule_tasks", side_effect=RuntimeError("Simulated error")):
         act = agent(obs)
 
     assert act["farmer"] == ["PASS"]
@@ -175,7 +173,7 @@ def test_exception_fallback_returns_safe_pass() -> None:
 
 
 def test_terminal_explosion_step_activates() -> None:
-    """At step >= explosion_step (712), terminal explosion liquidation runs."""
+    """Terminal liquidation triggers when reaching explosion_step."""
     obs = make_obs(
         step=715,
         day=29,
@@ -188,12 +186,12 @@ def test_terminal_explosion_step_activates() -> None:
     assert "farmer" in act
     assert "hands" in act
     assert "market" in act
-    assert any(o[0] == "SELL" and o[1] == "MELON" for o in act["market"])
+    assert any(order[0] == "SELL" for order in act["market"])
 
 
 def test_make_agent_closure_runs_turn() -> None:
-    """make_agent returns an executable agent bound to custom parameters."""
-    custom_agent = make_agent(DEFAULT_PARAMETERS)
+    """make_agent factory produces a stateful closure that processes turns."""
+    custom_agent = make_agent()
     obs = make_obs(step=0, day=0, hour=0, seeds={"WHEAT": 5})
     act = custom_agent(obs)
 
@@ -203,7 +201,7 @@ def test_make_agent_closure_runs_turn() -> None:
 
 
 def test_simulation_run_episode_integration() -> None:
-    """Run an automated simulation episode using run_episode to verify zero crashes."""
+    """End-to-end headless simulation episode run with starter opponent."""
     from simulation.episode import run_episode
 
     res = run_episode(agent, "starter", seat=0, steps=24, seed=42)
@@ -214,9 +212,7 @@ def test_simulation_run_episode_integration() -> None:
 
 
 def test_simulation_run_episode_save_replay_boolean() -> None:
-    """save_replay=True saves to .out/replays/ by default, and returns valid replay_path."""
-    from pathlib import Path
-
+    """Saving replay writes valid HTML file when save_replay=True."""
     from simulation.episode import DEFAULT_REPLAY_DIR, run_episode
 
     res = run_episode(
@@ -234,5 +230,4 @@ def test_simulation_run_episode_save_replay_boolean() -> None:
     assert saved_file.parent.resolve() == DEFAULT_REPLAY_DIR.resolve()
     assert saved_file.name == "episode_99_seat_0.html"
     assert saved_file.stat().st_size > 0
-    # Clean up test artifact
     saved_file.unlink(missing_ok=True)

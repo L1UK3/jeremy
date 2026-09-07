@@ -2,73 +2,25 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Any
 
-from dispatcher import generate_jobs
-from environment.board import Board
-from environment.state import GameState
-from main import make_agent
-from parameters import (
+import pytest
+
+from src.dispatcher import generate_jobs
+from src.environment.board import Board
+from src.environment.state import GameState
+from src.main import make_agent
+from src.parameters import (
     DEFAULT_PARAMETERS,
     DispatcherParams,
     MarketMakerParams,
     Parameters,
     ProcurementParams,
     get_active_parameters,
+    load_parameters,
     use_parameters,
 )
-
-
-class MockTrial:
-    """Mock Optuna Trial recording suggest calls and returning specified or midpoint values."""
-
-    def __init__(self, overrides: dict[str, Any] | None = None) -> None:
-        self.overrides = overrides or {}
-        self.recorded_calls: list[tuple[str, str, dict[str, Any]]] = []
-
-    def suggest_float(
-        self,
-        name: str,
-        low: float,
-        high: float,
-        *,
-        step: float | None = None,
-        log: bool = False,
-    ) -> float:
-        self.recorded_calls.append(
-            (
-                "float",
-                name,
-                {"low": low, "high": high, "step": step, "log": log},
-            )
-        )
-        if name in self.overrides:
-            return float(self.overrides[name])
-        return (low + high) / 2.0
-
-    def suggest_int(
-        self,
-        name: str,
-        low: int,
-        high: int,
-        *,
-        step: int | None = None,
-        log: bool = False,
-    ) -> int:
-        self.recorded_calls.append(
-            ("int", name, {"low": low, "high": high, "step": step, "log": log})
-        )
-        if name in self.overrides:
-            return int(self.overrides[name])
-        return (low + high) // 2
-
-    def suggest_categorical(self, name: str, choices: list[Any]) -> Any:
-        self.recorded_calls.append(("categorical", name, {"choices": choices}))
-        if name in self.overrides:
-            return self.overrides[name]
-        return choices[0]
-
 
 # =============================================================================
 # Baseline Consistency & Invariant Tests
@@ -116,18 +68,6 @@ def test_default_parameters_match_domain_constants() -> None:
     assert p.explosion.pre_terminal_step == 672
     assert p.debt_manager.opening_strategy == "feed5"
     assert p.clone_detector.clone_distance_high == 1
-
-
-def test_from_trial_bounds_and_validity() -> None:
-    """from_trial samples valid parameters with proper bounds."""
-    trial = MockTrial()
-    Parameters.from_trial(trial)
-    assert len(trial.recorded_calls) >= 40
-    for kind, _name, kwargs in trial.recorded_calls:
-        if kind in ("float", "int"):
-            assert kwargs["low"] < kwargs["high"]
-        elif kind == "categorical":
-            assert len(kwargs["choices"]) > 0
 
 
 # =============================================================================
@@ -194,33 +134,69 @@ def test_clone_with_modifications() -> None:
 
 
 # =============================================================================
-# Optuna Trial Sampling Tests
+# Parameter Auto-Discovery & Loading Tests
 # =============================================================================
 
 
-def test_from_trial_samples_all_registered_parameters() -> None:
-    """from_trial queries the trial for every optimizable parameter."""
-    trial = MockTrial(overrides={"land_cost_mult": 3.2, "dist_penalty": 1.5})
-    params = Parameters.from_trial(trial)
+def test_load_parameters_explicit_source(tmp_path: Path) -> None:
+    """Explicit source argument (dict, JSON string, or Path) takes highest precedence."""
+    custom_dict = {"land_cost_mult": 3.75, "dist_penalty": 4.5}
+    p1 = load_parameters(source=custom_dict)
+    assert p1.procurement.land_cost_mult == 3.75
+    assert p1.dispatcher.dist_penalty == 4.5
 
-    assert params.procurement.land_cost_mult == 3.2
-    assert params.dispatcher.dist_penalty == 1.5
-    assert len(trial.recorded_calls) == 53
+    custom_json = json.dumps(custom_dict)
+    p2 = load_parameters(source=custom_json)
+    assert p2.procurement.land_cost_mult == 3.75
+
+    file_path = tmp_path / "custom.json"
+    file_path.write_text(custom_json, encoding="utf-8")
+    p3 = load_parameters(source=file_path)
+    assert p3.procurement.land_cost_mult == 3.75
 
 
-def test_from_trial_with_selective_groups() -> None:
-    """from_trial with groups only samples active groups; others take defaults."""
-    trial = MockTrial(overrides={"land_cost_mult": 3.8})
-    params = Parameters.from_trial(trial, groups=["procurement"])
+def test_load_parameters_from_env_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """JEREMY_PARAMS_PATH env var loads parameters from specified path."""
+    p_file = tmp_path / "env_params.json"
+    p_file.write_text(json.dumps({"land_cost_mult": 3.9}), encoding="utf-8")
 
-    assert params.procurement.land_cost_mult == 3.8
-    # Dispatcher was not in groups, must have canonical default
-    assert (
-        params.dispatcher.dist_penalty
-        == DEFAULT_PARAMETERS.dispatcher.dist_penalty
+    monkeypatch.setenv("JEREMY_PARAMS_PATH", str(p_file))
+    loaded = load_parameters()
+    assert loaded.procurement.land_cost_mult == 3.9
+
+
+def test_load_parameters_from_env_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    """JEREMY_PARAMS_JSON env var loads parameters from inline JSON string."""
+    monkeypatch.setenv("JEREMY_PARAMS_JSON", json.dumps({"dist_penalty": 4.8}))
+    loaded = load_parameters()
+    assert loaded.dispatcher.dist_penalty == 4.8
+
+
+def test_load_parameters_from_embedded_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """EMBEDDED_PARAMS_JSON is parsed when injected for standalone builds."""
+    monkeypatch.setattr(
+        "src.parameters.EMBEDDED_PARAMS_JSON",
+        json.dumps({"glut_weight_melon": 4.9}),
     )
-    # Only procurement specs should have been sampled (7 parameters)
-    assert len(trial.recorded_calls) == 7
+    loaded = load_parameters()
+    assert loaded.market_maker.glut_weight_melon == 4.9
+
+
+def test_load_parameters_corrupt_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Corrupted JSON sources gracefully fall back down the chain to defaults."""
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("{corrupt: json}", encoding="utf-8")
+
+    monkeypatch.setenv("JEREMY_PARAMS_PATH", str(bad_file))
+    # Should not raise, falls back to defaults
+    loaded = load_parameters()
+    assert loaded == Parameters()
 
 
 # =============================================================================

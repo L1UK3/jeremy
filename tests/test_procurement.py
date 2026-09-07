@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from environment.board import Board
-from environment.state import GameState
-from strategies.procurement import (
+from src.environment.board import Board
+from src.environment.state import GameState
+from src.strategies.procurement import (
     ANIMAL_COSTS,
     DEFAULT_ANIMAL_RESERVED_TILES,
     DEFAULT_LAND_COST_MULT,

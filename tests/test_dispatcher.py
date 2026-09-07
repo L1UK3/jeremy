@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from dispatcher import (
+from src.dispatcher import (
     DROP_SHED,
     RESERVED_ANIMAL_TILES,
     Job,
@@ -13,8 +13,8 @@ from dispatcher import (
     job_to_action,
     schedule_tasks,
 )
-from environment.board import SHED_ACCESS_TILES, Board
-from environment.state import GameState
+from src.environment.board import SHED_ACCESS_TILES, Board
+from src.environment.state import GameState
 
 
 def make_obs(
