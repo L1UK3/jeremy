@@ -2,14 +2,156 @@
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Documentation: Diataxis](https://img.shields.io/badge/docs-Diátaxis-brightgreen.svg)](docs/index.md)
+[![Documentation: Diataxis](https://img.shields.io/badge/docs-Diátaxis-brightgreen.svg)](docs/README.md)
 
-**Jeremy** is a high-performance Python framework for building, simulating, benchmarking, and deploying competitive AI agents for the [Kaggle Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) multi-agent farming simulation environment. It is naturally named after a lovely farmer called Jeremy.
+Autonomous competitive agent and simulation framework for [Kaggle Kaggriculture](https://www.kaggle.com/competitions/kaggriculture). Named after Jeremy Clarkson.
 
-<img src="https://i2-prod.manchestereveningnews.co.uk/article34141179.ece/ALTERNATES/s1200f/0_clarkson.jpg" width="75%" height="auto">
+<img src="https://i2-prod.manchestereveningnews.co.uk/article34141179.ece/ALTERNATES/s1200f/0_clarkson.jpg" width="60%" height="auto">
+
+---
+
+## 1. Quickstart (Tutorial) — ⏱️ 2 minutes
+
+Run a match against the baseline agent immediately:
+
+1. **Clone and enter repo**:
+   ```bash
+   cd jeremy
+   ```
+2. **Install dependencies**:
+   ```bash
+   uv sync
+   # Or with pip: pip install -e .
+   ```
+3. **Run your first 720-step match**:
+   ```bash
+   python simulation/episode.py --challenger src/main.py --baseline starter
+   ```
+4. **View result**: Open `.out/replays/episode_0.html` in your browser.
+
+---
+
+## 2. Common Tasks (How-To Guides)
+
+### Run head-to-head simulations (⏱️ 5 seconds)
+```bash
+# Challenge baseline starter:
+python simulation/episode.py --challenger src/main.py --baseline starter
+
+# Challenge random agent:
+python simulation/episode.py --challenger src/main.py --baseline random
+```
+*Output:* Match score printed to terminal; HTML replay saved in `.out/replays/`.
+
+### Run unit tests (⏱️ 7 seconds)
+```bash
+pytest tests/test_agent.py tests/test_dispatcher.py tests/test_parameters.py tests/test_procurement.py tests/test_market_maker.py tests/test_tuning.py
+```
+*Output:* 68 unit tests asserting chore assignment, market logic, and parameter parsing.
+
+### Tune hyperparameters with Optuna (⏱️ 30s to 5m)
+```bash
+# Quick smoke test (3 trials, 24 steps):
+python scripts/tune.py --n-trials 3 --steps 24 --groups procurement
+
+# Parallel tuning (4 workers) for market maker:
+python scripts/tune.py --n-trials 50 --n-jobs 4 --groups market_maker
+```
+*Output:* Optimal parameters saved to `.out/best_parameters.json`.
+
+### Build Kaggle submission (⏱️ 2 seconds)
+```bash
+# Standalone single-file submission:
+python scripts/build_submission.py --build
+
+# Multi-file archive with model weights:
+python scripts/build_submission.py --bundle
+```
+*Output:* Bundled file written to `.out/submission.py` or `.out/submission.tar.gz`.
+
+---
+
+## 3. Architecture & Strategy (Explanation)
+
+Jeremy decouples high-level economic planning from per-turn movement:
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   Observation (Turn)                   │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+┌──────────────────────────┐  ┌──────────────────────────┐
+│    Daily Tick (Macro)    │  │   Every Turn (Chore)     │
+│       policy.py          │  │      dispatcher.py       │
+│  Sets crop, livestock,   │  │  Scores and assigns      │
+│  crew size & price scale │  │  tile chores by utility  │
+└────────────┬─────────────┘  └──────────┬───────────────┘
+             │                           │
+             └─────────────┬─────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│               Action Dict (Farmer + Hands)             │
+└────────────────────────────────────────────────────────┘
+```
+
+### Core Mechanisms
+
+- **Macro Policy (`src/model/policy.py`)**: Neural model evaluated daily; decides crew size, crop focus, and predation posture.
+- **Spatial Dispatcher (`src/dispatcher.py`)**: Turn-by-turn scheduler; assigns tasks (plant, water, harvest, care) by utility discounted by distance.
+- **Labor Floor**: Deterministic hand hire calculation ensuring crops survive before applying neural crew advice.
+- **Center Drop**: Uses center tiles `(4,4)`, `(5,4)`, `(4,5)`, `(5,5)` to drop backpack contents into the shed via `DROP`.
+- **Maturation Horizon**: Halts planting when remaining season days cannot cover growth to harvest.
+
+Deep details: Domain vocabulary in [CONTEXT.md](CONTEXT.md) • Upstream rules in [docs/README.md](docs/README.md).
+
+---
+
+## 4. Technical Reference
+
+### Repository Layout
+
+| Directory / File | What it does |
+| :--- | :--- |
+| `src/main.py` | Agent entrypoint (`agent`, `make_agent`) |
+| `src/dispatcher.py` | Multi-agent spatial chore scheduler |
+| `src/parameters.py` | Typed dataclasses for all 8 parameter groups |
+| `src/strategies/` | Market maker, predation, weed repair, and debt modules |
+| `simulation/` | Headless runner (`episode.py`) and tuning (`tuning/`) |
+| `scripts/` | CLIs: `build_submission.py`, `tune.py`, `data_analysis.py` |
+| `tests/` | Pytest suite (dispatcher, parameters, strategies) |
+
+### Parameter Groups (`Parameters.GROUPS`)
+
+Tune individually with `python scripts/tune.py --groups <name>`:
+
+**Planning & Movement**
+- `all` — Tunes all groups at once
+- `procurement` — Seed purchasing priorities, land thresholds, feed buffers
+- `dispatcher` — Chore utility weights, distance discounts, path heuristics
+- `debt_manager` — Cash preservation floor and liquidity bounds
+
+**Market & Operations**
+- `market_maker` — Reservation prices, liquidation timing, sell margins
+- `predation` — Competitor disruption triggers and market starvation
+- `weed_repair` — Weed clearing priority and repair route utility
+- `explosion` — End-game capital dump and rapid expansion
+- `clone_detector` — Mirroring detection and counter-routing
+
+### CLI Command Matrix
+
+| Task | Command | Key Flags |
+| :--- | :--- | :--- |
+| Simulation | `python simulation/episode.py` | `--challenger`, `--baseline` |
+| Tuning | `python scripts/tune.py` | `--n-trials`, `--n-jobs`, `--groups` |
+| Packaging | `python scripts/build_submission.py` | `--build`, `--bundle` |
+| Testing | `pytest` | `-v`, `-k <name>` |
 
 ---
 
 ## License & Attribution
 
 Game environment and engine provided by [kaggle-environments](https://github.com/Kaggle/kaggle-environments).
+
+
