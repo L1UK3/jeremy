@@ -32,6 +32,8 @@ class ProcurementParams:
     feed_target_buffer: int = 2
     max_animals: int = 2
     seed_fallback_crop: str = "WHEAT"
+    expansion_day_ne: int = 6
+    expansion_day_sw: int = 14
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,10 +250,12 @@ class Parameters:
         """Sample hyperparameters from an Optuna trial."""
         from simulation.tuning.search_space import sample_parameters
 
+        return sample_parameters(trial, groups=groups, base=base)
+
+
 # =============================================================================
 # Parameter Auto-Discovery & Loading
 # =============================================================================
-        return sample_parameters(trial, groups=groups, base=base)
 
 
 def load_parameters(
@@ -275,7 +279,9 @@ def load_parameters(
                 return Parameters.from_dict(source)
             return Parameters.from_json(source)
         except Exception as e:
-            _logger.warning("Failed to load parameters from explicit source: %s", e)
+            _logger.warning(
+                "Failed to load parameters from explicit source: %s", e
+            )
 
     env_path = os.environ.get("JEREMY_PARAMS_PATH")
     if env_path:
@@ -285,7 +291,9 @@ def load_parameters(
                 return Parameters.from_json(p)
             except Exception as e:
                 _logger.warning(
-                    "Failed to load parameters from JEREMY_PARAMS_PATH (%s): %s", p, e
+                    "Failed to load parameters from JEREMY_PARAMS_PATH (%s): %s",
+                    p,
+                    e,
                 )
 
     env_json = os.environ.get("JEREMY_PARAMS_JSON")
