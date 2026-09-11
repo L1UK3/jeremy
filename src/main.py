@@ -100,8 +100,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         }
         pre_terminal_liquidation(action, state, step, params=params.explosion)
 
-        # Stage 1: Macro Policy & Economic Strategy
-        # Query macro plan on day boundaries
         if _CURRENT_PLAN is None or day != _CURRENT_DAY:
             _CURRENT_PLAN = get_plan(obs)
             _CURRENT_DAY = day
@@ -114,7 +112,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             params=params.predation,
         )
 
-        # Procurement buy orders first
         market: list[list[Any]] = []
         target_crew = int(plan.get("crew", 0))
         target_animal = str(plan.get("livestock") or "NONE").upper()
@@ -130,7 +127,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             params=params.procurement,
         )
 
-        # Market controller sell orders second
         action["market"] = market
         action = apply_market_controller(
             action,
@@ -149,7 +145,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         action["market"] = market[:10]
         action = filter_predation_sells(action, predation)
 
-        # Stage 2: Unified Spatial Multi-Agent Dispatching
         farmer_act, hands_acts = schedule_tasks(
             state,
             board,
@@ -159,7 +154,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         action["farmer"] = farmer_act
         action["hands"] = hands_acts
 
-        # Post-dispatch reactive weed repair safety hooks
         action = weed_clear_state_based(
             state, board, action, params=params.weed_repair
         )

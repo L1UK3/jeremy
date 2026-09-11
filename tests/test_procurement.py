@@ -342,6 +342,81 @@ def test_procure_seeds_custom_reserved_tiles_for_optuna() -> None:
     assert market == [["BUY_SEED", "MELON", 24]]
 
 
+def test_procure_seeds_day_28_and_29_absolute_freeze() -> None:
+    """Zero seed orders emitted on Days 28 and 29 regardless of budget or empty tiles."""
+    for freeze_day in (28, 29):
+        obs = make_obs(
+            day=freeze_day,
+            money=5000,
+            unlocked_quadrants=["NW"],
+            seeds={"WHEAT": 0},
+        )
+        state = GameState.from_obs(obs)
+        board = Board(state)
+        market: list[list[Any]] = []
+
+        rem = procure_seeds(market, state, board, target_crop="WHEAT")
+        assert market == [], f"Day {freeze_day} emitted seed orders: {market}"
+        assert rem == 5000
+
+
+def test_procure_seeds_maturation_horizon_melon_falls_back_to_wheat() -> None:
+    """Target crop that cannot mature (MELON on Day 20) evaluates faster WHEAT alternative."""
+    # MELON first_yield_day is 10. At Day 20, 20 + 10 = 30 >= 30, so MELON cannot yield.
+    # WHEAT first_yield_day is 2. At Day 20, 20 + 2 = 22 < 30, so WHEAT matures before Day 30.
+    obs = make_obs(
+        day=20,
+        money=5000,
+        unlocked_quadrants=["NW"],
+        seeds={"MELON": 0, "WHEAT": 0},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    procure_seeds(market, state, board, target_crop="MELON")
+    assert market == [["BUY_SEED", "WHEAT", 23]]
+
+
+def test_procure_seeds_crop_maturation_horizon_allows_viable_target() -> None:
+    """Target crop that can mature (MELON on Day 19) is procured normally."""
+    # At Day 19, 19 + 10 = 29 < 30, so MELON can yield before season end.
+    obs = make_obs(
+        day=19,
+        money=5000,
+        unlocked_quadrants=["NW"],
+        seeds={"MELON": 0},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    procure_seeds(market, state, board, target_crop="MELON")
+    assert market == [["BUY_SEED", "MELON", 23]]
+
+
+def test_procure_seeds_capacity_limit_during_land_expansion() -> None:
+    """Seed orders strictly respect empty unlocked tiles minus held and pre-queued seeds."""
+    obs = make_obs(
+        day=5,
+        money=5000,
+        unlocked_quadrants=["NW", "NE"],
+        seeds={"WHEAT": 10},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    # Total empty unlocked tiles across NW (25) & NE (25) minus 2 reserved tiles: 50 - 2 = 48.
+    # 10 seeds held, 6 already queued in market -> needed = 48 - 16 = 32.
+    market: list[list[Any]] = [["BUY_SEED", "WHEAT", 6]]
+
+    procure_seeds(market, state, board, target_crop="WHEAT")
+
+    total_bought = sum(o[2] for o in market if o[0] == "BUY_SEED")
+    assert total_bought + 10 <= 48
+    assert market == [["BUY_SEED", "WHEAT", 6], ["BUY_SEED", "WHEAT", 32]]
+
+
+
 # =========================================================================
 # Livestock and Feed Tests
 # =========================================================================

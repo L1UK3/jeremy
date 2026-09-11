@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
+from environment.board import CROP_SPECS
 from parameters import (
     DEFAULT_PARAMETERS,
     ProcurementParams,
@@ -123,6 +124,12 @@ def procure_crew(
     return avail_budget
 
 
+def _can_mature(crop: str, day: int) -> bool:
+    """Return True if crop can produce at least one yield before Day 30."""
+    spec = CROP_SPECS.get(crop)
+    return spec is not None and (day + spec.first_yield_day < 30)
+
+
 def procure_seeds(
     market: list[list[Any]],
     state: GameState,
@@ -130,10 +137,11 @@ def procure_seeds(
     target_crop: str,
     budget: int | None = None,
     reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
+    fallback_crop: str = "WHEAT",
 ) -> int:
-    """Procure seeds to match unplanted empty tiles with wheat fallback."""
+    """Procure seeds to match unplanted empty tiles with maturation cutoff and fallback."""
     avail_budget = state.money if budget is None else budget
-    if len(market) >= 10:
+    if len(market) >= 10 or state.day >= 28:
         return avail_budget
 
     reserved_set = set(reserved_tiles)
@@ -145,28 +153,46 @@ def procure_seeds(
     if not empty_unlocked:
         return avail_budget
 
-    crop = target_crop if target_crop in SEED_COSTS else "WHEAT"
-    crop_cost = SEED_COSTS[crop]
-    total_held_seeds = sum(state.seeds.values())
+    already_ordered_seeds = sum(
+        order[2]
+        for order in market
+        if len(order) >= 3
+        and order[0] == "BUY_SEED"
+        and isinstance(order[2], int)
+    )
+    total_held_seeds = sum(state.seeds.values()) + already_ordered_seeds
     needed = len(empty_unlocked) - total_held_seeds
 
     if needed <= 0:
         return avail_budget
 
-    # Prioritize target_crop
+    desired_crop = target_crop if target_crop in SEED_COSTS else fallback_crop
+    crop: str | None = None
+    if _can_mature(desired_crop, state.day):
+        crop = desired_crop
+    elif _can_mature(fallback_crop, state.day):
+        crop = fallback_crop
+    else:
+        return avail_budget
+
+    crop_cost = SEED_COSTS[crop]
     target_buy = min(needed, avail_budget // crop_cost)
     if target_buy > 0 and len(market) < 10:
         market.append(["BUY_SEED", crop, target_buy])
         avail_budget -= target_buy * crop_cost
         needed -= target_buy
 
-    # Fall back to WHEAT if target_crop could not satisfy all empty tiles
-    if needed > 0 and crop != "WHEAT" and len(market) < 10:
-        wheat_cost = SEED_COSTS["WHEAT"]
-        wheat_buy = min(needed, avail_budget // wheat_cost)
-        if wheat_buy > 0:
-            market.append(["BUY_SEED", "WHEAT", wheat_buy])
-            avail_budget -= wheat_buy * wheat_cost
+    if (
+        needed > 0
+        and crop != fallback_crop
+        and len(market) < 10
+        and _can_mature(fallback_crop, state.day)
+    ):
+        fallback_cost = SEED_COSTS[fallback_crop]
+        fallback_buy = min(needed, avail_budget // fallback_cost)
+        if fallback_buy > 0:
+            market.append(["BUY_SEED", fallback_crop, fallback_buy])
+            avail_budget -= fallback_buy * fallback_cost
 
     return avail_budget
 
@@ -199,7 +225,7 @@ def procure_livestock(
         if getattr(t, "animal", None) == target_animal
         or getattr(t, "is_animal", False)
     )
-    if active_count + shed_count >= capacity:
+    if active_count >= capacity:
         return avail_budget
 
     cost = ANIMAL_COSTS[target_animal]
@@ -263,15 +289,7 @@ def apply_procurement(
     actual_max_hire_hour = (
         max_hire_hour if max_hire_hour is not None else pp.max_hire_hour
     )
-    capacity = (
-        max_animals
-        if max_animals is not None
-        else (
-            pp.max_animals
-            if pp.max_animals is not None
-            else len(reserved_tiles)
-        )
-    )
+    capacity = max_animals if max_animals is not None else pp.max_animals
 
     budget = state.money
     budget = procure_crew(
@@ -296,6 +314,7 @@ def apply_procurement(
         target_crop,
         budget=budget,
         reserved_tiles=reserved_tiles,
+        fallback_crop=pp.seed_fallback_crop,
     )
 
     animal_tiles = board.animals()
