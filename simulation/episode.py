@@ -30,22 +30,30 @@ class EpisodeResult:
     score_baseline: float
     challenger_final_inventory: dict[str, int] = field(default_factory=dict)
     replay_path: str | None = None
+    env: Any = None
 
 
 def run_episode(
     challenger: str = "src/main.py",
     baseline: str = "starter",
+    seat: int = 0,
+    steps: int = 720,
+    keep_env: bool = False,
 ) -> EpisodeResult:
     """Runs a single 2-player Kaggriculture game and returns an EpisodeResult."""
 
-    env: Any = make("kaggriculture", debug=False)
-    agents: list[str] = [challenger, baseline]
+    env: Any = make(
+        "kaggriculture", configuration={"episodeSteps": steps}, debug=False
+    )
+    agents: list[str] = (
+        [challenger, baseline] if seat == 0 else [baseline, challenger]
+    )
 
     env.run(agents)
 
     final_step: list[dict[str, Any]] = env.steps[-1]
-    p_chal: dict[str, Any] = final_step[0]
-    p_base: dict[str, Any] = final_step[1]
+    p_chal: dict[str, Any] = final_step[seat]
+    p_base: dict[str, Any] = final_step[1 - seat]
 
     c_score: float = float(p_chal.get("reward") or 0.0)
     b_score: float = float(p_base.get("reward") or 0.0)
@@ -83,11 +91,14 @@ def run_episode(
         score_baseline=b_score,
         challenger_final_inventory=c_shed,
         replay_path=out_path.as_posix(),
+        env=env if keep_env else None,
     )
 
 
 if __name__ == "__main__":
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Run a Kaggriculture episode.")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        description="Run a Kaggriculture episode."
+    )
     parser.add_argument(
         "--challenger",
         type=str,
@@ -113,7 +124,6 @@ if __name__ == "__main__":
         f"Score: {result.score_challenger:.0f} vs {result.score_baseline:.0f} \n"
         f"Replay path: {result.replay_path}\n\n"
         f"Challenger final inventory: {result.challenger_final_inventory}"
-
     )
 
     print(msg)
