@@ -84,11 +84,12 @@ def episode_trace(request: pytest.FixtureRequest) -> EpisodeTrace:
         keep_env=True,
     )
     if not result.env or not result.env.steps:
-        raise RuntimeError("Headless episode execution failed to capture steps.")
+        raise RuntimeError(
+            "Headless episode execution failed to capture steps."
+        )
 
     return EpisodeTrace(
         steps=result.env.steps,
         seat=seat_arg,
         source=f"headless_simulation_score_{result.score_challenger:.0f}",
     )
-

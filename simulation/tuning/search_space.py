@@ -51,6 +51,10 @@ def sample_parameters(
                 seed_fallback_crop=trial.suggest_categorical(
                     "seed_fallback_crop", ["WHEAT", "CARROT"]
                 ),
+                actions_per_hand=trial.suggest_float(
+                    "actions_per_hand", 4.0, 12.0, step=1.0
+                ),
+                max_daily_hires=trial.suggest_int("max_daily_hires", 4, 16),
             )
             if in_group("procurement")
             else base_params.procurement

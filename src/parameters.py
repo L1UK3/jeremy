@@ -13,7 +13,6 @@ from typing import Any, ClassVar
 
 _logger = logging.getLogger(__name__)
 
-# Placeholder for single-file submission builds where tuned parameters are injected
 EMBEDDED_PARAMS_JSON: str | None = None
 
 # =============================================================================
@@ -31,9 +30,12 @@ class ProcurementParams:
     feed_buffer_mult: int = 2
     feed_target_buffer: int = 2
     max_animals: int = 2
+    reserved_animal_tiles: int = 6
     seed_fallback_crop: str = "WHEAT"
     expansion_day_ne: int = 6
     expansion_day_sw: int = 14
+    actions_per_hand: float = 8.0
+    max_daily_hires: int = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +46,9 @@ class DispatcherParams:
     prio_water_urgent: float = 300.0
     prio_drop_shed: float = 260.0
     prio_harvest_premium: float = 250.0
+    prio_place_animal: float = 245.0
+    prio_pickup_animal: float = 240.0
+    prio_build_structure: float = 220.0
     prio_feed: float = 200.0
     prio_care: float = 180.0
     prio_water_bonus: float = 160.0
@@ -58,6 +63,7 @@ class DispatcherParams:
     harvest_crop_yield_threshold: int = 4
     crop_weight_threshold: float = 0.15
     last_water_day: int = 28
+    reserved_animal_tiles: int = 6
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,19 +2,29 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from tests.conftest import EpisodeTrace
 
 from src.environment.board import Board
 from src.environment.state import GameState
 from src.strategies.procurement import (
     ANIMAL_COSTS,
+    DEFAULT_ACTIONS_PER_HAND,
     DEFAULT_ANIMAL_RESERVED_TILES,
+    DEFAULT_EXPANSION_DAY_NE,
+    DEFAULT_EXPANSION_DAY_SW,
+    DEFAULT_LABOR_FLOOR,
     DEFAULT_LAND_COST_MULT,
     DEFAULT_LAND_MIN_CREW,
+    DEFAULT_MAX_DAILY_HIRES,
     DEFAULT_MAX_HIRE_HOUR,
     LAND_COSTS,
     SEED_COSTS,
     apply_procurement,
+    compute_quadrant_labor_floor,
+    estimate_daily_action_demand,
     procure_crew,
     procure_feed,
     procure_land,
@@ -107,7 +117,12 @@ def test_procurement_default_constants() -> None:
     """Default hyperparameters match ticket spec and provide baseline."""
     assert DEFAULT_LAND_COST_MULT == 2.0
     assert DEFAULT_LAND_MIN_CREW == 3
+    assert DEFAULT_LABOR_FLOOR == 3
     assert DEFAULT_MAX_HIRE_HOUR == 2
+    assert DEFAULT_EXPANSION_DAY_NE == 6
+    assert DEFAULT_EXPANSION_DAY_SW == 14
+    assert DEFAULT_ACTIONS_PER_HAND == 8.0
+    assert DEFAULT_MAX_DAILY_HIRES == 16
     assert DEFAULT_ANIMAL_RESERVED_TILES == frozenset({(3, 4), (4, 3)})
     assert LAND_COSTS == {"NE": 1000, "SW": 2000}
     assert SEED_COSTS["WHEAT"] == 10
@@ -120,55 +135,77 @@ def test_procurement_default_constants() -> None:
 
 
 def test_procure_land_ne_quadrant_success() -> None:
-    """NE land ($1,000) bought when money >= 2 * 1000 and target_crew >= 3."""
-    obs = make_obs(money=2000, unlocked_quadrants=["NW"])
+    """NE land ($1,000) bought on Day >= 6 when money >= 2 * 1000."""
+    obs = make_obs(day=6, money=2000, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    rem = procure_land(market, state, target_crew=3)
+    rem = procure_land(market, state, target_crew=0)
     assert market == [["BUY_LAND"]]
     assert rem == 1000
 
 
 def test_procure_land_ne_quadrant_fails_under_thresholds() -> None:
-    """NE land is not purchased if money < $2,000 or target_crew < 3."""
-    obs_low_money = make_obs(money=1999, unlocked_quadrants=["NW"])
-    state_low_money = GameState.from_obs(obs_low_money)
+    """NE land is blocked if day < 6 or money < $2,000."""
+    # Fails prior to Day 6
+    obs_early = make_obs(day=5, money=3000, unlocked_quadrants=["NW"])
+    state_early = GameState.from_obs(obs_early)
     market: list[list[Any]] = []
-    procure_land(market, state_low_money, target_crew=3)
+    procure_land(market, state_early)
     assert market == []
 
-    obs_low_crew = make_obs(money=3000, unlocked_quadrants=["NW"])
-    state_low_crew = GameState.from_obs(obs_low_crew)
+    # Fails if money < $2,000
+    obs_low_money = make_obs(day=6, money=1999, unlocked_quadrants=["NW"])
+    state_low_money = GameState.from_obs(obs_low_money)
     market.clear()
-    procure_land(market, state_low_crew, target_crew=2)
+    procure_land(market, state_low_money)
     assert market == []
 
 
-def test_procure_land_sw_quadrant_success() -> None:
-    """SW land bought when NE is unlocked, money >= 4000, target_crew >= 3."""
-    obs = make_obs(money=4000, unlocked_quadrants=["NW", "NE"])
+def test_procure_land_crew_restriction_removed() -> None:
+    """target_crew < min_crew does NOT block land purchase when day and treasury met."""
+    obs = make_obs(day=6, money=2000, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
-    rem = procure_land(market, state, target_crew=3)
+    # target_crew=0 with min_crew=3 still purchases land
+    procure_land(market, state, target_crew=0, min_crew=3)
+    assert market == [["BUY_LAND"]]
+
+
+def test_procure_land_sw_quadrant_success() -> None:
+    """SW land bought when NE is unlocked, day >= 14, money >= 4000."""
+    obs = make_obs(day=14, money=4000, unlocked_quadrants=["NW", "NE"])
+    state = GameState.from_obs(obs)
+    market: list[list[Any]] = []
+
+    rem = procure_land(market, state, target_crew=0)
     assert market == [["BUY_LAND"]]
     assert rem == 2000
 
 
-def test_procure_land_sw_quadrant_fails_under_money() -> None:
-    """SW land is not purchased if money < $4,000."""
-    obs = make_obs(money=3999, unlocked_quadrants=["NW", "NE"])
-    state = GameState.from_obs(obs)
+def test_procure_land_sw_quadrant_fails_under_thresholds() -> None:
+    """SW land is blocked if day < 14 or money < $4,000."""
+    # Fails prior to Day 14
+    obs_early = make_obs(day=13, money=10000, unlocked_quadrants=["NW", "NE"])
+    state_early = GameState.from_obs(obs_early)
     market: list[list[Any]] = []
+    procure_land(market, state_early)
+    assert market == []
 
-    procure_land(market, state, target_crew=4)
+    # Fails if money < $4,000
+    obs_low_money = make_obs(
+        day=14, money=3999, unlocked_quadrants=["NW", "NE"]
+    )
+    state_low_money = GameState.from_obs(obs_low_money)
+    market.clear()
+    procure_land(market, state_low_money)
     assert market == []
 
 
 def test_procure_land_se_quadrant_never_purchased() -> None:
     """SE quadrant ($4,000) must NEVER be purchased under any circumstance."""
-    obs = make_obs(money=20000, unlocked_quadrants=["NW", "NE", "SW"])
+    obs = make_obs(day=20, money=20000, unlocked_quadrants=["NW", "NE", "SW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
@@ -176,18 +213,29 @@ def test_procure_land_se_quadrant_never_purchased() -> None:
     assert market == []
 
 
+def test_procure_land_duplicate_in_single_turn_prevented() -> None:
+    """BUY_LAND is not queued if market already contains a BUY_LAND order."""
+    obs = make_obs(day=6, money=5000, unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    market: list[list[Any]] = [["BUY_LAND"]]
+
+    rem = procure_land(market, state)
+    assert market == [["BUY_LAND"]]
+    assert rem == 5000
+
+
 def test_procure_land_parameterized_for_optuna() -> None:
-    """procure_land supports custom cost_mult and min_crew for Optuna."""
-    obs = make_obs(money=1500, unlocked_quadrants=["NW"])
+    """procure_land supports custom cost_mult and day overrides for Optuna."""
+    obs = make_obs(day=6, money=1500, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
     # Default cost_mult=2.0 requires $2000
-    procure_land(market, state, target_crew=2)
+    procure_land(market, state)
     assert market == []
 
-    # Tuned parameters cost_mult=1.5 and min_crew=2 qualify
-    procure_land(market, state, target_crew=2, cost_mult=1.5, min_crew=2)
+    # Tuned parameters cost_mult=1.5 qualifies ($1500)
+    procure_land(market, state, cost_mult=1.5)
     assert market == [["BUY_LAND"]]
 
 
@@ -250,6 +298,168 @@ def test_procure_crew_noop_when_crew_target_met() -> None:
 
     procure_crew(market, state, target_crew=2)
     assert market == []
+
+
+def test_procure_crew_quadrant_labor_floor() -> None:
+    """Labor floor ensures 2 hands for 1 quad, 4 hands for 2 quads, 6 hands for 3 quads."""
+    assert compute_quadrant_labor_floor(1) == 2
+    assert compute_quadrant_labor_floor(2) == 4
+    assert compute_quadrant_labor_floor(3) == 6
+
+    # 1 quadrant unlocked: floor is 2 hands even with target_crew=0
+    obs_1 = make_obs(
+        hour=0, money=100, hands=[], hires_today=0, unlocked_quadrants=["NW"]
+    )
+    state_1 = GameState.from_obs(obs_1)
+    market_1: list[list[Any]] = []
+    procure_crew(market_1, state_1, target_crew=0)
+    assert len(market_1) == 2
+
+    # 2 quadrants unlocked: floor is 4 hands even with target_crew=1
+    obs_2 = make_obs(
+        hour=0,
+        money=100,
+        hands=[],
+        hires_today=0,
+        unlocked_quadrants=["NW", "NE"],
+    )
+    state_2 = GameState.from_obs(obs_2)
+    market_2: list[list[Any]] = []
+    procure_crew(market_2, state_2, target_crew=1)
+    assert len(market_2) == 4
+
+    # 3 quadrants unlocked: floor is 6 hands
+    obs_3 = make_obs(
+        hour=0,
+        money=100,
+        hands=[],
+        hires_today=0,
+        unlocked_quadrants=["NW", "NE", "SW"],
+    )
+    state_3 = GameState.from_obs(obs_3)
+    market_3: list[list[Any]] = []
+    procure_crew(market_3, state_3, target_crew=0)
+    assert len(market_3) == 6
+
+
+def test_procure_crew_quadrant_floor_scales_with_pending_land() -> None:
+    """Pending BUY_LAND order immediately elevates labor floor to staff the new quadrant."""
+    obs = make_obs(
+        hour=0, money=100, hands=[], hires_today=0, unlocked_quadrants=["NW"]
+    )
+    state = GameState.from_obs(obs)
+    market: list[list[Any]] = [["BUY_LAND"]]
+
+    procure_crew(market, state, target_crew=0)
+    hire_orders = [o for o in market if o[0] == "HIRE"]
+    assert len(hire_orders) == 4  # 1 current + 1 pending = 2 quads -> 4 hands
+
+
+def test_procure_crew_neural_target_above_floor() -> None:
+    """Neural policy target_crew can exceed deterministic quadrant floor."""
+    obs = make_obs(
+        hour=0, money=100, hands=[], hires_today=0, unlocked_quadrants=["NW"]
+    )
+    state = GameState.from_obs(obs)
+    market: list[list[Any]] = []
+
+    procure_crew(market, state, target_crew=5)
+    assert len(market) == 5
+
+
+def test_estimate_daily_action_demand_empty_quadrant() -> None:
+    """Empty unlocked NW quadrant generates plant + water actions for 23 tiles."""
+    obs = make_obs(unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    demand = estimate_daily_action_demand(state, board)
+    # 23 empty non-reserved tiles: 23 plant actions + 23 initial water actions = 46
+    assert demand == 46
+
+
+def test_estimate_daily_action_demand_active_crops() -> None:
+    """Unwatered plants and ripe crops are counted in daily action demand."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    # 10 growing unwatered wheat crops in NW
+    for y in (0, 1):
+        for x in range(5):
+            tiles[y][x] = {
+                "kind": "PLANT",
+                "crop": "WHEAT",
+                "planted_day": 9,
+                "watered_today": False,
+                "consecutive_unwatered": 0,
+                "yield_units": 1,
+                "max_lifespan_step": 100,
+            }
+    # 5 ripe melons in row 2 of NW
+    for x in range(5):
+        tiles[2][x] = {
+            "kind": "PLANT",
+            "crop": "MELON",
+            "planted_day": 0,
+            "watered_today": False,
+            "consecutive_unwatered": 0,
+            "yield_units": 6,
+            "max_lifespan_step": 288,
+        }
+    obs = make_obs(day=10, tiles=tiles, unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    demand = estimate_daily_action_demand(state, board)
+    # 15 unwatered plants = 15 water actions
+    # 5 ripe melons = 5 harvest actions + ceil(5/3)=2 drop actions
+    # Remaining empty non-reserved tiles in NW (25 - 2 reserved - 10 - 5 = 8 empty tiles)
+    # 8 plant actions + 8 initial water actions = 16
+    # Total: 15 + 5 + 2 + 16 = 38
+    assert demand == 38
+
+
+def test_procure_crew_scales_with_action_demand() -> None:
+    """Action demand elevates crew hiring above the static quadrant floor."""
+    obs = make_obs(
+        hour=0, money=1000, hands=[], hires_today=0, unlocked_quadrants=["NW"]
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    # 46 actions with actions_per_hand=8.0 -> ceil(46/8) = 6 units (1 farmer + 5 hands)
+    procure_crew(
+        market,
+        state,
+        target_crew=0,
+        board=board,
+        actions_per_hand=8.0,
+    )
+    assert len(market) == 5
+
+
+def test_procure_crew_respects_max_daily_hires() -> None:
+    """Daily hiring strictly caps at max_daily_hires even under extreme chore demand."""
+    obs = make_obs(
+        hour=0,
+        money=50000,
+        hands=[],
+        hires_today=0,
+        unlocked_quadrants=["NW", "NE", "SW"],
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    # Extremely low actions_per_hand creating high crew demand
+    procure_crew(
+        market,
+        state,
+        target_crew=0,
+        board=board,
+        actions_per_hand=2.0,
+        max_daily_hires=16,
+    )
+    assert len(market) <= 16
 
 
 # =========================================================================
@@ -416,7 +626,6 @@ def test_procure_seeds_capacity_limit_during_land_expansion() -> None:
     assert market == [["BUY_SEED", "WHEAT", 6], ["BUY_SEED", "WHEAT", 32]]
 
 
-
 # =========================================================================
 # Livestock and Feed Tests
 # =========================================================================
@@ -479,7 +688,8 @@ def test_procure_livestock_waits_for_unplaced_animal_in_shed() -> None:
 def test_apply_procurement_orchestrates_all_orders_within_market_cap() -> None:
     """apply_procurement executes operations within the 10 order cap."""
     obs = make_obs(
-        step=50,
+        step=145,
+        day=6,
         hour=1,
         money=5000,
         unlocked_quadrants=["NW"],
@@ -515,7 +725,8 @@ def test_apply_procurement_shared_budget_deduction() -> None:
     # MELON costs $80. 23 tiles * 80 = 1840 > 996.
     # Seeds bought should be constrained by 996 budget, not 2000!
     obs = make_obs(
-        step=50,
+        step=144,
+        day=6,
         hour=0,
         money=2000,
         unlocked_quadrants=["NW"],
@@ -545,3 +756,17 @@ def test_apply_procurement_shared_budget_deduction() -> None:
     )
     assert total_seed_spent <= (2000 - 4 - 1000)
     assert rem_budget >= 0
+
+
+def test_final_step_zero_unplanted_seeds(episode_trace: EpisodeTrace) -> None:
+    """Final step inspection confirms 0 unplanted seeds in seeds inventory on Day 30."""
+    seat = episode_trace.seat
+    steps = episode_trace.steps
+    final_step = steps[-1][seat]
+    obs = final_step.get("observation") or {}
+    priv = obs.get("private") or {}
+    seeds = priv.get("seeds") or {}
+    total_unplanted = sum(seeds.values())
+    assert total_unplanted == 0, (
+        f"Expected 0 unplanted seeds on Day 30, found {seeds}"
+    )

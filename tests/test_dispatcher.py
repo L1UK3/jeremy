@@ -5,11 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 from src.dispatcher import (
+    ALL_CANDIDATE_ANIMAL_TILES,
+    BUILD_COOP,
+    BUILD_PASTURE,
     DROP_SHED,
+    PICKUP_ANIMAL,
+    PLACE,
     RESERVED_ANIMAL_TILES,
     Job,
     assign_jobs,
     generate_jobs,
+    get_animal_reserved_tiles,
     job_to_action,
     schedule_tasks,
 )
@@ -434,3 +440,233 @@ def test_late_hour_drop_only_for_produce() -> None:
     board_egg = Board(state_egg)
     jobs_egg = generate_jobs(state_egg, board_egg)
     assert any(j.action == "DROP_SHED" for j in jobs_egg)
+
+
+def test_animal_reserved_tiles_scale_with_max_animals() -> None:
+    """Reserved animal tiles scale dynamically with max_animals."""
+    assert ALL_CANDIDATE_ANIMAL_TILES[:2] == ((3, 4), (4, 3))
+    assert get_animal_reserved_tiles(1) == frozenset({(3, 4)})
+    assert get_animal_reserved_tiles(2) == frozenset({(3, 4), (4, 3)})
+    assert get_animal_reserved_tiles(3) == frozenset({(3, 4), (4, 3), (3, 3)})
+    assert get_animal_reserved_tiles(4) == frozenset(
+        {(3, 4), (4, 3), (3, 3), (2, 4)}
+    )
+    assert get_animal_reserved_tiles(0) == frozenset()
+
+
+def test_generate_jobs_build_coop_for_goose() -> None:
+    """Targeted GOOSE or GOOSE in shed generates BUILD_COOP on reserved tile."""
+    # Targeted GOOSE
+    obs = make_obs(money=1000)
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board, target_animal="GOOSE")
+    coop_jobs = [j for j in jobs if j.action == BUILD_COOP]
+    assert len(coop_jobs) == 1
+    assert coop_jobs[0].target == (3, 4)
+    assert coop_jobs[0].item == "GOOSE"
+    assert coop_jobs[0].priority == 220.0
+
+    # GOOSE in shed
+    obs_shed = make_obs(money=1000, shed={"GOOSE": 1})
+    state_shed = GameState.from_obs(obs_shed)
+    board_shed = Board(state_shed)
+
+    jobs_shed = generate_jobs(state_shed, board_shed, target_animal="NONE")
+    coop_jobs_shed = [j for j in jobs_shed if j.action == BUILD_COOP]
+    assert len(coop_jobs_shed) == 1
+    assert coop_jobs_shed[0].target == (3, 4)
+
+
+def test_generate_jobs_build_pasture_for_cow_and_sheep() -> None:
+    """Targeted COW or SHEEP generates BUILD_PASTURE on reserved tile."""
+    # COW
+    obs_cow = make_obs(money=1000)
+    state_cow = GameState.from_obs(obs_cow)
+    board_cow = Board(state_cow)
+
+    jobs_cow = generate_jobs(state_cow, board_cow, target_animal="COW")
+    pasture_jobs_cow = [j for j in jobs_cow if j.action == BUILD_PASTURE]
+    assert len(pasture_jobs_cow) == 1
+    assert pasture_jobs_cow[0].target == (3, 4)
+    assert pasture_jobs_cow[0].item == "COW"
+
+    # SHEEP
+    obs_sheep = make_obs(money=1000)
+    state_sheep = GameState.from_obs(obs_sheep)
+    board_sheep = Board(state_sheep)
+
+    jobs_sheep = generate_jobs(state_sheep, board_sheep, target_animal="SHEEP")
+    pasture_jobs_sheep = [j for j in jobs_sheep if j.action == BUILD_PASTURE]
+    assert len(pasture_jobs_sheep) == 1
+    assert pasture_jobs_sheep[0].target == (3, 4)
+    assert pasture_jobs_sheep[0].item == "SHEEP"
+
+
+def test_generate_jobs_no_duplicate_structure_when_empty_exists() -> None:
+    """When an empty matching structure already exists, do not build another."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[4][3] = {"kind": "COOP"}  # empty coop at (3, 4)
+
+    obs = make_obs(tiles=tiles, money=1000)
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    # With empty coop available, targeted GOOSE should not generate another BUILD_COOP
+    jobs = generate_jobs(state, board, target_animal="GOOSE")
+    assert not any(j.action == BUILD_COOP for j in jobs)
+
+
+def test_job_to_action_build_structure() -> None:
+    """job_to_action navigates toward target and executes BUILD_COOP / BUILD_PASTURE safely."""
+    # Away from target: step toward
+    job = Job(priority=220.0, action="BUILD_COOP", target=(3, 4), item="GOOSE")
+    obs = make_obs(farmer=(1, 4))
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    act_step = job_to_action(job, 1, 4, state=state, board=board)
+    assert act_step == ["EAST"]
+
+    # At target with empty tile: execute action
+    act_build = job_to_action(job, 3, 4, state=state, board=board)
+    assert act_build == ["BUILD_COOP"]
+
+    # At target with occupied tile: return PASS for safety
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[4][3] = {"kind": "WEED"}
+    obs_blocked = make_obs(farmer=(3, 4), tiles=tiles)
+    state_blocked = GameState.from_obs(obs_blocked)
+    board_blocked = Board(state_blocked)
+
+    act_blocked = job_to_action(
+        job, 3, 4, state=state_blocked, board=board_blocked
+    )
+    assert act_blocked == ["PASS"]
+
+
+def test_generate_jobs_pickup_animal_when_shed_has_animal_and_empty_structure() -> (
+    None
+):
+    """PICKUP_ANIMAL job emitted when animal in shed and matching empty structure exists."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[4][3] = {"kind": "COOP"}  # empty coop at (3, 4)
+
+    obs = make_obs(tiles=tiles, shed={"GOOSE": 1})
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board)
+    pickup_jobs = [j for j in jobs if j.action == PICKUP_ANIMAL]
+    assert len(pickup_jobs) == 1
+    assert pickup_jobs[0].item == "GOOSE"
+    assert pickup_jobs[0].target in SHED_ACCESS_TILES
+
+
+def test_generate_jobs_place_animal_when_worker_holds_animal() -> None:
+    """PLACE chore job emitted targeting unoccupied structure when worker carries animal."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[3][4] = {"kind": "PASTURE"}  # empty pasture at (4, 3)
+
+    obs = make_obs(tiles=tiles, inventories=[{"COW": 1}])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board)
+    place_jobs = [j for j in jobs if j.action == PLACE]
+    assert len(place_jobs) == 1
+    assert place_jobs[0].target == (4, 3)
+    assert place_jobs[0].item == "COW"
+
+
+def test_job_to_action_pickup_animal_drops_backpack_first() -> None:
+    """Worker assigned to animal retrieval empties backpack via DROP before PICKUP."""
+    job = Job(priority=240.0, action=PICKUP_ANIMAL, target=(4, 4), item="GOOSE")
+
+    # Worker at (4, 4) with carried items: must DROP first
+    obs_loaded = make_obs(farmer=(4, 4), inventories=[{"WHEAT": 2}])
+    state_loaded = GameState.from_obs(obs_loaded)
+    act_drop = job_to_action(job, 4, 4, state=state_loaded, u_idx=0)
+    assert act_drop == ["DROP"]
+
+    # Worker at (4, 4) with empty backpack: PICKUP 1 animal
+    obs_empty = make_obs(farmer=(4, 4), inventories=[{}], shed={"GOOSE": 1})
+    state_empty = GameState.from_obs(obs_empty)
+    act_pickup = job_to_action(job, 4, 4, state=state_empty, u_idx=0)
+    assert act_pickup == ["PICKUP", "GOOSE", 1]
+
+
+def test_job_to_action_place_animal_at_structure() -> None:
+    """Worker emits PLACE <animal> when arriving at unoccupied matching structure."""
+    job = Job(priority=245.0, action=PLACE, target=(3, 4), item="GOOSE")
+
+    # Away from structure: step toward
+    obs_away = make_obs(farmer=(4, 4))
+    state_away = GameState.from_obs(obs_away)
+    act_step = job_to_action(job, 4, 4, state=state_away)
+    assert act_step == ["WEST"]
+
+    # At structure: PLACE animal
+    obs_at = make_obs(farmer=(3, 4))
+    state_at = GameState.from_obs(obs_at)
+    act_place = job_to_action(job, 3, 4, state=state_at)
+    assert act_place == ["PLACE", "GOOSE"]
+
+
+def test_job_to_action_feed_wheat_pickup_route() -> None:
+    """Worker with 0 carried wheat routes via shed to pick up wheat before feeding."""
+    job = Job(priority=200.0, action="FEED", target=(3, 4), item="GOOSE")
+
+    # Worker has wheat: steps toward animal
+    obs_has_wheat = make_obs(farmer=(2, 4), inventories=[{"WHEAT": 1}])
+    state_has_wheat = GameState.from_obs(obs_has_wheat)
+    board_has_wheat = Board(state_has_wheat)
+    act_step = job_to_action(
+        job, 2, 4, state=state_has_wheat, board=board_has_wheat, u_idx=0
+    )
+    assert act_step == ["EAST"]
+
+    # Worker has wheat and at animal: feeds
+    act_feed = job_to_action(
+        job, 3, 4, state=state_has_wheat, board=board_has_wheat, u_idx=0
+    )
+    assert act_feed == ["FEED"]
+
+    # Worker has NO wheat and at shed: picks up wheat
+    obs_no_wheat_at_shed = make_obs(
+        farmer=(4, 4), inventories=[{}], shed={"WHEAT": 5}
+    )
+    state_no_wheat_at_shed = GameState.from_obs(obs_no_wheat_at_shed)
+    board_no_wheat_at_shed = Board(state_no_wheat_at_shed)
+    act_pickup_wheat = job_to_action(
+        job,
+        4,
+        4,
+        state=state_no_wheat_at_shed,
+        board=board_no_wheat_at_shed,
+        u_idx=0,
+    )
+    assert act_pickup_wheat == ["PICKUP", "WHEAT", 1]
+
+
+def test_assign_jobs_place_restricted_to_worker_holding_animal() -> None:
+    """Only the worker holding the animal can be assigned to PLACE."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[4][3] = {"kind": "COOP"}
+
+    # Farmer has empty inventory at (0, 0); Hand 0 holds GOOSE at (4, 4)
+    obs = make_obs(
+        farmer=(0, 0),
+        hands=[[4, 4]],
+        tiles=tiles,
+        inventories=[{}, {"GOOSE": 1}],
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    farmer_act, hands_acts = schedule_tasks(state, board)
+    # Hand 0 should receive the PLACE job toward (3, 4) -> step WEST
+    assert hands_acts[0] == ["WEST"]
+    # Farmer should not receive PLACE
+    assert farmer_act != ["WEST"]

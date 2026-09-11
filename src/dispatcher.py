@@ -15,21 +15,15 @@ if TYPE_CHECKING:
     from environment.state import GameState
 
 __all__ = [
-    "CARE",
-    "COLLECT_FERTILIZER",
-    "DIG_WEED",
+    "ALL_CANDIDATE_ANIMAL_TILES",
+    "BUILD_COOP",
+    "BUILD_PASTURE",
     "DROP_SHED",
-    "FEED",
-    "FEED_URGENT",
-    "FERTILIZE",
-    "HARVEST_BASE",
-    "HARVEST_PREMIUM",
+    "PICKUP_ANIMAL",
+    "PLACE",
     "PLANT_BASE",
     "PLANT_CASCADE",
     "RESERVED_ANIMAL_TILES",
-    "WATER",
-    "WATER_BONUS",
-    "WATER_URGENT",
     "Job",
     "_harvest_actions",
     "_plant_task",
@@ -37,28 +31,42 @@ __all__ = [
     "assign_jobs",
     "default_utility_scorer",
     "generate_jobs",
+    "get_animal_reserved_tiles",
     "job_to_action",
     "needs_center_drop",
     "schedule_tasks",
 ]
 
-# Priority scores
-FEED_URGENT: float = 350.0
-WATER_URGENT: float = 300.0
+
+BUILD_COOP: str = "BUILD_COOP"
+BUILD_PASTURE: str = "BUILD_PASTURE"
+PICKUP_ANIMAL: str = "PICKUP_ANIMAL"
+PLACE: str = "PLACE"
 DROP_SHED: float = 260.0
-HARVEST_PREMIUM: float = 250.0
-FEED: float = 200.0
-CARE: float = 180.0
-WATER_BONUS: float = 160.0
-HARVEST_BASE: float = 150.0
-DIG_WEED: float = 140.0
-WATER: float = 120.0
 PLANT_BASE: float = 75.0
 PLANT_CASCADE: float = 65.0
-FERTILIZE: float = 70.0
-COLLECT_FERTILIZER: float = 60.0
 
-RESERVED_ANIMAL_TILES: frozenset[tuple[int, int]] = frozenset({(3, 4), (4, 3)})
+ALL_CANDIDATE_ANIMAL_TILES: tuple[tuple[int, int], ...] = (
+    (3, 4),
+    (4, 3),
+    (3, 3),
+    (2, 4),
+    (4, 2),
+    (2, 3),
+    (3, 2),
+)
+
+def get_animal_reserved_tiles(
+    max_animals: int | None = None,
+) -> frozenset[tuple[int, int]]:
+    """Return reserved animal tiles scaled to max_animals or dispatcher hyperparameter."""
+    count = (
+        max_animals
+        if max_animals is not None
+        else get_active_parameters().dispatcher.reserved_animal_tiles
+    )
+    return frozenset(ALL_CANDIDATE_ANIMAL_TILES[: max(0, count)])
+
 
 PRODUCE_ITEMS: frozenset[str] = frozenset(
     {"WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON", "EGG", "MILK", "WOOL"}
@@ -120,17 +128,80 @@ def job_to_action(
     y: int,
     state: GameState | None = None,
     board: Board | None = None,
+    u_idx: int | None = None,
 ) -> list[str]:
     """Convert a job into an immediate tile action or movement step."""
     tx, ty = job.target
+    act = job.action
+
+    actual_uidx = u_idx
+    if actual_uidx is None and state is not None:
+        if (x, y) == state.farmer:
+            actual_uidx = 0
+        else:
+            for h_idx, h_pos in enumerate(state.hands):
+                if (x, y) == (h_pos[0], h_pos[1]):
+                    actual_uidx = h_idx + 1
+                    break
+        if actual_uidx is None:
+            actual_uidx = 0
+
+    if act == "PICKUP_ANIMAL":
+        if (x, y) in SHED_ACCESS_TILES:
+            inv = (
+                state.worker_inventory(actual_uidx) if state is not None else {}
+            )
+            if sum(inv.values()) > 0:
+                return ["DROP"]
+            return ["PICKUP", job.item, 1] if job.item else ["PASS"]
+        return [step_toward(x, y, tx, ty)]
+
+    if act == "PLACE":
+        if (x, y) == (tx, ty):
+            return ["PLACE", job.item] if job.item else ["PLACE"]
+        return [step_toward(x, y, tx, ty)]
+
+    if act == "FEED":
+        inv = state.worker_inventory(actual_uidx) if state is not None else {}
+        if inv.get("WHEAT", 0) > 0:
+            if (x, y) == (tx, ty):
+                return ["FEED"]
+            return [step_toward(x, y, tx, ty)]
+        else:
+            if (
+                (x, y) in SHED_ACCESS_TILES
+                and state
+                and state.inventory("WHEAT") > 0
+            ):
+                return ["PICKUP", "WHEAT", 1]
+            if (x, y) == (tx, ty):
+                return ["PASS"]
+            sx, sy = board.nearest_shed(x, y) if board else (4, 4)
+            return [step_toward(x, y, sx, sy)]
+
     if (x, y) == (tx, ty):
-        act = job.action
         if act == "PLANT" and job.item:
+            if state is not None:
+                current_tile = state.tiles[ty][tx]
+                if current_tile is not None:
+                    is_weed = current_tile == "WEED" or (
+                        isinstance(current_tile, dict)
+                        and current_tile.get("kind") == "WEED"
+                    )
+                    if is_weed:
+                        return ["DIG"]
+                    return ["PASS"]
             return ["PLANT", job.item]
         if act == "HARVEST":
             return ["HARVEST"]
         if act == "DROP_SHED":
             return ["DROP"]
+        if act in ("BUILD_COOP", "BUILD_PASTURE"):
+            if state is not None:
+                current_tile = state.tiles[ty][tx]
+                if current_tile is not None:
+                    return ["PASS"]
+            return [act]
         return [act]
     if job.action == "DROP_SHED" and (x, y) in SHED_ACCESS_TILES:
         return ["DROP"]
@@ -143,24 +214,28 @@ def generate_jobs(
     target_crop: str | None = None,
     crop_weights: tuple[float, ...] | list[float] | None = None,
     params: DispatcherParams | None = None,
+    target_animal: str | None = None,
+    max_animals: int | None = None,
 ) -> list[Job]:
     """Streamlined single-pass chore generation directly from board spatial indexes."""
     dp = params or get_active_parameters().dispatcher
+    effective_max_animals = (
+        max_animals if max_animals is not None else dp.reserved_animal_tiles
+    )
+    active_reserved_tiles = get_animal_reserved_tiles(effective_max_animals)
     jobs: list[Job] = []
     prices = state.prices
 
-    # Identify unplanted unlocked tiles excluding reserved animal tiles
     unplanted_unlocked = [
         t
         for t in board.empty_tiles(only_unlocked=True)
-        if t.pos not in RESERVED_ANIMAL_TILES
+        if t.pos not in active_reserved_tiles
     ]
     has_unplanted = len(unplanted_unlocked) > 0
     emergency_harvest = state.money < 50 and has_unplanted
 
     harvest_positions: set[tuple[int, int]] = set()
 
-    # 1. Animal harvestable produce
     for tile in board.animals():
         if tile.yield_units > 0 and tile.animal:
             prod = ANIMAL_PRODUCT.get(tile.animal, tile.animal)
@@ -170,7 +245,6 @@ def generate_jobs(
             jobs.append(Job(val, "HARVEST", tile.pos, item=prod))
             harvest_positions.add(tile.pos)
 
-    # 2. Crop harvest (adaptive: max yield or emergency early harvest)
     for tile in board.plants():
         if not (tile.crop and tile.yield_units > 0):
             continue
@@ -198,7 +272,144 @@ def generate_jobs(
             jobs.append(Job(val, "HARVEST", tile.pos, item=tile.crop))
             harvest_positions.add(tile.pos)
 
-    # 3. Water plants that are not being harvested, prioritizing bonus windows
+    occupied_coops = 0
+    occupied_pastures = 0
+    empty_coops = 0
+    empty_pastures = 0
+
+    for r in range(len(state.tiles)):
+        for c in range(len(state.tiles[r])):
+            t = state.tiles[r][c]
+            if isinstance(t, dict):
+                k = t.get("kind")
+                if k == "COOP":
+                    if t.get("animal"):
+                        occupied_coops += 1
+                    else:
+                        empty_coops += 1
+                elif k == "PASTURE":
+                    if t.get("animal"):
+                        occupied_pastures += 1
+                    else:
+                        empty_pastures += 1
+
+    total_structures = (
+        occupied_coops + occupied_pastures + empty_coops + empty_pastures
+    )
+
+    if total_structures < effective_max_animals:
+        animals_needing_housing: list[str] = []
+        for a in ("GOOSE", "COW", "SHEEP"):
+            for _ in range(state.inventory(a)):
+                animals_needing_housing.append(a)
+
+        if (
+            target_animal in ("GOOSE", "COW", "SHEEP")
+            and not animals_needing_housing
+        ):
+            animals_needing_housing.append(target_animal)
+
+        available_empty_coops = empty_coops
+        available_empty_pastures = empty_pastures
+        built_structures = 0
+        remaining_capacity = effective_max_animals - total_structures
+
+        for animal in animals_needing_housing:
+            if built_structures >= remaining_capacity:
+                break
+
+            if animal == "GOOSE":
+                if available_empty_coops > 0:
+                    available_empty_coops -= 1
+                    continue
+                action_name = "BUILD_COOP"
+            elif animal in ("COW", "SHEEP"):
+                if available_empty_pastures > 0:
+                    available_empty_pastures -= 1
+                    continue
+                action_name = "BUILD_PASTURE"
+            else:
+                continue
+
+            target_tile: tuple[int, int] | None = None
+            for rx, ry in ALL_CANDIDATE_ANIMAL_TILES[:effective_max_animals]:
+                if not state.is_tile_unlocked(rx, ry):
+                    continue
+                if state.tiles[ry][rx] is None and not any(
+                    j.target == (rx, ry) for j in jobs
+                ):
+                    target_tile = (rx, ry)
+                    break
+
+            if target_tile is not None:
+                prio = getattr(dp, "prio_build_structure", 220.0)
+                jobs.append(Job(prio, action_name, target_tile, item=animal))
+                built_structures += 1
+
+    num_units = 1 + len(state.hands)
+    targeted_structures: set[tuple[int, int]] = set()
+
+    for u in range(num_units):
+        inv = state.worker_inventory(u)
+        for animal in ("GOOSE", "COW", "SHEEP"):
+            if inv.get(animal, 0) > 0:
+                matching_kind = "COOP" if animal == "GOOSE" else "PASTURE"
+                for r in range(len(state.tiles)):
+                    for c in range(len(state.tiles[r])):
+                        t = state.tiles[r][c]
+                        if (
+                            isinstance(t, dict)
+                            and t.get("kind") == matching_kind
+                            and not t.get("animal")
+                        ):
+                            pos = (c, r)
+                            if pos not in targeted_structures:
+                                prio = getattr(dp, "prio_place_animal", 245.0)
+                                jobs.append(
+                                    Job(prio, "PLACE", pos, item=animal)
+                                )
+                                targeted_structures.add(pos)
+                                break
+
+    pickup_idx = 0
+    for animal in ("GOOSE", "COW", "SHEEP"):
+        shed_qty = state.inventory(animal)
+        if shed_qty > 0:
+            matching_kind = "COOP" if animal == "GOOSE" else "PASTURE"
+            empty_matching_structures: list[tuple[int, int]] = []
+            for r in range(len(state.tiles)):
+                for c in range(len(state.tiles[r])):
+                    t = state.tiles[r][c]
+                    if (
+                        isinstance(t, dict)
+                        and t.get("kind") == matching_kind
+                        and not t.get("animal")
+                    ):
+                        pos = (c, r)
+                        if pos not in targeted_structures:
+                            empty_matching_structures.append(pos)
+
+            already_assigned = sum(
+                1
+                for j in jobs
+                if j.action in ("PICKUP_ANIMAL", "PLACE") and j.item == animal
+            )
+            needed_pickups = min(
+                shed_qty - already_assigned, len(empty_matching_structures)
+            )
+
+            for _ in range(needed_pickups):
+                target_structure = empty_matching_structures.pop(0)
+                targeted_structures.add(target_structure)
+                shed_target = SHED_ACCESS_TILES[
+                    pickup_idx % len(SHED_ACCESS_TILES)
+                ]
+                pickup_idx += 1
+                prio = getattr(dp, "prio_pickup_animal", 240.0)
+                jobs.append(
+                    Job(prio, "PICKUP_ANIMAL", shed_target, item=animal)
+                )
+
     for tile in board.needs_water():
         if tile.pos in harvest_positions:
             continue
@@ -224,11 +435,14 @@ def generate_jobs(
             prio = dp.prio_water
         jobs.append(Job(prio, "WATER", tile.pos))
 
-    # 4. Dig weeds
     for tile in board.weeds(only_unlocked=True):
-        jobs.append(Job(dp.prio_dig_weed, "DIG", tile.pos))
+        dig_prio = (
+            360.0
+            if (state.day >= 28 and sum(state.seeds.values()) > 0)
+            else dp.prio_dig_weed
+        )
+        jobs.append(Job(dig_prio, "DIG", tile.pos))
 
-    # 5. Animal feeding
     wheat_stock = state.inventory("WHEAT")
     if wheat_stock > 0:
         for tile in board.needs_feed()[:wheat_stock]:
@@ -240,12 +454,10 @@ def generate_jobs(
                 )
                 jobs.append(Job(prio, "FEED", tile.pos, item=tile.animal))
 
-    # 6. Animal care
     for tile in board.needs_care():
         if not tile.cared_today:
             jobs.append(Job(dp.prio_care, "CARE", tile.pos, item=tile.animal))
 
-    # 7. Fertilize plants
     fertilizer_stock = state.inventory("FERTILIZER")
     if fertilizer_stock > 0:
         for tile in board.plants():
@@ -261,7 +473,6 @@ def generate_jobs(
                     )
                 )
 
-    # 8. Collect animal fertilizer
     for tile in board.has_fertilizer_tiles():
         jobs.append(
             Job(
@@ -272,7 +483,6 @@ def generate_jobs(
             )
         )
 
-    # 9. Center drop chores for units carrying >= 3 items or produce at hour >= 20
     used_shed_tiles: set[tuple[int, int]] = set()
     num_units = 1 + len(state.hands)
     for u in range(num_units):
@@ -293,8 +503,7 @@ def generate_jobs(
             used_shed_tiles.add(best_shed)
             jobs.append(Job(dp.prio_drop_shed, "DROP_SHED", best_shed))
 
-    # 10. Planting chores on unplanted unlocked tiles (excluding reserved animal tiles)
-    if unplanted_unlocked:
+    if unplanted_unlocked and state.hour < 23:
         primary = target_crop if target_crop in CROP_SPECS else "WHEAT"
         secondary_crops = (
             ["WHEAT"]
@@ -314,22 +523,27 @@ def generate_jobs(
 
         for tile in unplanted_unlocked:
             chosen_crop: str | None = None
-            prio = dp.prio_plant_base
-            if available_seeds.get(primary, 0) > 0:
-                chosen_crop = primary
-                prio = dp.prio_plant_base
-            else:
-                for sec in secondary_crops:
-                    if available_seeds.get(sec, 0) > 0:
-                        chosen_crop = sec
-                        prio = dp.prio_plant_cascade
+            prio = 350.0 if state.day >= 28 else dp.prio_plant_base
+            if state.day >= 28:
+                crops_order = [*secondary_crops, primary]
+                for c in crops_order:
+                    if available_seeds.get(c, 0) > 0:
+                        chosen_crop = c
                         break
+            else:
+                if available_seeds.get(primary, 0) > 0:
+                    chosen_crop = primary
+                else:
+                    for sec in secondary_crops:
+                        if available_seeds.get(sec, 0) > 0:
+                            chosen_crop = sec
+                            prio = dp.prio_plant_cascade
+                            break
 
             if chosen_crop is not None:
                 jobs.append(_plant_task(prio, tile.pos, chosen_crop))
                 available_seeds[chosen_crop] -= 1
             else:
-                # No more seeds in stock
                 break
 
     return jobs
@@ -386,6 +600,14 @@ def assign_jobs(
         if job.action == "DROP_SHED":
             inv = state.worker_inventory(u_idx)
             return needs_center_drop(inv, state.hour)
+        if job.action == "PLACE":
+            inv = state.worker_inventory(u_idx)
+            return bool(job.item and inv.get(job.item, 0) > 0)
+        if job.action == "PICKUP_ANIMAL":
+            inv = state.worker_inventory(u_idx)
+            if any(inv.get(a, 0) > 0 for a in ("GOOSE", "COW", "SHEEP")):
+                return False
+            return True
         return True
 
     while unassigned_units:
@@ -411,7 +633,7 @@ def assign_jobs(
         if best_unit is not None and best_job is not None:
             ux, uy = unit_positions[best_unit]
             unit_actions[best_unit] = job_to_action(
-                best_job, ux, uy, state=state, board=board
+                best_job, ux, uy, state=state, board=board, u_idx=best_unit
             )
             used_targets.add(best_job.target)
             unassigned_units.remove(best_unit)
@@ -425,11 +647,18 @@ def assign_chores(
     state: GameState,
     board: Board,
     target_crop: str | None = None,
+    target_animal: str | None = None,
     params: DispatcherParams | None = None,
 ) -> tuple[list[str], list[list[str]]]:
     """Top-level pipeline generating prioritized chores and assigning them to units."""
     dp = params or get_active_parameters().dispatcher
-    jobs = generate_jobs(state, board, target_crop=target_crop, params=dp)
+    jobs = generate_jobs(
+        state,
+        board,
+        target_crop=target_crop,
+        target_animal=target_animal,
+        params=dp,
+    )
     return assign_jobs(state, jobs, board=board, params=dp)
 
 

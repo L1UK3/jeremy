@@ -101,6 +101,7 @@ def _dispatch_worker(
     targets: list[HarvestTarget],
     claimed_tiles: set[tuple[int, int]],
     pending_deposits: dict[str, int],
+    remaining_seeds: dict[str, int] | None = None,
 ) -> list[str]:
     """Determine reachability-bounded optimal action for one worker."""
     inv = state.worker_inventory(worker_idx)
@@ -145,6 +146,40 @@ def _dispatch_worker(
 
     if load > 0:
         return [step_toward(wx, wy, nearest_shed[0], nearest_shed[1])]
+
+    seeds_stock = (
+        remaining_seeds
+        if remaining_seeds is not None
+        else {
+            c: state.seed_count(c)
+            for c in ("WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON")
+        }
+    )
+    for crop in ("WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON"):
+        if seeds_stock.get(crop, 0) > 0:
+            current_tile = board.tile(wx, wy)
+            if (
+                current_tile is not None
+                and state.is_tile_unlocked(wx, wy)
+                and current_tile.empty
+                and (wx, wy) not in claimed_tiles
+            ):
+                claimed_tiles.add((wx, wy))
+                seeds_stock[crop] -= 1
+                return ["PLANT", crop]
+
+            empty_candidates = [
+                t.pos
+                for t in board.empty_tiles(only_unlocked=True)
+                if t.pos not in claimed_tiles
+            ]
+            if empty_candidates:
+                best_empty = min(
+                    empty_candidates,
+                    key=lambda p: abs(p[0] - wx) + abs(p[1] - wy),
+                )
+                claimed_tiles.add(best_empty)
+                return [step_toward(wx, wy, best_empty[0], best_empty[1])]
 
     return ["PASS"]
 
@@ -230,6 +265,10 @@ def explosion(
         state.farmer,
         *(tuple(h) for h in state.hands),
     ]
+    remaining_seeds = {
+        c: state.seed_count(c)
+        for c in ("WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON")
+    }
     acts = [
         _dispatch_worker(
             idx,
@@ -241,6 +280,7 @@ def explosion(
             targets,
             claimed_tiles,
             pending_deposits,
+            remaining_seeds=remaining_seeds,
         )
         for idx, pos in enumerate(positions)
     ]

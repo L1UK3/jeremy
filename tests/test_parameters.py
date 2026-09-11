@@ -35,12 +35,16 @@ def test_default_parameters_match_domain_constants() -> None:
     assert p.procurement.max_hire_hour == 2
     assert p.procurement.feed_buffer_mult == 2
     assert p.procurement.max_animals == 2
+    assert p.procurement.reserved_animal_tiles == 2
     assert p.procurement.seed_fallback_crop == "WHEAT"
 
     assert p.dispatcher.prio_feed_urgent == 350.0
     assert p.dispatcher.prio_water_urgent == 300.0
     assert p.dispatcher.prio_drop_shed == 260.0
     assert p.dispatcher.prio_harvest_premium == 250.0
+    assert p.dispatcher.prio_place_animal == 245.0
+    assert p.dispatcher.prio_pickup_animal == 240.0
+    assert p.dispatcher.prio_build_structure == 220.0
     assert p.dispatcher.prio_feed == 200.0
     assert p.dispatcher.prio_care == 180.0
     assert p.dispatcher.prio_water_bonus == 160.0
@@ -52,6 +56,7 @@ def test_default_parameters_match_domain_constants() -> None:
     assert p.dispatcher.prio_fertilize == 70.0
     assert p.dispatcher.prio_collect_fertilizer == 60.0
     assert p.dispatcher.dist_penalty == 2.0
+    assert p.dispatcher.reserved_animal_tiles == 2
 
     assert p.market_maker.glut_weight_melon == 3.5
     assert p.market_maker.glut_weight_strawberry == 2.0
@@ -292,3 +297,52 @@ def test_dispatcher_respects_custom_dispatcher_params() -> None:
     plant_jobs = [j for j in jobs if j.action == "PLANT"]
     assert len(plant_jobs) > 0
     assert plant_jobs[0].priority == 999.0
+
+
+def test_reserved_animal_tiles_hyperparameter_override() -> None:
+    """Configuring reserved_animal_tiles dynamically adjusts excluded plant tiles."""
+    obs = {
+        "player": 0,
+        "step": 0,
+        "day": 0,
+        "hour": 0,
+        "farms": [
+            {
+                "money": 3000,
+                "tiles": [[None for _ in range(10)] for _ in range(10)],
+                "farmer": [0, 0],
+                "hands": [],
+                "unlocked_quadrants": ["NW"],
+                "hires_today": 0,
+            }
+        ],
+        "private": {
+            "shed": {},
+            "seeds": {"WHEAT": 100},
+            "inventories": [{}],
+        },
+        "market": {"inventory": {}, "prices": {}},
+        "town": {"unlocked_shops": []},
+    }
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    # Override with 3 reserved tiles: (3, 4), (4, 3), (3, 3)
+    custom_dp = DispatcherParams(reserved_animal_tiles=3)
+    jobs = generate_jobs(state, board, target_crop="WHEAT", params=custom_dp)
+    plant_targets = {j.target for j in jobs if j.action == "PLANT"}
+
+    assert (3, 4) not in plant_targets
+    assert (4, 3) not in plant_targets
+    assert (3, 3) not in plant_targets
+
+    # With 1 reserved tile: only (3, 4) is reserved; (4, 3) and (3, 3) are planted
+    custom_dp_1 = DispatcherParams(reserved_animal_tiles=1)
+    jobs_1 = generate_jobs(
+        state, board, target_crop="WHEAT", params=custom_dp_1
+    )
+    plant_targets_1 = {j.target for j in jobs_1 if j.action == "PLANT"}
+
+    assert (3, 4) not in plant_targets_1
+    assert (4, 3) in plant_targets_1
+    assert (3, 3) in plant_targets_1

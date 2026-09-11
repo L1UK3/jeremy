@@ -39,6 +39,7 @@ from .procurement import (
     procure_land,
     procure_livestock,
     procure_seeds,
+    within_maturation_horizon,
 )
 from .weed_repair import (
     weed_clear_state_based,
@@ -83,4 +84,5 @@ __all__ = [
     "update_clone_profile",
     "weed_clear_state_based",
     "weed_repair_productive_route",
+    "within_maturation_horizon",
 ]

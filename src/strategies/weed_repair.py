@@ -140,18 +140,32 @@ def weed_repair_productive_route(
         scheduled = ops[actor] if ops[actor] else ["PASS"]
         pending = _weed_repair_pending.get(actor)
         if pending:
-            ops[actor] = pending.pop(0)
-            if scheduled[0] != "PASS":
-                pending.append(scheduled)
+            scheduled = pending.pop(0)
+            if ops[actor] and ops[actor][0] != "PASS":
+                pending.append(ops[actor])
             if pending:
                 _weed_repair_pending[actor] = pending
             else:
                 _weed_repair_pending.pop(actor, None)
-            continue
 
-        if scheduled[0] in WEED_BLOCKED_OPS and weed_tile_at(board, position):
+        if (
+            scheduled
+            and scheduled[0] in WEED_BLOCKED_OPS
+            and weed_tile_at(board, position)
+        ):
             ops[actor] = ["DIG"]
             _weed_repair_pending[actor] = [scheduled]
+        else:
+            ops[actor] = scheduled
+
+    for actor, position in enumerate(positions):
+        if (
+            actor < len(ops)
+            and ops[actor]
+            and ops[actor][0] in WEED_BLOCKED_OPS
+        ):
+            if weed_tile_at(board, position):
+                ops[actor] = ["DIG"]
 
     keep = max(original_len, len(positions))
     action["farmer"] = ops[0]

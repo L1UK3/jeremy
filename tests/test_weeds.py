@@ -31,7 +31,9 @@ def test_crop_rot_prevention(episode_trace: EpisodeTrace) -> None:
                 pt = prev_tiles[r][c]
                 ct = curr_tiles[r][c]
 
-                prev_is_plant = isinstance(pt, dict) and pt.get("kind") == "PLANT"
+                prev_is_plant = (
+                    isinstance(pt, dict) and pt.get("kind") == "PLANT"
+                )
                 curr_is_weed = ct == "WEED" or (
                     isinstance(ct, dict) and ct.get("kind") == "WEED"
                 )
@@ -70,7 +72,9 @@ def test_weed_clearing_activity(episode_trace: EpisodeTrace) -> None:
         for r in range(10):
             for c in range(10):
                 t = tiles[r][c]
-                if t == "WEED" or (isinstance(t, dict) and t.get("kind") == "WEED"):
+                if t == "WEED" or (
+                    isinstance(t, dict) and t.get("kind") == "WEED"
+                ):
                     weed_spawn_detected = True
                     break
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
+from dispatcher import get_animal_reserved_tiles
 from environment.board import CROP_SPECS
 from parameters import (
     DEFAULT_PARAMETERS,
@@ -18,19 +20,28 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ANIMAL_COSTS",
+    "DEFAULT_ACTIONS_PER_HAND",
     "DEFAULT_ANIMAL_RESERVED_TILES",
+    "DEFAULT_EXPANSION_DAY_NE",
+    "DEFAULT_EXPANSION_DAY_SW",
+    "DEFAULT_LABOR_FLOOR",
     "DEFAULT_LAND_COST_MULT",
     "DEFAULT_LAND_MIN_CREW",
+    "DEFAULT_MAX_DAILY_HIRES",
     "DEFAULT_MAX_HIRE_HOUR",
     "FIBONACCI",
     "LAND_COSTS",
     "SEED_COSTS",
     "apply_procurement",
+    "compute_quadrant_labor_floor",
+    "estimate_daily_action_demand",
+    "identify_active_crop",
     "procure_crew",
     "procure_feed",
     "procure_land",
     "procure_livestock",
     "procure_seeds",
+    "within_maturation_horizon",
 ]
 
 SEED_COSTS: dict[str, int] = {
@@ -52,49 +63,189 @@ LAND_COSTS: dict[str, int] = {
     "SW": 2000,
 }
 
-FIBONACCI: tuple[int, ...] = (1, 1, 2, 3, 5, 8, 13, 21, 34, 55)
+FIBONACCI: tuple[int, ...] = (1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144)
 
 # Hyperparameters exposed for Optuna tuning
 DEFAULT_LAND_COST_MULT: float = DEFAULT_PARAMETERS.procurement.land_cost_mult
-DEFAULT_LAND_MIN_CREW: int = DEFAULT_PARAMETERS.procurement.land_min_crew
+DEFAULT_LABOR_FLOOR: int = DEFAULT_PARAMETERS.procurement.land_min_crew
+DEFAULT_LAND_MIN_CREW: int = DEFAULT_LABOR_FLOOR
 DEFAULT_MAX_HIRE_HOUR: int = DEFAULT_PARAMETERS.procurement.max_hire_hour
+DEFAULT_EXPANSION_DAY_NE: int = DEFAULT_PARAMETERS.procurement.expansion_day_ne
+DEFAULT_EXPANSION_DAY_SW: int = DEFAULT_PARAMETERS.procurement.expansion_day_sw
+DEFAULT_ACTIONS_PER_HAND: float = (
+    DEFAULT_PARAMETERS.procurement.actions_per_hand
+)
+DEFAULT_MAX_DAILY_HIRES: int = DEFAULT_PARAMETERS.procurement.max_daily_hires
 DEFAULT_ANIMAL_RESERVED_TILES: frozenset[tuple[int, int]] = frozenset(
     {(3, 4), (4, 3)}
 )
 
 
+def compute_quadrant_labor_floor(num_quads: int) -> int:
+    """Calculate deterministic labor floor proportional to unlocked quadrants.
+
+    Provides 2 hands for 1 unlocked quadrant, 4 hands for 2 quadrants,
+    and 6 hands for 3 quadrants.
+    """
+    return min(max(num_quads, 1) * 2, 6)
+
+
+def identify_active_crop(state: GameState, board: Board | None = None) -> str:
+    """Identify dominant active crop on the farm, defaulting to WHEAT."""
+    if board is not None:
+        plants = board.plants()
+        if plants:
+            crop_counts: dict[str, int] = {}
+            for p in plants:
+                if p.crop:
+                    crop_counts[p.crop] = crop_counts.get(p.crop, 0) + 1
+            if crop_counts:
+                return max(crop_counts, key=crop_counts.get)
+        return "WHEAT"
+
+    crop_counts: dict[str, int] = {}
+    for row in state.tiles:
+        for cell in row:
+            if isinstance(cell, dict) and cell.get("kind") == "PLANT":
+                c = cell.get("crop")
+                if c:
+                    crop_counts[c] = crop_counts.get(c, 0) + 1
+    if crop_counts:
+        return max(crop_counts, key=crop_counts.get)
+    return "WHEAT"
+
+
+_LAST_LAND_PURCHASE_DAY: int = -1
+_LAST_LAND_PURCHASE_STEP: int = -1
+
+
 def procure_land(
     market: list[list[Any]],
     state: GameState,
-    target_crew: int,
+    target_crew: int = 0,
     budget: int | None = None,
     cost_mult: float = DEFAULT_LAND_COST_MULT,
     min_crew: int = DEFAULT_LAND_MIN_CREW,
+    expansion_day_ne: int = DEFAULT_EXPANSION_DAY_NE,
+    expansion_day_sw: int = DEFAULT_EXPANSION_DAY_SW,
+    target_crop: str = "WHEAT",
+    labor_floor: int | None = None,
 ) -> int:
     """Purchase NE ($1k) or SW ($2k) quadrant when thresholds are met.
 
     Quadrant SE ($4,000) is strictly ignored.
     """
+    global _LAST_LAND_PURCHASE_DAY, _LAST_LAND_PURCHASE_STEP
+    if state.step == 0 or state.step <= _LAST_LAND_PURCHASE_STEP:
+        _LAST_LAND_PURCHASE_DAY = -1
+    _LAST_LAND_PURCHASE_STEP = state.step
+
     avail_budget = state.money if budget is None else budget
     if len(market) >= 10:
         return avail_budget
-    if target_crew < min_crew:
+    if any(o[0] == "BUY_LAND" for o in market):
         return avail_budget
 
+    min_spacing = max(0, expansion_day_sw - expansion_day_ne)
     unlocked = state.unlocked_quadrants_set
     if "NE" not in unlocked:
+        if state.day < expansion_day_ne:
+            return avail_budget
         next_quad = "NE"
     elif "SW" not in unlocked:
+        if state.day < expansion_day_sw:
+            return avail_budget
+        if _LAST_LAND_PURCHASE_DAY != -1 and (
+            state.day < _LAST_LAND_PURCHASE_DAY + min_spacing
+        ):
+            return avail_budget
         next_quad = "SW"
     else:
         return avail_budget
 
-    cost = LAND_COSTS[next_quad]
-    required_funds = int(cost * cost_mult)
-    if state.money >= required_funds and avail_budget >= cost:
+    land_cost = LAND_COSTS[next_quad]
+    active_crop = identify_active_crop(state)
+    seed_cost = SEED_COSTS.get(active_crop, 10)
+    tile_stocking_cost = 25 * seed_cost
+    hire_idx = state.hires_today
+    crew_maintenance_cost = (
+        FIBONACCI[min(hire_idx, len(FIBONACCI) - 1)]
+        + FIBONACCI[min(hire_idx + 1, len(FIBONACCI) - 1)]
+    )
+    required_funds = max(
+        int(land_cost * cost_mult),
+        land_cost + tile_stocking_cost + crew_maintenance_cost,
+    )
+
+    if state.money >= required_funds and avail_budget >= land_cost:
         market.append(["BUY_LAND"])
-        avail_budget -= cost
+        avail_budget -= land_cost
+        _LAST_LAND_PURCHASE_DAY = state.day
     return avail_budget
+
+
+def estimate_daily_action_demand(
+    state: GameState,
+    board: Board,
+    target_crop: str = "WHEAT",
+    reserved_tiles: Collection[tuple[int, int]] | None = None,
+) -> int:
+    """Estimate total discrete chores required on the farm during the current day.
+
+    Accounts for watering, harvesting, shed hauling, planting empty tiles,
+    initial watering of new plantings, weed clearing, and livestock maintenance.
+    """
+    reserved_set = (
+        set(reserved_tiles)
+        if reserved_tiles is not None
+        else DEFAULT_ANIMAL_RESERVED_TILES
+    )
+
+    # 1. Watering: all plants currently in the ground that are unwatered today
+    water_actions = len(board.needs_water())
+
+    # 2. Harvesting: ripe plants and animals with yield ready for collection
+    total_harvests = len(board.harvestable())
+
+    # Hauling: backpack capacity is 3, so trips to shed are needed
+    drop_actions = (total_harvests + 2) // 3 if total_harvests > 0 else 0
+
+    # 3. Planting: empty unlocked tiles (excluding reserved animal tiles)
+    empty_unlocked = [
+        t
+        for t in board.empty_tiles(only_unlocked=True)
+        if t.pos not in reserved_set
+    ]
+    plant_actions = len(empty_unlocked)
+    # New plantings count as day 1 unwatered and must be watered today
+    new_plant_water_actions = plant_actions
+
+    # 4. Weeds: clearing weeds on unlocked tiles
+    weed_actions = len(board.weeds(only_unlocked=True))
+
+    # 5. Livestock maintenance: feed, care, and fertilizer gathering
+    feed_actions = len(board.needs_feed())
+    care_actions = len(board.needs_care())
+    fertilizer_actions = len(board.has_fertilizer_tiles())
+
+    # 6. Unplaced animals in shed
+    unplaced_animals = sum(
+        state.inventory(a) for a in ("GOOSE", "COW", "SHEEP")
+    )
+
+    total_actions = (
+        water_actions
+        + total_harvests
+        + drop_actions
+        + plant_actions
+        + new_plant_water_actions
+        + weed_actions
+        + feed_actions
+        + care_actions
+        + fertilizer_actions
+        + unplaced_animals
+    )
+    return total_actions
 
 
 def procure_crew(
@@ -103,31 +254,68 @@ def procure_crew(
     target_crew: int,
     budget: int | None = None,
     max_hire_hour: int = DEFAULT_MAX_HIRE_HOUR,
+    labor_floor: int | None = None,
+    board: Board | None = None,
+    actions_per_hand: float = DEFAULT_ACTIONS_PER_HAND,
+    max_daily_hires: int = DEFAULT_MAX_DAILY_HIRES,
+    target_crop: str = "WHEAT",
+    reserved_tiles: Collection[tuple[int, int]] | None = None,
 ) -> int:
-    """Hire hands in early hours if within target crew and affordable."""
+    """Hire Farm Hands in early hours respecting action demand, quadrant floor, and Fibonacci costs."""
     avail_budget = state.money if budget is None else budget
     if len(market) >= 10 or state.hour > max_hire_hour:
         return avail_budget
 
+    has_pending_expansion = any(o[0] == "BUY_LAND" for o in market)
+    num_quads = len(state.unlocked_quadrants_set) + (
+        1 if has_pending_expansion else 0
+    )
+    quadrant_floor = (
+        compute_quadrant_labor_floor(num_quads)
+        if labor_floor is None
+        else labor_floor
+    )
+
+    action_crew = 0
+    if board is not None:
+        total_actions = estimate_daily_action_demand(
+            state, board, target_crop=target_crop, reserved_tiles=reserved_tiles
+        )
+        action_crew = max(
+            0, math.ceil(total_actions / max(1.0, actions_per_hand)) - 1
+        )
+
+    effective_target_crew = max(quadrant_floor, target_crew, action_crew)
+    effective_target_crew = min(effective_target_crew, max_daily_hires)
+
     current_crew = len(state.hands)
     hires_queued = 0
+    remaining_money = state.money
 
-    while current_crew + hires_queued < target_crew and len(market) < 10:
+    while (
+        current_crew + hires_queued < effective_target_crew and len(market) < 10
+    ):
         hire_idx = state.hires_today + hires_queued
-        hire_cost = FIBONACCI[min(hire_idx, len(FIBONACCI) - 1)]
-        if avail_budget >= hire_cost:
+        hire_cost = (
+            FIBONACCI[hire_idx] if hire_idx < len(FIBONACCI) else FIBONACCI[-1]
+        )
+        if avail_budget >= hire_cost and remaining_money >= hire_cost:
             market.append(["HIRE"])
             avail_budget -= hire_cost
+            remaining_money -= hire_cost
             hires_queued += 1
         else:
             break
     return avail_budget
 
 
-def _can_mature(crop: str, day: int) -> bool:
+def within_maturation_horizon(crop: str, day: int) -> bool:
     """Return True if crop can produce at least one yield before Day 30."""
     spec = CROP_SPECS.get(crop)
     return spec is not None and (day + spec.first_yield_day < 30)
+
+
+_can_mature = within_maturation_horizon
 
 
 def procure_seeds(
@@ -139,7 +327,7 @@ def procure_seeds(
     reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
     fallback_crop: str = "WHEAT",
 ) -> int:
-    """Procure seeds to match unplanted empty tiles with maturation cutoff and fallback."""
+    """Procure seeds to match unplanted empty tiles with Maturation Horizon and fallback."""
     avail_budget = state.money if budget is None else budget
     if len(market) >= 10 or state.day >= 28:
         return avail_budget
@@ -168,12 +356,17 @@ def procure_seeds(
 
     desired_crop = target_crop if target_crop in SEED_COSTS else fallback_crop
     crop: str | None = None
-    if _can_mature(desired_crop, state.day):
+    if within_maturation_horizon(desired_crop, state.day):
         crop = desired_crop
-    elif _can_mature(fallback_crop, state.day):
+    elif within_maturation_horizon(fallback_crop, state.day):
         crop = fallback_crop
     else:
-        return avail_budget
+        for alt in ("WHEAT", "CARROT", "TOMATO"):
+            if within_maturation_horizon(alt, state.day):
+                crop = alt
+                break
+        if crop is None:
+            return avail_budget
 
     crop_cost = SEED_COSTS[crop]
     target_buy = min(needed, avail_budget // crop_cost)
@@ -186,7 +379,7 @@ def procure_seeds(
         needed > 0
         and crop != fallback_crop
         and len(market) < 10
-        and _can_mature(fallback_crop, state.day)
+        and within_maturation_horizon(fallback_crop, state.day)
     ):
         fallback_cost = SEED_COSTS[fallback_crop]
         fallback_buy = min(needed, avail_budget // fallback_cost)
@@ -275,7 +468,7 @@ def apply_procurement(
     cost_mult: float | None = None,
     min_crew: int | None = None,
     max_hire_hour: int | None = None,
-    reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
+    reserved_tiles: Collection[tuple[int, int]] | None = None,
     max_animals: int | None = None,
     params: ProcurementParams | None = None,
 ) -> int:
@@ -290,22 +483,40 @@ def apply_procurement(
         max_hire_hour if max_hire_hour is not None else pp.max_hire_hour
     )
     capacity = max_animals if max_animals is not None else pp.max_animals
+    reserved_count = (
+        pp.reserved_animal_tiles
+        if hasattr(pp, "reserved_animal_tiles")
+        else capacity
+    )
+    actual_reserved = (
+        reserved_tiles
+        if reserved_tiles is not None
+        else get_animal_reserved_tiles(reserved_count)
+    )
 
     budget = state.money
+    budget = procure_land(
+        market,
+        state,
+        target_crew=target_crew,
+        budget=budget,
+        cost_mult=actual_cost_mult,
+        min_crew=actual_min_crew,
+        expansion_day_ne=pp.expansion_day_ne,
+        expansion_day_sw=pp.expansion_day_sw,
+        target_crop=target_crop,
+    )
     budget = procure_crew(
         market,
         state,
         target_crew,
         budget=budget,
         max_hire_hour=actual_max_hire_hour,
-    )
-    budget = procure_land(
-        market,
-        state,
-        target_crew,
-        budget=budget,
-        cost_mult=actual_cost_mult,
-        min_crew=actual_min_crew,
+        board=board,
+        actions_per_hand=pp.actions_per_hand,
+        max_daily_hires=pp.max_daily_hires,
+        target_crop=target_crop,
+        reserved_tiles=actual_reserved,
     )
     budget = procure_seeds(
         market,
@@ -313,7 +524,7 @@ def apply_procurement(
         board,
         target_crop,
         budget=budget,
-        reserved_tiles=reserved_tiles,
+        reserved_tiles=actual_reserved,
         fallback_crop=pp.seed_fallback_crop,
     )
 

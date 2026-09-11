@@ -25,6 +25,7 @@ from strategies import (
     update_clone_profile,
     weed_clear_state_based,
     weed_repair_productive_route,
+    within_maturation_horizon,
 )
 
 __all__ = ["agent", "make_agent"]
@@ -116,6 +117,8 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         target_crew = int(plan.get("crew", 0))
         target_animal = str(plan.get("livestock") or "NONE").upper()
         target_crop = str(plan.get("crop") or "WHEAT")
+        if not within_maturation_horizon(target_crop, day):
+            target_crop = params.procurement.seed_fallback_crop
 
         apply_procurement(
             market,
@@ -149,6 +152,7 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             state,
             board,
             target_crop=target_crop,
+            target_animal=target_animal,
             params=params.dispatcher,
         )
         action["farmer"] = farmer_act

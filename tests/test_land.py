@@ -36,7 +36,9 @@ def _identify_active_crop(tiles: list[list]) -> str:
     return "WHEAT"
 
 
-def test_land_purchase_economic_justification(episode_trace: EpisodeTrace) -> None:
+def test_land_purchase_economic_justification(
+    episode_trace: EpisodeTrace,
+) -> None:
     """BUY_LAND must only be emitted when treasury covers land + 25 tile seeds + maintenance crew."""
     seat = episode_trace.seat
     steps = episode_trace.steps
@@ -61,7 +63,9 @@ def test_land_purchase_economic_justification(episode_trace: EpisodeTrace) -> No
         elif "SE" not in unlocked:
             next_quad = "SE"
         else:
-            pytest.fail(f"Step {step_idx}: Emitted BUY_LAND with all quadrants unlocked: {unlocked}")
+            pytest.fail(
+                f"Step {step_idx}: Emitted BUY_LAND with all quadrants unlocked: {unlocked}"
+            )
 
         land_cost = LAND_COSTS[next_quad]
         active_crop = _identify_active_crop(farm_before.get("tiles", []))
@@ -69,7 +73,9 @@ def test_land_purchase_economic_justification(episode_trace: EpisodeTrace) -> No
         tile_stocking_cost = 25 * seed_cost
 
         # Estimate crew maintenance for 25 additional tiles (at least 2 farm hands)
-        crew_maintenance_cost = FIBONACCI[0] + FIBONACCI[1]  # $1 + $1 = $2 minimum
+        crew_maintenance_cost = (
+            FIBONACCI[0] + FIBONACCI[1]
+        )  # $1 + $1 = $2 minimum
         total_required = land_cost + tile_stocking_cost + crew_maintenance_cost
 
         assert money >= total_required, (
@@ -104,6 +110,12 @@ def test_land_quadrant_unlock_transition(episode_trace: EpisodeTrace) -> None:
             continue
 
         cost = LAND_COSTS[expected_quad]
+        prices = obs_before.get("market", {}).get("prices", {})
+        sales_rev = sum(
+            m[2] * prices.get(m[1], 0)
+            for m in market_acts
+            if len(m) >= 3 and m[0] == "SELL"
+        )
 
         obs_after = steps[step_idx][seat].get("observation") or {}
         farm_after = obs_after.get("farms", [{}])[seat]
@@ -112,7 +124,10 @@ def test_land_quadrant_unlock_transition(episode_trace: EpisodeTrace) -> None:
         assert expected_quad in unlocked_after, (
             f"Step {step_idx}: Quadrant {expected_quad} failed to unlock after BUY_LAND."
         )
-        assert farm_after.get("money", 0) <= farm_before.get("money", 0) - cost + 100, (
+        assert (
+            farm_after.get("money", 0)
+            <= farm_before.get("money", 0) - cost + sales_rev + 100
+        ), (
             f"Step {step_idx}: Money was not deducted properly for {expected_quad} purchase."
         )
 
@@ -125,10 +140,40 @@ def test_land_order_volume_limits(episode_trace: EpisodeTrace) -> None:
 
     for step_idx, step_data in enumerate(steps):
         act = step_data[seat].get("action") or {}
-        land_orders = [m for m in act.get("market", []) if m and m[0] == "BUY_LAND"]
+        land_orders = [
+            m for m in act.get("market", []) if m and m[0] == "BUY_LAND"
+        ]
         assert len(land_orders) <= 1, (
             f"Step {step_idx}: Multiple BUY_LAND orders in single turn: {land_orders}"
         )
         total_buys += len(land_orders)
 
-    assert total_buys <= 3, f"Episode exceeded maximum 3 quadrant purchases: total {total_buys}"
+    assert total_buys <= 3, (
+        f"Episode exceeded maximum 3 quadrant purchases: total {total_buys}"
+    )
+
+
+def test_land_expansion_pacing(episode_trace: EpisodeTrace) -> None:
+    """Land purchases must be spaced apart by at least expansion_day_sw - expansion_day_ne days."""
+    seat = episode_trace.seat
+    steps = episode_trace.steps
+    from src.parameters import get_active_parameters
+
+    params = get_active_parameters().procurement
+    min_spacing = params.expansion_day_sw - params.expansion_day_ne
+
+    land_days: list[int] = []
+    for step_idx in range(1, len(steps)):
+        act = steps[step_idx][seat].get("action") or {}
+        market_acts = act.get("market", [])
+        if any(m and m[0] == "BUY_LAND" for m in market_acts):
+            obs_before = steps[step_idx - 1][seat].get("observation") or {}
+            day = obs_before.get("day", (step_idx - 1) // 24)
+            land_days.append(day)
+
+    for i in range(1, len(land_days)):
+        diff = land_days[i] - land_days[i - 1]
+        assert diff >= min_spacing, (
+            f"Land purchase #{i + 1} on Day {land_days[i]} was only {diff} days after "
+            f"previous purchase on Day {land_days[i - 1]}, violating min spacing {min_spacing}"
+        )
