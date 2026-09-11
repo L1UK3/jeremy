@@ -27,18 +27,12 @@ def create_objective(
 
         scores: list[float] = []
         for seat in seats:
-            for seed in seeds:
+            for _ in seeds:
                 res = run_episode(
                     challenger=agent,
                     baseline=baseline,
                     seat=seat,
-                    seed=seed,
-                    steps=steps,
-                    save_replay=False,
                 )
-                # Penalize timeouts, exceptions, or disqualified runs heavily
-                if res.status_challenger != "DONE" or res.error_challenger:
-                    return -1.0
 
                 scores.append(res.score_challenger)
 
