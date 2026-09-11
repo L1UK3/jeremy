@@ -48,3 +48,15 @@ _Avoid_: Tuning knobs, trial config, search space
 The optimization domain, distribution bounds, and trial sampling routines in `simulation/tuning/` explored by Optuna.
 _Avoid_: Model parameters, hardcoded hyperparams, trial dataclass
 
+**Maturation Horizon**:
+The remaining season duration evaluated against a crop's growth curve to determine if planting will yield harvestable commodity before game termination.
+_Avoid_: Crop timer, growth check, seed expiry
+
+**Animal Structure**:
+A specialized tile construction (`COOP` or `PASTURE`) deployed on reserved tiles to house specific livestock species (`GOOSE` or `COW`/`SHEEP`).
+_Avoid_: Barn, pen, animal house
+
+**Labor Floor**:
+The minimum deterministic count of hired farm hands required to maintain daily watering and planting chores across all unlocked quadrants before applying neural policy recommendations.
+_Avoid_: Worker min, base crew, hand threshold
+
