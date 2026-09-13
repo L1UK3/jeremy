@@ -3,7 +3,7 @@ name = "jeremy"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12, <3.13"
 dependencies = [
     "attrs>=23.0.0",
     "kaggle-environments>=1.32.6",
@@ -11,7 +11,16 @@ dependencies = [
     "pyarrow>=25.0.1",
     "pytest>=9.1.1",
     "ruff>=0.16.5",
+    "torch[device-gfx1101]==2.12.0+rocm7.14.0",
+    "rocm[libraries,device-gfx1101]==7.14.0",
 ]
+
+[tool.uv]
+extra-index-url = ["https://repo.amd.com/rocm/whl-multi-arch/"]
+index-strategy = "unsafe-best-match"
+environments = ["sys_platform == 'win32' and platform_machine == 'AMD64'"]
+override-dependencies = ["triton; sys_platform == 'never'"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+

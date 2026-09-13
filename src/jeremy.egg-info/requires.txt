@@ -1,0 +1,8 @@
+attrs>=23.0.0
+kaggle-environments>=1.32.6
+optuna>=4.9.0
+pyarrow>=25.0.1
+pytest>=9.1.1
+ruff>=0.16.5
+torch[device-gfx1101]==2.12.0+rocm7.14.0
+rocm[device-gfx1101,libraries]==7.14.0
