@@ -10,7 +10,6 @@ replays/
 .env
 
 submission.tar.gz
-.out/
 
 requirements.local.txt
 
@@ -21,8 +20,9 @@ src/archive/*.json
 raw/
 submission.py
 
-base/
 
 .github/prompts/
 
 .scratch/
+
+checkpoints/
