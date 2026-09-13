@@ -325,8 +325,9 @@ def load_imitation_dataset(
 def process_parquet_dataset(
     parquet_path: Path | str,
     features_csv_path: Path | str | None = None,
-    top_percentile: float = 0.95,
+    top_percentile: float | None = 0.95,
     out_npz_path: Path | str = Path(".out/imitation_dataset.npz"),
+    min_final_score: float | None = None,
 ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
     """Parse top winning games from replays.parquet into an imitation training dataset."""
     import pandas as pd
@@ -339,11 +340,16 @@ def process_parquet_dataset(
     top_episode_ids: set[int] = set()
     if features_csv_path and Path(features_csv_path).is_file():
         df = pd.read_csv(features_csv_path)
-        top_episode_ids = set(
-            df[df["final_money"] >= df["final_money"].quantile(top_percentile)][
-                "episode_id"
-            ]
-        )
+        if min_final_score is not None:
+            top_episode_ids = set(
+                df[df["final_money"] >= min_final_score]["episode_id"]
+            )
+        elif top_percentile is not None:
+            top_episode_ids = set(
+                df[df["final_money"] >= df["final_money"].quantile(top_percentile)][
+                    "episode_id"
+                ]
+            )
 
     replays: list[dict[str, Any]] = []
     scanner = pads.dataset(str(p_path), format="parquet").scanner()
@@ -367,7 +373,10 @@ def process_parquet_dataset(
                     )
 
     features, targets = extract_dataset_from_replays(
-        replays, top_percentile=top_percentile
+        replays,
+        min_final_score=min_final_score,
+        top_percentile=top_percentile if min_final_score is None else None,
     )
     save_imitation_dataset(features, targets, out_npz_path)
     return features, targets
+

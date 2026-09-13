@@ -44,12 +44,13 @@ def print_winning_profile(
 
 
 def extract_imitation_data(
-    top_percentile: float = 0.95,
+    top_percentile: float | None = None,
+    min_final_score: float | None = 100000.0,
     parquet_path: Path | str = Path(".out/replays.parquet"),
     features_csv: Path | str = Path(".out/episode_features.csv"),
     out_npz: Path | str = Path(".out/imitation_dataset.npz"),
 ) -> None:
-    """Extract supervised imitation training dataset from top percentile replays."""
+    """Extract supervised imitation training dataset from top percentile or min score replays."""
     p_path = Path(parquet_path)
     f_path = Path(features_csv)
     if not p_path.is_file():
@@ -60,6 +61,7 @@ def extract_imitation_data(
         parquet_path=p_path,
         features_csv_path=f_path if f_path.is_file() else None,
         top_percentile=top_percentile,
+        min_final_score=min_final_score,
         out_npz_path=out_npz,
     )
     print(
@@ -77,10 +79,16 @@ def main() -> None:
         help="Extract imitation dataset from replays.parquet",
     )
     parser.add_argument(
+        "--min-final-score",
+        type=float,
+        default=100000.0,
+        help="Minimum final money cutoff for imitation data (default: 100000.0)",
+    )
+    parser.add_argument(
         "--top-percentile",
         type=float,
-        default=0.95,
-        help="Top quantile cutoff (default: 0.95)",
+        default=None,
+        help="Top quantile cutoff (optional if min-final-score is used)",
     )
     parser.add_argument(
         "--out-npz",
@@ -92,7 +100,9 @@ def main() -> None:
 
     if args.extract_imitation:
         extract_imitation_data(
-            top_percentile=args.top_percentile, out_npz=Path(args.out_npz)
+            top_percentile=args.top_percentile,
+            min_final_score=args.min_final_score,
+            out_npz=Path(args.out_npz),
         )
     else:
         print_winning_profile()
@@ -100,3 +110,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

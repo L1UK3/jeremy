@@ -216,3 +216,52 @@ def test_min_score_filtering() -> None:
     features_matrix, _ = extract_dataset_from_replays(replays, min_final_score=20000.0)
     # Only the 50,000 game should be included (1 day -> 1 row)
     assert features_matrix.shape[0] == 1
+
+
+def test_process_parquet_dataset_min_final_score(tmp_path: Path) -> None:
+    """process_parquet_dataset should filter episodes and seats by min_final_score."""
+    import json
+    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from data.imitation import process_parquet_dataset
+
+    pq_file = tmp_path / "test_replays.parquet"
+    csv_file = tmp_path / "test_features.csv"
+    npz_file = tmp_path / "test_out.npz"
+
+    # Step dummy
+    steps_low = [_make_dummy_step(step=0, money=20000)]
+    steps_high = [_make_dummy_step(step=0, money=150000)]
+
+    schema = pa.schema([("episode_id", pa.int64()), ("replay_json", pa.string())])
+    table = pa.Table.from_pydict(
+        {
+            "episode_id": [101, 102],
+            "replay_json": [
+                json.dumps({"steps": steps_low}),
+                json.dumps({"steps": steps_high}),
+            ],
+        },
+        schema=schema,
+    )
+    pq.write_table(table, pq_file)
+
+    df = pd.DataFrame(
+        [
+            {"episode_id": 101, "seat": 0, "final_money": 20000},
+            {"episode_id": 102, "seat": 0, "final_money": 150000},
+        ]
+    )
+    df.to_csv(csv_file, index=False)
+
+    features, targets = process_parquet_dataset(
+        parquet_path=pq_file,
+        features_csv_path=csv_file,
+        min_final_score=100000.0,
+        out_npz_path=npz_file,
+    )
+
+    assert features.shape[0] == 1
+    assert npz_file.is_file()
+
