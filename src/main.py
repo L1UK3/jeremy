@@ -117,7 +117,9 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         target_crew = int(plan.get("crew", 0))
         target_animal = str(plan.get("livestock") or "NONE").upper()
         target_crop = str(plan.get("crop") or "WHEAT")
-        if not within_maturation_horizon(target_crop, day):
+        if 8 <= day <= 22 and within_maturation_horizon("STRAWBERRY", day):
+            target_crop = "STRAWBERRY"
+        elif not within_maturation_horizon(target_crop, day):
             target_crop = params.procurement.seed_fallback_crop
 
         apply_procurement(
