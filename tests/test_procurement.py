@@ -770,3 +770,73 @@ def test_final_step_zero_unplanted_seeds(episode_trace: EpisodeTrace) -> None:
     assert total_unplanted == 0, (
         f"Expected 0 unplanted seeds on Day 30, found {seeds}"
     )
+
+
+def test_apply_procurement_prioritizes_feed_over_seeds() -> None:
+    """Feed procurement must execute before seed procurement when budget is tight."""
+    tiles: list[list[Any]] = [[None for _ in range(10)] for _ in range(10)]
+    tiles[3][4] = {
+        "kind": "PASTURE",
+        "animal": "COW",
+        "placed_day": 0,
+        "yield_units": 0,
+        "fed_today": False,
+    }
+    obs = make_obs(
+        step=24,
+        day=1,
+        money=100,
+        unlocked_quadrants=["NW"],
+        tiles=tiles,
+        shed={"WHEAT": 0},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    apply_procurement(
+        market,
+        state,
+        board,
+        target_crop="MELON",
+        target_animal="NONE",
+        target_crew=0,
+    )
+
+    feed_indices = [
+        i
+        for i, o in enumerate(market)
+        if o[0] == "BUY_PRODUCT" and o[1] == "WHEAT"
+    ]
+    seed_indices = [i for i, o in enumerate(market) if o[0] == "BUY_SEED"]
+
+    assert len(feed_indices) > 0, "Feed order must be emitted for active cow"
+    if seed_indices:
+        assert (
+            feed_indices[0] < seed_indices[0]
+        ), "Feed must be ordered before seeds"
+
+
+def test_procure_seeds_day_zero_wheat_anchor() -> None:
+    """On Day 0, procure_seeds must order at least 6 wheat seeds alongside cash crops."""
+    obs = make_obs(
+        step=0,
+        day=0,
+        money=3000,
+        unlocked_quadrants=["NW"],
+        shed={"WHEAT": 0},
+        seeds={},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    procure_seeds(market, state, board, target_crop="MELON")
+
+    wheat_orders = [
+        o[2] for o in market if o[0] == "BUY_SEED" and o[1] == "WHEAT"
+    ]
+    assert sum(wheat_orders) >= 6, (
+        "Must procure at least 6 wheat seeds on Day 0"
+    )
+
