@@ -1,7 +1,4 @@
 /.vscode
-/Card_ID List_EN.pdf
-/EN_Card_Data.csv
-/kaggle_tcg
 
 .venv/
 __pycache__/
@@ -26,3 +23,5 @@ submission.py
 .scratch/
 
 checkpoints/
+
+episodes_dataset/
