@@ -853,3 +853,48 @@ def test_procure_seeds_day_zero_wheat_anchor() -> None:
     )
 
 
+def test_mid_game_strawberry_default() -> None:
+    """Between Days 8 and 22, procure_seeds defaults empty tiles to STRAWBERRY."""
+    obs = make_obs(
+        step=240,
+        day=10,
+        money=5000,
+        unlocked_quadrants=["NW", "NE"],
+        seeds={},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    procure_seeds(market, state, board, target_crop="CARROT")
+    strawberry_orders = [
+        o[2] for o in market if o[0] == "BUY_SEED" and o[1] == "STRAWBERRY"
+    ]
+    assert sum(strawberry_orders) > 0, (
+        "Must buy STRAWBERRY on Day 10 instead of CARROT"
+    )
+
+
+def test_strawberry_labor_scaling() -> None:
+    """During mid-game with multiple quadrants, procure_crew provisions at least 8 hands."""
+    obs = make_obs(
+        step=300,
+        day=12,
+        hour=0,
+        money=5000,
+        hands=[],
+        hires_today=0,
+        unlocked_quadrants=["NW", "NE"],
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+    market: list[list[Any]] = []
+
+    procure_crew(market, state, target_crew=0, board=board)
+    hires = sum(1 for o in market if o[0] == "HIRE")
+    assert hires >= 8, (
+        f"Expected at least 8 hires for 2 quadrants on Day 12, got {hires}"
+    )
+
+
+

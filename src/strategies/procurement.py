@@ -285,8 +285,16 @@ def procure_crew(
             0, math.ceil(total_actions / max(1.0, actions_per_hand)) - 1
         )
 
-    effective_target_crew = max(quadrant_floor, target_crew, action_crew)
+    midgame_floor = (
+        10 if (num_quads >= 3 and 11 <= state.day <= 25)
+        else (8 if (num_quads >= 2 and 8 <= state.day <= 25) else 0)
+    )
+
+    effective_target_crew = max(
+        quadrant_floor, target_crew, action_crew, midgame_floor
+    )
     effective_target_crew = min(effective_target_crew, max_daily_hires)
+
 
     current_crew = len(state.hands)
     hires_queued = 0
@@ -380,7 +388,16 @@ def procure_seeds(
         return avail_budget
 
 
-    desired_crop = target_crop if target_crop in SEED_COSTS else fallback_crop
+    # Mid-game cash engine: between Days 8 and 22, empty tiles default to STRAWBERRY
+    if (
+        8 <= state.day <= 22
+        and within_maturation_horizon("STRAWBERRY", state.day)
+        and (len(state.unlocked_quadrants_set) >= 2 or target_crop != "MELON")
+    ):
+        desired_crop = "STRAWBERRY"
+    else:
+        desired_crop = target_crop if target_crop in SEED_COSTS else fallback_crop
+
     crop: str | None = None
     if within_maturation_horizon(desired_crop, state.day):
         crop = desired_crop
@@ -393,6 +410,7 @@ def procure_seeds(
                 break
         if crop is None:
             return avail_budget
+
 
     crop_cost = SEED_COSTS[crop]
     target_buy = min(needed, avail_budget // crop_cost)
