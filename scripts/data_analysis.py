@@ -1,100 +1,102 @@
+"""Analyze top scoring episodes and extract supervised imitation datasets."""
+
+from __future__ import annotations
+
 import argparse
-import json
+import sys
+import types
 from pathlib import Path
 
-import kaggle_environments
-import pandas as pd
-import pyarrow.dataset as pads
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-df = pd.read_csv(".out/episode_features.csv")
-
-# Filter top 5% highest scoring games
-TOP_PERFORMERS = df[df["final_money"] >= df["final_money"].quantile(0.95)]
-
-print("=== WINNING STRATEGY PROFILE (TOP 5%) ===")
-print(f"Mean Final Bank   : ${TOP_PERFORMERS['final_money'].mean():,.2f}")
-print(f"Mean Peak Crew    : {TOP_PERFORMERS['peak_crew'].mean():.1f} workers")
-print(f"Mean Total Hires  : {TOP_PERFORMERS['total_hires'].mean():.1f} hires")
-print(
-    f"First Land Day    : Day {TOP_PERFORMERS['first_land_day'].median():.0f}"
+_dummy = types.ModuleType(
+    "kaggle_environments.envs.open_spiel_env.open_spiel_env"
 )
-print(f"Mean Wheat Plants : {TOP_PERFORMERS['plants_wheat'].mean():.1f}")
-print(f"Mean Melon Plants : {TOP_PERFORMERS['plants_melon'].mean():.1f}")
+_dummy.ENV_REGISTRY = {}
+_dummy.LAZY_ENV_LOADERS = {}
+sys.modules["kaggle_environments.envs.open_spiel_env.open_spiel_env"] = _dummy
+
+from data.imitation import process_parquet_dataset
 
 
-def get_top_eps(df, n=10):
-    """Get the top n episodes by final_money."""
-    return (
-        df.sort_values("final_money", ascending=False)
-        .drop_duplicates("episode_id")
-        .head(n)
+def print_winning_profile(
+    features_path: Path | str = Path(".out/episode_features.csv"),
+) -> None:
+    """Print high-level summary of top 5% winning strategies."""
+    p = Path(features_path)
+    if not p.is_file():
+        print(f"Features file not found at {p}. Run data/features.py first.")
+        return
+
+    import pandas as pd
+
+    df = pd.read_csv(p)
+    top = df[df["final_money"] >= df["final_money"].quantile(0.95)]
+    print("=== WINNING STRATEGY PROFILE (TOP 5%) ===")
+    print(f"Mean Final Bank   : ${top['final_money'].mean():,.2f}")
+    print(f"Mean Peak Crew    : {top['peak_crew'].mean():.1f} workers")
+    print(f"Mean Total Hires  : {top['total_hires'].mean():.1f} hires")
+    print(f"First Land Day    : Day {top['first_land_day'].median():.0f}")
+    print(f"Mean Wheat Plants : {top['plants_wheat'].mean():.1f}")
+    print(f"Mean Melon Plants : {top['plants_melon'].mean():.1f}")
+
+
+def extract_imitation_data(
+    top_percentile: float = 0.95,
+    parquet_path: Path | str = Path(".out/replays.parquet"),
+    features_csv: Path | str = Path(".out/episode_features.csv"),
+    out_npz: Path | str = Path(".out/imitation_dataset.npz"),
+) -> None:
+    """Extract supervised imitation training dataset from top percentile replays."""
+    p_path = Path(parquet_path)
+    f_path = Path(features_csv)
+    if not p_path.is_file():
+        print(f"Parquet dataset not found at {p_path}.")
+        return
+
+    features, targets = process_parquet_dataset(
+        parquet_path=p_path,
+        features_csv_path=f_path if f_path.is_file() else None,
+        top_percentile=top_percentile,
+        out_npz_path=out_npz,
+    )
+    print(
+        f"Saved {features.shape[0]} training samples to {out_npz} (labels: {list(targets.keys())})"
     )
 
 
-def main(n=10):
-    top_eps = get_top_eps(df, n=n)
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Analyze episodes and extract imitation datasets."
+    )
+    parser.add_argument(
+        "--extract-imitation",
+        action="store_true",
+        help="Extract imitation dataset from replays.parquet",
+    )
+    parser.add_argument(
+        "--top-percentile",
+        type=float,
+        default=0.95,
+        help="Top quantile cutoff (default: 0.95)",
+    )
+    parser.add_argument(
+        "--out-npz",
+        type=str,
+        default=".out/imitation_dataset.npz",
+        help="Output .npz path",
+    )
+    args = parser.parse_args()
 
-    out_dir = Path(".out/highest_scoring_replays")
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    dataset = pads.dataset(".out/replays.parquet", format="parquet")
-
-    for _, row in top_eps.iterrows():
-        ep_id = int(row["episode_id"])
-        score = row["final_money"]
-        json_path = out_dir / f"{ep_id}.json"
-
-        # Query the single matching row from parquet
-        scanner = dataset.scanner(
-            filter=pads.field("episode_id") == ep_id, batch_size=1
+    if args.extract_imitation:
+        extract_imitation_data(
+            top_percentile=args.top_percentile, out_npz=Path(args.out_npz)
         )
-        batch = scanner.head(1)
-        if batch.num_rows == 0:
-            print(f"Episode {ep_id} not found in replays.parquet")
-            continue
-
-        raw_json = batch.column("replay_json")[0].as_py()
-        replay = json.loads(raw_json)
-        print(
-            f"Loaded Episode {ep_id} (Score: ${score:,.2f}, {len(replay['steps'])} turns)"
-        )
-
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(replay, f, indent=2)
-
-    replay_dir = Path(".out/highest_scoring_replays")
-
-    # Convert all JSON replays in the directory to HTML
-    for json_file in replay_dir.glob("*.json"):
-        html_file = json_file.with_suffix(".html")
-
-        print(f"Rendering {json_file.name} as {html_file.name}")
-        with open(json_file, encoding="utf-8") as f:
-            replay = json.load(f)
-
-        env = kaggle_environments.make(
-            "kaggriculture",
-            steps=replay["steps"],
-            configuration=replay.get("configuration", {}),
-        )
-
-        html_content = env.render(mode="html")
-        html_file.write_text(html_content, encoding="utf-8")
-        print(f"Saved: {html_file}")
+    else:
+        print_winning_profile()
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser(
-        description="Analyze top scoring episodes and render replays."
-    )
-
-    args.add_argument(
-        "--top-n",
-        type=int,
-        default=10,
-        help="Number of top episodes to analyze (default: 10)",
-    )
-
-    args = args.parse_args()
-
-    main(args.top_n)
+    main()
