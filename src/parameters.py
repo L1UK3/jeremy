@@ -30,10 +30,11 @@ class ProcurementParams:
     feed_buffer_mult: int = 2
     feed_target_buffer: int = 2
     max_animals: int = 2
+
     reserved_animal_tiles: int = 6
     seed_fallback_crop: str = "WHEAT"
-    expansion_day_ne: int = 6
-    expansion_day_sw: int = 14
+    expansion_day_ne: int = 7
+    expansion_day_sw: int = 11
     actions_per_hand: float = 8.0
     max_daily_hires: int = 12
 

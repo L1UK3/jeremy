@@ -326,6 +326,7 @@ def procure_seeds(
     budget: int | None = None,
     reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
     fallback_crop: str = "WHEAT",
+    wheat_anchor: int = 0,
 ) -> int:
     """Procure seeds to match unplanted empty tiles with Maturation Horizon and fallback."""
     avail_budget = state.money if budget is None else budget
@@ -354,14 +355,8 @@ def procure_seeds(
     if needed <= 0:
         return avail_budget
 
-    # Dedicated wheat anchor: ensure at least 6 wheat plants or seeds are active on Day 0 or when livestock exist
-    has_animals = (
-        len(board.animals()) > 0
-        or state.inventory("COW") > 0
-        or state.inventory("SHEEP") > 0
-        or state.inventory("GOOSE") > 0
-    )
-    if (state.day == 0 or has_animals) and state.day < 28 and len(market) < 10:
+    # Dedicated wheat anchor: ensure at least wheat_anchor wheat plants/seeds are active
+    if wheat_anchor > 0 and state.day < 28 and len(market) < 10:
         active_wheat = len(board.crops("WHEAT"))
         ordered_wheat = sum(
             order[2]
@@ -372,7 +367,7 @@ def procure_seeds(
             and isinstance(order[2], int)
         )
         held_wheat_seeds = state.seed_count("WHEAT") + ordered_wheat
-        needed_wheat = max(0, 6 - (active_wheat + held_wheat_seeds))
+        needed_wheat = max(0, wheat_anchor - (active_wheat + held_wheat_seeds))
         wheat_to_buy = min(
             needed_wheat, needed, avail_budget // SEED_COSTS["WHEAT"]
         )
@@ -383,6 +378,7 @@ def procure_seeds(
 
     if needed <= 0:
         return avail_budget
+
 
     desired_crop = target_crop if target_crop in SEED_COSTS else fallback_crop
     crop: str | None = None
@@ -472,8 +468,7 @@ def procure_feed(
         return avail_budget
 
     desired_reserve = max(
-        n_animals * 3,
-        4 if target_animal in ANIMAL_COSTS else (2 if n_animals > 0 else 0),
+        n_animals * 2, 2 if target_animal in ANIMAL_COSTS else 0
     )
     if desired_reserve == 0:
         return avail_budget
@@ -567,6 +562,16 @@ def apply_procurement(
         budget=budget,
         max_animals=capacity,
     )
+
+    has_animals = (
+        len(animal_tiles) > 0
+        or state.inventory("COW") > 0
+        or state.inventory("SHEEP") > 0
+        or state.inventory("GOOSE") > 0
+        or target_animal in ANIMAL_COSTS
+    )
+    wheat_anchor = 6 if (state.day == 0 or has_animals) else 0
+
     budget = procure_seeds(
         market,
         state,
@@ -575,6 +580,8 @@ def apply_procurement(
         budget=budget,
         reserved_tiles=actual_reserved,
         fallback_crop=pp.seed_fallback_crop,
+        wheat_anchor=wheat_anchor,
     )
     return budget
+
 

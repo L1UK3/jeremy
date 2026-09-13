@@ -119,8 +119,9 @@ def test_procurement_default_constants() -> None:
     assert DEFAULT_LAND_MIN_CREW == 3
     assert DEFAULT_LABOR_FLOOR == 3
     assert DEFAULT_MAX_HIRE_HOUR == 2
-    assert DEFAULT_EXPANSION_DAY_NE == 6
-    assert DEFAULT_EXPANSION_DAY_SW == 14
+    assert DEFAULT_EXPANSION_DAY_NE == 7
+    assert DEFAULT_EXPANSION_DAY_SW == 11
+
     assert DEFAULT_ACTIONS_PER_HAND == 8.0
     assert DEFAULT_MAX_DAILY_HIRES == 16
     assert DEFAULT_ANIMAL_RESERVED_TILES == frozenset({(3, 4), (4, 3)})
@@ -135,8 +136,8 @@ def test_procurement_default_constants() -> None:
 
 
 def test_procure_land_ne_quadrant_success() -> None:
-    """NE land ($1,000) bought on Day >= 6 when money >= 2 * 1000."""
-    obs = make_obs(day=6, money=2000, unlocked_quadrants=["NW"])
+    """NE land ($1,000) bought on Day >= 7 when money >= 2 * 1000."""
+    obs = make_obs(day=7, money=2000, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
@@ -146,16 +147,16 @@ def test_procure_land_ne_quadrant_success() -> None:
 
 
 def test_procure_land_ne_quadrant_fails_under_thresholds() -> None:
-    """NE land is blocked if day < 6 or money < $2,000."""
-    # Fails prior to Day 6
-    obs_early = make_obs(day=5, money=3000, unlocked_quadrants=["NW"])
+    """NE land is blocked if day < 7 or money < $2,000."""
+    # Fails prior to Day 7
+    obs_early = make_obs(day=6, money=3000, unlocked_quadrants=["NW"])
     state_early = GameState.from_obs(obs_early)
     market: list[list[Any]] = []
     procure_land(market, state_early)
     assert market == []
 
     # Fails if money < $2,000
-    obs_low_money = make_obs(day=6, money=1999, unlocked_quadrants=["NW"])
+    obs_low_money = make_obs(day=7, money=1999, unlocked_quadrants=["NW"])
     state_low_money = GameState.from_obs(obs_low_money)
     market.clear()
     procure_land(market, state_low_money)
@@ -164,7 +165,7 @@ def test_procure_land_ne_quadrant_fails_under_thresholds() -> None:
 
 def test_procure_land_crew_restriction_removed() -> None:
     """target_crew < min_crew does NOT block land purchase when day and treasury met."""
-    obs = make_obs(day=6, money=2000, unlocked_quadrants=["NW"])
+    obs = make_obs(day=7, money=2000, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
@@ -174,8 +175,8 @@ def test_procure_land_crew_restriction_removed() -> None:
 
 
 def test_procure_land_sw_quadrant_success() -> None:
-    """SW land bought when NE is unlocked, day >= 14, money >= 4000."""
-    obs = make_obs(day=14, money=4000, unlocked_quadrants=["NW", "NE"])
+    """SW land bought when NE is unlocked, day >= 11, money >= 4000."""
+    obs = make_obs(day=11, money=4000, unlocked_quadrants=["NW", "NE"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
@@ -185,9 +186,9 @@ def test_procure_land_sw_quadrant_success() -> None:
 
 
 def test_procure_land_sw_quadrant_fails_under_thresholds() -> None:
-    """SW land is blocked if day < 14 or money < $4,000."""
-    # Fails prior to Day 14
-    obs_early = make_obs(day=13, money=10000, unlocked_quadrants=["NW", "NE"])
+    """SW land is blocked if day < 11 or money < $4,000."""
+    # Fails prior to Day 11
+    obs_early = make_obs(day=10, money=10000, unlocked_quadrants=["NW", "NE"])
     state_early = GameState.from_obs(obs_early)
     market: list[list[Any]] = []
     procure_land(market, state_early)
@@ -195,12 +196,13 @@ def test_procure_land_sw_quadrant_fails_under_thresholds() -> None:
 
     # Fails if money < $4,000
     obs_low_money = make_obs(
-        day=14, money=3999, unlocked_quadrants=["NW", "NE"]
+        day=11, money=3999, unlocked_quadrants=["NW", "NE"]
     )
     state_low_money = GameState.from_obs(obs_low_money)
     market.clear()
     procure_land(market, state_low_money)
     assert market == []
+
 
 
 def test_procure_land_se_quadrant_never_purchased() -> None:
@@ -226,7 +228,7 @@ def test_procure_land_duplicate_in_single_turn_prevented() -> None:
 
 def test_procure_land_parameterized_for_optuna() -> None:
     """procure_land supports custom cost_mult and day overrides for Optuna."""
-    obs = make_obs(day=6, money=1500, unlocked_quadrants=["NW"])
+    obs = make_obs(day=7, money=1500, unlocked_quadrants=["NW"])
     state = GameState.from_obs(obs)
     market: list[list[Any]] = []
 
@@ -237,6 +239,7 @@ def test_procure_land_parameterized_for_optuna() -> None:
     # Tuned parameters cost_mult=1.5 qualifies ($1500)
     procure_land(market, state, cost_mult=1.5)
     assert market == [["BUY_LAND"]]
+
 
 
 # =========================================================================
@@ -688,8 +691,8 @@ def test_procure_livestock_waits_for_unplaced_animal_in_shed() -> None:
 def test_apply_procurement_orchestrates_all_orders_within_market_cap() -> None:
     """apply_procurement executes operations within the 10 order cap."""
     obs = make_obs(
-        step=145,
-        day=6,
+        step=169,
+        day=7,
         hour=1,
         money=5000,
         unlocked_quadrants=["NW"],
@@ -697,6 +700,7 @@ def test_apply_procurement_orchestrates_all_orders_within_market_cap() -> None:
         seeds={"MELON": 0},
     )
     state = GameState.from_obs(obs)
+
     board = Board(state)
     market: list[list[Any]] = []
 
@@ -725,8 +729,8 @@ def test_apply_procurement_shared_budget_deduction() -> None:
     # MELON costs $80. 23 tiles * 80 = 1840 > 996.
     # Seeds bought should be constrained by 996 budget, not 2000!
     obs = make_obs(
-        step=144,
-        day=6,
+        step=168,
+        day=7,
         hour=0,
         money=2000,
         unlocked_quadrants=["NW"],
@@ -734,6 +738,7 @@ def test_apply_procurement_shared_budget_deduction() -> None:
         seeds={"MELON": 0},
     )
     state = GameState.from_obs(obs)
+
     board = Board(state)
     market: list[list[Any]] = []
 
@@ -818,7 +823,7 @@ def test_apply_procurement_prioritizes_feed_over_seeds() -> None:
 
 
 def test_procure_seeds_day_zero_wheat_anchor() -> None:
-    """On Day 0, procure_seeds must order at least 6 wheat seeds alongside cash crops."""
+    """On Day 0, apply_procurement must order at least 6 wheat seeds alongside cash crops."""
     obs = make_obs(
         step=0,
         day=0,
@@ -831,7 +836,14 @@ def test_procure_seeds_day_zero_wheat_anchor() -> None:
     board = Board(state)
     market: list[list[Any]] = []
 
-    procure_seeds(market, state, board, target_crop="MELON")
+    apply_procurement(
+        market,
+        state,
+        board,
+        target_crop="MELON",
+        target_animal="NONE",
+        target_crew=0,
+    )
 
     wheat_orders = [
         o[2] for o in market if o[0] == "BUY_SEED" and o[1] == "WHEAT"
@@ -839,4 +851,5 @@ def test_procure_seeds_day_zero_wheat_anchor() -> None:
     assert sum(wheat_orders) >= 6, (
         "Must procure at least 6 wheat seeds on Day 0"
     )
+
 
