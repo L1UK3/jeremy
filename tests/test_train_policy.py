@@ -12,6 +12,7 @@ from scripts.train_policy import (
     compute_loss,
     export_to_npz,
     load_or_create_dataset,
+    train_policy,
 )
 
 
@@ -93,3 +94,20 @@ def test_load_or_create_dataset_fallback(tmp_path: Path) -> None:
     assert targets["livestock"].shape == (32,)
     assert targets["predation"].shape == (32,)
     assert targets["market"].shape == (32, 4)
+
+
+def test_train_policy_checkpoint_format(tmp_path: Path) -> None:
+    """Checkpoints must be saved as model_{num}.npz and model_best.npz."""
+    ckpt_dir = tmp_path / "checkpoints"
+    data_path = tmp_path / "data.npz"
+    train_policy(
+        data_path=data_path,
+        checkpoint_dir=ckpt_dir,
+        update_main=False,
+        epochs=2,
+        batch_size=16,
+    )
+
+    assert (ckpt_dir / "model_1.npz").exists()
+    assert (ckpt_dir / "model_2.npz").exists()
+    assert (ckpt_dir / "model_best.npz").exists()

@@ -220,7 +220,7 @@ def train_policy(
     ckpt_dir = Path(checkpoint_dir)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     best_val_loss = float("inf")
-    best_weights_path = ckpt_dir / "best_model_weights.npz"
+    best_weights_path = ckpt_dir / "model_best.npz"
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -255,6 +255,9 @@ def train_policy(
                     val_details[k] = val_details.get(k, 0.0) + v
 
         val_loss /= max(1, len(val_ds))
+        epoch_path = ckpt_dir / f"model_{epoch}.npz"
+        export_to_npz(model, epoch_path)
+
         print(
             f"Epoch {epoch:02d}/{epochs} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}"
         )
@@ -262,7 +265,7 @@ def train_policy(
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             export_to_npz(model, best_weights_path)
-            print(f"  &rarr; Saved best checkpoint to {best_weights_path}")
+            print(f"  --> Saved best checkpoint: {best_weights_path} and {epoch_path}")
 
     if update_main and best_weights_path.is_file():
         shutil.copyfile(best_weights_path, DEFAULT_PRODUCTION_WEIGHTS)
