@@ -36,7 +36,7 @@ class ProcurementParams:
     expansion_day_ne: int = 7
     expansion_day_sw: int = 11
     actions_per_hand: float = 8.0
-    max_daily_hires: int = 16
+    max_daily_hires: int = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,8 +54,8 @@ class DispatcherParams:
     prio_care: float = 180.0
     prio_water_bonus: float = 160.0
     prio_harvest_base: float = 150.0
-    prio_dig_weed: float = 140.0
     prio_water: float = 120.0
+    prio_dig_weed: float = 110.0
     prio_plant_base: float = 75.0
     prio_plant_cascade: float = 65.0
     prio_fertilize: float = 70.0

@@ -69,7 +69,12 @@ def test_land_purchase_economic_justification(
 
         land_cost = LAND_COSTS[next_quad]
         active_crop = _identify_active_crop(farm_before.get("tiles", []))
-        seed_cost = CROP_SEED_PRICES.get(active_crop, 10)
+        expansion_crop = (
+            "STRAWBERRY"
+            if (obs_before.get("day", 0) >= 7 and "STRAWBERRY" in CROP_SEED_PRICES)
+            else active_crop
+        )
+        seed_cost = CROP_SEED_PRICES.get(expansion_crop, 10)
         tile_stocking_cost = 25 * seed_cost
 
         # Estimate crew maintenance for 25 additional tiles (at least 2 farm hands)

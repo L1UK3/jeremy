@@ -114,7 +114,7 @@ def make_obs(
 
 
 def test_procurement_default_constants() -> None:
-    """Default hyperparameters match ticket spec and provide baseline."""
+    """Default hyperparameters match specification and provide baseline."""
     assert DEFAULT_LAND_COST_MULT == 2.0
     assert DEFAULT_LAND_MIN_CREW == 3
     assert DEFAULT_LABOR_FLOOR == 3
@@ -123,7 +123,7 @@ def test_procurement_default_constants() -> None:
     assert DEFAULT_EXPANSION_DAY_SW == 11
 
     assert DEFAULT_ACTIONS_PER_HAND == 8.0
-    assert DEFAULT_MAX_DAILY_HIRES == 16
+    assert DEFAULT_MAX_DAILY_HIRES == 10
     assert DEFAULT_ANIMAL_RESERVED_TILES == frozenset({(3, 4), (4, 3)})
     assert LAND_COSTS == {"NE": 1000, "SW": 2000}
     assert SEED_COSTS["WHEAT"] == 10

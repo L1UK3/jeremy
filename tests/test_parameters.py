@@ -49,8 +49,8 @@ def test_default_parameters_match_domain_constants() -> None:
     assert p.dispatcher.prio_care == 180.0
     assert p.dispatcher.prio_water_bonus == 160.0
     assert p.dispatcher.prio_harvest_base == 150.0
-    assert p.dispatcher.prio_dig_weed == 140.0
     assert p.dispatcher.prio_water == 120.0
+    assert p.dispatcher.prio_dig_weed == 110.0
     assert p.dispatcher.prio_plant_base == 75.0
     assert p.dispatcher.prio_plant_cascade == 65.0
     assert p.dispatcher.prio_fertilize == 70.0

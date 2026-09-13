@@ -164,14 +164,6 @@ def procure_land(
         return avail_budget
 
     land_cost = LAND_COSTS[next_quad]
-    active_crop = identify_active_crop(state)
-    seed_cost = SEED_COSTS.get(active_crop, 10)
-    tile_stocking_cost = 25 * seed_cost
-    hire_idx = state.hires_today
-    crew_maintenance_cost = (
-        FIBONACCI[min(hire_idx, len(FIBONACCI) - 1)]
-        + FIBONACCI[min(hire_idx + 1, len(FIBONACCI) - 1)]
-    )
     required_funds = int(land_cost * cost_mult)
 
     if state.money >= required_funds and avail_budget >= land_cost:
@@ -397,9 +389,9 @@ def procure_seeds(
         return avail_budget
 
 
-    # Mid-game cash engine: between Days 8 and 18, empty tiles default to STRAWBERRY
+    # Mid-game cash engine: between Days 8 and 22, empty tiles default to STRAWBERRY
     if (
-        8 <= state.day <= 18
+        8 <= state.day <= 22
         and within_maturation_horizon("STRAWBERRY", state.day)
         and (len(state.unlocked_quadrants_set) >= 2 or target_crop != "MELON")
     ):
@@ -538,7 +530,7 @@ def procure_feed(
 ) -> int:
     """Maintain adequate wheat feed reserves for active or target livestock."""
     avail_budget = state.money if budget is None else budget
-    if len(market) >= 10:
+    if len(market) >= 10 or state.day >= 28:
         return avail_budget
 
     desired_reserve = max(
@@ -664,7 +656,7 @@ def apply_procurement(
         total_animals > 0
         or target_animal in ANIMAL_COSTS
     )
-    wheat_anchor = 10 if state.day == 0 else (max(6, total_animals * 2) if has_animals else 0)
+    wheat_anchor = 8 if state.day == 0 else (max(6, total_animals * 2) if has_animals else 0)
 
     land_reserve = 0
     if "NE" not in state.unlocked_quadrants_set and state.day >= 5:

@@ -221,9 +221,11 @@ def test_min_score_filtering() -> None:
 def test_process_parquet_dataset_min_final_score(tmp_path: Path) -> None:
     """process_parquet_dataset should filter episodes and seats by min_final_score."""
     import json
+
     import pandas as pd
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     from data.imitation import process_parquet_dataset
 
     pq_file = tmp_path / "test_replays.parquet"
@@ -255,7 +257,7 @@ def test_process_parquet_dataset_min_final_score(tmp_path: Path) -> None:
     )
     df.to_csv(csv_file, index=False)
 
-    features, targets = process_parquet_dataset(
+    features, _targets = process_parquet_dataset(
         parquet_path=pq_file,
         features_csv_path=csv_file,
         min_final_score=100000.0,

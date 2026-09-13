@@ -76,12 +76,15 @@ def episode_trace(request: pytest.FixtureRequest) -> EpisodeTrace:
         return load_replay_from_path(replay_arg, seat=seat_arg)
 
     # Fallback to headless 720-step simulation
+    seed_env = os.environ.get("JEREMY_EPISODE_SEED")
+    seed_val = int(seed_env) if seed_env is not None else 7777
     result = run_episode(
         challenger="src/main.py",
         baseline="starter",
         seat=seat_arg,
         steps=720,
         keep_env=True,
+        seed=seed_val,
     )
     if not result.env or not result.env.steps:
         raise RuntimeError(

@@ -640,7 +640,7 @@ def _features(obs):
     counts = [shops.count(s) for s in _SHOPS]
     x += counts
     demand = [0]*9
-    for c, products in zip(counts,_DEMAND):
+    for c, products in zip(counts, _DEMAND, strict=False):
         for i in products:
             demand[i] += c
     x += demand

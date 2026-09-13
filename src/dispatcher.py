@@ -25,7 +25,7 @@ __all__ = [
     "PLANT_CASCADE",
     "Job",
     "_harvest_actions",
-    "_plant_task",
+    "_plant_job",
     "assign_chores",
     "assign_jobs",
     "default_utility_scorer",
@@ -102,7 +102,7 @@ def needs_center_drop(inv: dict[str, int], hour: int) -> bool:
     return False
 
 
-def _plant_task(priority: float, pos: tuple[int, int], crop: str) -> Job:
+def _plant_job(priority: float, pos: tuple[int, int], crop: str) -> Job:
     """Generate a planting job specification."""
     return Job(priority=priority, action="PLANT", target=pos, item=crop)
 
@@ -258,7 +258,7 @@ def generate_jobs(
 
         if spec.ongoing:
             is_ripe = True
-        elif emergency_harvest:
+        elif emergency_harvest or state.day >= 28:
             is_ripe = True
         else:
             is_ripe = crop_age >= spec.max_yield_day
@@ -561,7 +561,7 @@ def generate_jobs(
                             break
 
             if chosen_crop is not None:
-                jobs.append(_plant_task(prio, tile.pos, chosen_crop))
+                jobs.append(_plant_job(prio, tile.pos, chosen_crop))
                 available_seeds[chosen_crop] -= 1
             else:
                 break

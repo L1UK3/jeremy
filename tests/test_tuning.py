@@ -84,7 +84,7 @@ def test_sample_parameters_samples_all_registered_parameters() -> None:
 
     assert params.procurement.land_cost_mult == 3.2
     assert params.dispatcher.dist_penalty == 1.5
-    assert len(trial.recorded_calls) == 53
+    assert len(trial.recorded_calls) == 55
 
 
 def test_sample_parameters_with_selective_groups() -> None:
@@ -98,8 +98,8 @@ def test_sample_parameters_with_selective_groups() -> None:
         params.dispatcher.dist_penalty
         == DEFAULT_PARAMETERS.dispatcher.dist_penalty
     )
-    # Only procurement specs should have been sampled (7 parameters)
-    assert len(trial.recorded_calls) == 7
+    # Only procurement specs should have been sampled (9 parameters)
+    assert len(trial.recorded_calls) == 9
 
 
 def test_sample_parameters_inherits_from_custom_base() -> None:

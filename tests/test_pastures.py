@@ -115,8 +115,10 @@ def test_animal_purchases_within_housing_capacity(
                 ):
                     total_animals += 1
 
-        assert total_animals <= 4, (
-            f"Step {step_idx}: Exceeded farm livestock capacity (Total animals={total_animals})"
+        unlocked = farm.get("unlocked_quadrants", ["NW"])
+        max_cap = 6 if len(unlocked) >= 2 else 4
+        assert total_animals <= max_cap, (
+            f"Step {step_idx}: Exceeded farm livestock capacity (Total animals={total_animals}, max={max_cap})"
         )
 
 

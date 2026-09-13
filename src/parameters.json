@@ -1,80 +1,80 @@
 {
-  "procurement": {
-    "land_cost_mult": 2.6,
-    "land_min_crew": 3,
-    "max_hire_hour": 1,
-    "feed_buffer_mult": 3,
-    "feed_target_buffer": 6,
-    "max_animals": 1,
-    "reserved_animal_tiles": 6,
-    "seed_fallback_crop": "WHEAT",
-    "expansion_day_ne": 6,
-    "expansion_day_sw": 14,
-    "actions_per_hand": 11.0,
-    "max_daily_hires": 15
-  },
-  "dispatcher": {
-    "prio_feed_urgent": 500.0,
-    "prio_water_urgent": 410.0,
-    "prio_drop_shed": 300.0,
-    "prio_harvest_premium": 170.0,
-    "prio_place_animal": 245.0,
-    "prio_pickup_animal": 240.0,
-    "prio_build_structure": 220.0,
-    "prio_feed": 240.0,
-    "prio_care": 180.0,
-    "prio_water_bonus": 200.0,
-    "prio_harvest_base": 150.0,
-    "prio_dig_weed": 90.0,
-    "prio_water": 130.0,
-    "prio_plant_base": 75.0,
-    "prio_plant_cascade": 115.0,
-    "prio_fertilize": 60.0,
-    "prio_collect_fertilizer": 100.0,
-    "dist_penalty": 3.25,
-    "harvest_crop_yield_threshold": 3,
-    "crop_weight_threshold": 0.25,
-    "last_water_day": 29,
-    "reserved_animal_tiles": 6
-  },
-  "market_maker": {
-    "glut_weight_melon": 4.25,
-    "glut_weight_strawberry": 1.75,
-    "glut_weight_milk": 2.5,
-    "glut_weight_wool": 1.0,
-    "sort_sells": true,
-    "sort_key": "impact",
-    "sells_first": true,
-    "race_weight": 0.2,
-    "shed_pressure": 80,
-    "ramp_start": 552,
-    "ramp_end": 672,
-    "front_run_horizon": 3,
-    "early_terminal": 6
-  },
-  "predation": {
-    "front_run_discount": 0.85,
-    "corner_wheat_buy_qty": 4,
-    "surplus_wheat_mult": 3
-  },
-  "weed_repair": {
-    "weed_repair_cutoff_step": 624
-  },
-  "explosion": {
-    "explosion_step": 702,
-    "pre_terminal_step": 696,
-    "terminal_glut_weight_melon": 4.4,
-    "terminal_glut_weight_wool": 2.2,
-    "terminal_glut_weight_milk": 1.8,
-    "terminal_glut_weight_strawberry": 2.2,
-    "terminal_glut_weight_egg": 2.0,
-    "terminal_glut_weight_tomato": 2.6
-  },
-  "debt_manager": {
-    "opening_strategy": "passive"
-  },
-  "clone_detector": {
-    "clone_distance_high": 1,
-    "clone_distance_medium": 3
-  }
+    "procurement": {
+        "land_cost_mult": 2.0,
+        "land_min_crew": 3,
+        "max_hire_hour": 2,
+        "feed_buffer_mult": 2,
+        "feed_target_buffer": 2,
+        "max_animals": 2,
+        "reserved_animal_tiles": 2,
+        "seed_fallback_crop": "WHEAT",
+        "expansion_day_ne": 7,
+        "expansion_day_sw": 11,
+        "actions_per_hand": 8.0,
+        "max_daily_hires": 10
+    },
+    "dispatcher": {
+        "prio_feed_urgent": 350.0,
+        "prio_water_urgent": 300.0,
+        "prio_drop_shed": 260.0,
+        "prio_harvest_premium": 250.0,
+        "prio_place_animal": 245.0,
+        "prio_pickup_animal": 240.0,
+        "prio_build_structure": 220.0,
+        "prio_feed": 200.0,
+        "prio_care": 180.0,
+        "prio_water_bonus": 160.0,
+        "prio_harvest_base": 150.0,
+        "prio_water": 120.0,
+        "prio_dig_weed": 110.0,
+        "prio_plant_base": 75.0,
+        "prio_plant_cascade": 65.0,
+        "prio_fertilize": 70.0,
+        "prio_collect_fertilizer": 60.0,
+        "dist_penalty": 2.0,
+        "harvest_crop_yield_threshold": 4,
+        "crop_weight_threshold": 0.15,
+        "last_water_day": 28,
+        "reserved_animal_tiles": 2
+    },
+    "market_maker": {
+        "glut_weight_melon": 3.5,
+        "glut_weight_strawberry": 2.0,
+        "glut_weight_milk": 2.0,
+        "glut_weight_wool": 3.2,
+        "sort_sells": true,
+        "sort_key": "impact",
+        "sells_first": true,
+        "race_weight": 0.0,
+        "shed_pressure": 80,
+        "ramp_start": 576,
+        "ramp_end": 716,
+        "front_run_horizon": 1,
+        "early_terminal": 0
+    },
+    "predation": {
+        "front_run_discount": 0.85,
+        "corner_wheat_buy_qty": 5,
+        "surplus_wheat_mult": 2
+    },
+    "weed_repair": {
+        "weed_repair_cutoff_step": 672
+    },
+    "explosion": {
+        "explosion_step": 712,
+        "pre_terminal_step": 672,
+        "terminal_glut_weight_melon": 3.6,
+        "terminal_glut_weight_wool": 3.2,
+        "terminal_glut_weight_milk": 2.0,
+        "terminal_glut_weight_strawberry": 2.0,
+        "terminal_glut_weight_egg": 1.5,
+        "terminal_glut_weight_tomato": 1.3
+    },
+    "debt_manager": {
+        "opening_strategy": "feed5"
+    },
+    "clone_detector": {
+        "clone_distance_high": 1,
+        "clone_distance_medium": 4
+    }
 }

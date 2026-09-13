@@ -99,7 +99,6 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             "hands": [["PASS"] for _ in range(n_hands)],
             "market": [],
         }
-        pre_terminal_liquidation(action, state, step, params=params.explosion)
 
         if _CURRENT_PLAN is None or day != _CURRENT_DAY:
             _CURRENT_PLAN = get_plan(obs)
@@ -121,9 +120,9 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         if (target_animal == "NONE" or day == 0) and len(board.animals()) < capacity:
             target_animal = "SHEEP"
         target_crop = str(plan.get("crop") or "WHEAT")
-        if 7 <= day <= 18 and within_maturation_horizon("STRAWBERRY", day):
+        if 7 <= day <= 22 and within_maturation_horizon("STRAWBERRY", day):
             target_crop = "STRAWBERRY"
-        elif 19 <= day <= 27 and within_maturation_horizon("WHEAT", day):
+        elif 23 <= day <= 27 and within_maturation_horizon("WHEAT", day):
             target_crop = "WHEAT"
         elif not within_maturation_horizon(target_crop, day):
             target_crop = params.procurement.seed_fallback_crop
@@ -156,6 +155,7 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         )
         action["market"] = market[:10]
         action = filter_predation_sells(action, predation)
+        action = pre_terminal_liquidation(action, state, step, params=params.explosion)
 
         farmer_act, hands_acts = schedule_tasks(
             state,

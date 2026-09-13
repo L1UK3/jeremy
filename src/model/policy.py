@@ -49,7 +49,7 @@ def get_plan(obs: dict[str, Any]) -> dict[str, Any]:
             "crop": CROP_NAMES[int(np.argmax(logits[0:5]))],
             "crew": int(np.argmax(logits[5:16])),
             "market": {
-                k: max(0.0, min(2.0, float(logits[16 + i] * 2.0)))
+                k: max(0.0, min(2.0, float(logits[16 + i])))
                 for i, k in enumerate(MARKET_ITEMS)
             },
             "livestock": LIVESTOCK_NAMES[int(np.argmax(logits[20:24]))],
