@@ -31,12 +31,12 @@ class ProcurementParams:
     feed_target_buffer: int = 2
     max_animals: int = 2
 
-    reserved_animal_tiles: int = 6
+    reserved_animal_tiles: int = 2
     seed_fallback_crop: str = "WHEAT"
     expansion_day_ne: int = 7
     expansion_day_sw: int = 11
     actions_per_hand: float = 8.0
-    max_daily_hires: int = 12
+    max_daily_hires: int = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +64,7 @@ class DispatcherParams:
     harvest_crop_yield_threshold: int = 4
     crop_weight_threshold: float = 0.15
     last_water_day: int = 28
-    reserved_animal_tiles: int = 6
+    reserved_animal_tiles: int = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,6 +312,14 @@ def load_parameters(
                 "Failed to load parameters from JEREMY_PARAMS_JSON: %s", e
             )
 
+    if EMBEDDED_PARAMS_JSON:
+        try:
+            return Parameters.from_json(EMBEDDED_PARAMS_JSON)
+        except Exception as e:
+            _logger.warning(
+                "Failed to load parameters from EMBEDDED_PARAMS_JSON: %s", e
+            )
+
     adjacent_path = Path(__file__).parent / "parameters.json"
     if adjacent_path.is_file():
         try:
@@ -338,28 +346,12 @@ def load_parameters(
             )
 
     cwd_path = Path.cwd() / "parameters.json"
-    if cwd_path.is_file() and cwd_path.resolve() != adjacent_path.resolve():
+    if cwd_path.is_file() and (not adjacent_path or cwd_path.resolve() != adjacent_path.resolve()):
         try:
             return Parameters.from_json(cwd_path)
         except Exception as e:
             _logger.warning(
                 "Failed to load parameters from cwd (%s): %s", cwd_path, e
-            )
-
-    if EMBEDDED_PARAMS_JSON:
-        try:
-            return Parameters.from_json(EMBEDDED_PARAMS_JSON)
-        except Exception as e:
-            _logger.warning(
-                "Failed to load parameters from EMBEDDED_PARAMS_JSON: %s", e
-            )
-
-    if EMBEDDED_PARAMS_JSON:
-        try:
-            return Parameters.from_json(EMBEDDED_PARAMS_JSON)
-        except Exception as e:
-            _logger.warning(
-                "Failed to load parameters from EMBEDDED_PARAMS_JSON: %s", e
             )
 
     return Parameters()
