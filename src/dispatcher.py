@@ -172,14 +172,11 @@ def job_to_action(
                 return ["FEED"]
             return [step_toward(x, y, tx, ty)]
         else:
-            if (
-                (x, y) in SHED_ACCESS_TILES
-                and state
-                and state.inventory("WHEAT") > 0
-            ):
-                return ["PICKUP", "WHEAT", 1]
-            if (x, y) == (tx, ty):
-                return ["PASS"]
+            if (x, y) in SHED_ACCESS_TILES:
+                if sum(inv.values()) >= 3 and inv.get("WHEAT", 0) == 0:
+                    return ["DROP"]
+                if state and state.inventory("WHEAT") > 0:
+                    return ["PICKUP", "WHEAT", 1]
             sx, sy = board.nearest_shed(x, y) if board else (4, 4)
             return [step_toward(x, y, sx, sy)]
 
@@ -447,9 +444,12 @@ def generate_jobs(
         )
         jobs.append(Job(dig_prio, "DIG", tile.pos))
 
-    wheat_stock = state.inventory("WHEAT")
-    if wheat_stock > 0:
-        for tile in board.needs_feed()[:wheat_stock]:
+    worker_wheat = sum(
+        state.worker_inventory(u).get("WHEAT", 0) for u in range(num_units)
+    )
+    total_wheat = state.inventory("WHEAT") + worker_wheat
+    if total_wheat > 0:
+        for tile in board.needs_feed()[:total_wheat]:
             if not tile.fed_today:
                 prio = (
                     dp.prio_feed_urgent
@@ -612,6 +612,11 @@ def assign_jobs(
             if any(inv.get(a, 0) > 0 for a in ("GOOSE", "COW", "SHEEP")):
                 return False
             return True
+        if job.action == "FEED":
+            inv = state.worker_inventory(u_idx)
+            if sum(inv.values()) >= 3 and inv.get("WHEAT", 0) == 0:
+                return False
+            return True
         return True
 
     while unassigned_units:
@@ -629,6 +634,10 @@ def assign_jobs(
                 score = default_utility_scorer(
                     job, ux, uy, dist_penalty=dp.dist_penalty
                 )
+                if job.action == "FEED":
+                    inv = state.worker_inventory(u_idx)
+                    if inv.get("WHEAT", 0) > 0:
+                        score += 150.0
                 if score > best_score:
                     best_score = score
                     best_unit = u_idx
