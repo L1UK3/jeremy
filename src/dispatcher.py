@@ -23,7 +23,6 @@ __all__ = [
     "PLACE",
     "PLANT_BASE",
     "PLANT_CASCADE",
-    "RESERVED_ANIMAL_TILES",
     "Job",
     "_harvest_actions",
     "_plant_task",
@@ -55,6 +54,11 @@ ALL_CANDIDATE_ANIMAL_TILES: tuple[tuple[int, int], ...] = (
     (2, 3),
     (3, 2),
 )
+
+RESERVED_ANIMAL_TILES: frozenset[tuple[int, int]] = frozenset(
+    ALL_CANDIDATE_ANIMAL_TILES[:2]
+)
+
 
 def get_animal_reserved_tiles(
     max_animals: int | None = None,

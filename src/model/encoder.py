@@ -9,8 +9,10 @@ from .constants import CROPS, LIVESTOCK, QUAD_BOUNDS
 
 def encode_observation(obs: dict[str, Any]) -> np.ndarray:
     buf = np.zeros((1, 1706), dtype=np.float32)
-    farm = obs["farms"][obs["player"]]
-    day = obs["day"]
+    player = obs.get("player", 0)
+    farm = obs["farms"][player]
+    day = obs.get("day", 0)
+
 
     # Unlocked quadrants
     for q in farm.get("unlocked_quadrants", ("NW",)):
@@ -51,7 +53,9 @@ def encode_observation(obs: dict[str, Any]) -> np.ndarray:
 
     # Global market and economic scalars
     prices = obs["market"]["prices"]
-    buf[0, 1700] = obs["step"] / 720.0
+    step_val = obs.get("step", day * 24 + obs.get("hour", 0))
+    buf[0, 1700] = float(step_val) / 720.0
+
     buf[0, 1701] = min(1.0, farm["money"] / 10000.0)
     buf[0, 1702] = len(hands) / 10.0
     buf[0, 1703] = prices.get("MELON", 250) / 500.0
