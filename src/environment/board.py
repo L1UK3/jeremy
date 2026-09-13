@@ -88,6 +88,7 @@ class Tile:
         "empty_pasture",
         "fed_today",
         "fertilized",
+        "fertilized_until_day",
         "fertilizer_available",
         "is_animal",
         "is_plant",
@@ -138,6 +139,7 @@ class Tile:
         self.crop = None
         self.watered = False
         self.fertilized = False
+        self.fertilized_until_day = -1
         self.yield_units = 0
         self.planted_day = None
         self.fed_today = False
@@ -157,9 +159,13 @@ class Tile:
                 self.is_plant = True
                 self.crop = data.get("crop")
                 self.watered = bool(data.get("watered_today", False))
+                self.fertilized_until_day = int(
+                    data.get("fertilized_until_day", -1)
+                )
                 self.fertilized = bool(
                     data.get("fertilized", False)
                     or data.get("fertilizer", False)
+                    or self.fertilized_until_day >= 0
                 )
                 self.yield_units = int(data.get("yield_units", 0))
                 self.planted_day = data.get("planted_day")
@@ -204,6 +210,10 @@ class Tile:
     def is_unlocked(self, unlocked_quadrants: Iterable[str]) -> bool:
         """Check if this tile resides in one of the unlocked quadrants."""
         return self.quadrant in unlocked_quadrants
+
+    def is_fertilized(self, current_day: int) -> bool:
+        """Return True if tile is currently under an active fertilizer bonus."""
+        return self.fertilized_until_day >= current_day
 
     def is_ripe(self, current_day: int) -> bool:
         """Check if a plant has reached harvestable maturity or ongoing yield threshold."""

@@ -172,10 +172,7 @@ def procure_land(
         FIBONACCI[min(hire_idx, len(FIBONACCI) - 1)]
         + FIBONACCI[min(hire_idx + 1, len(FIBONACCI) - 1)]
     )
-    required_funds = max(
-        int(land_cost * cost_mult),
-        land_cost + tile_stocking_cost + crew_maintenance_cost,
-    )
+    required_funds = int(land_cost * cost_mult)
 
     if state.money >= required_funds and avail_budget >= land_cost:
         market.append(["BUY_LAND"])
@@ -290,10 +287,15 @@ def procure_crew(
         else (8 if (num_quads >= 2 and 8 <= state.day <= 25) else 0)
     )
 
+    dynamic_hire_cap = max_daily_hires
+    if num_quads >= 3 and state.money >= 5000:
+        dynamic_hire_cap = max(max_daily_hires, 12)
+    elif num_quads >= 2 and state.money >= 1000:
+        dynamic_hire_cap = max(max_daily_hires, 10)
     effective_target_crew = max(
-        quadrant_floor, target_crew, action_crew, midgame_floor
+        target_crew, quadrant_floor, action_crew, midgame_floor
     )
-    effective_target_crew = min(effective_target_crew, max_daily_hires)
+    effective_target_crew = min(effective_target_crew, dynamic_hire_cap)
 
 
     current_crew = len(state.hands)
@@ -357,7 +359,14 @@ def procure_seeds(
         and order[0] == "BUY_SEED"
         and isinstance(order[2], int)
     )
-    total_held_seeds = sum(state.seeds.values()) + already_ordered_seeds
+    total_held_seeds = (
+        sum(
+            qty
+            for c, qty in state.seeds.items()
+            if within_maturation_horizon(c, state.day)
+        )
+        + already_ordered_seeds
+    )
     needed = len(empty_unlocked) - total_held_seeds
 
     if needed <= 0:
@@ -388,9 +397,9 @@ def procure_seeds(
         return avail_budget
 
 
-    # Mid-game cash engine: between Days 8 and 22, empty tiles default to STRAWBERRY
+    # Mid-game cash engine: between Days 8 and 18, empty tiles default to STRAWBERRY
     if (
-        8 <= state.day <= 22
+        8 <= state.day <= 18
         and within_maturation_horizon("STRAWBERRY", state.day)
         and (len(state.unlocked_quadrants_set) >= 2 or target_crop != "MELON")
     ):
@@ -411,14 +420,12 @@ def procure_seeds(
         if crop is None:
             return avail_budget
 
-
     crop_cost = SEED_COSTS[crop]
-    target_buy = min(needed, avail_budget // crop_cost)
+    target_buy = min(needed, int(avail_budget // crop_cost))
     if target_buy > 0 and len(market) < 10:
         market.append(["BUY_SEED", crop, target_buy])
         avail_budget -= target_buy * crop_cost
         needed -= target_buy
-
 
     if (
         needed > 0
@@ -427,7 +434,7 @@ def procure_seeds(
         and within_maturation_horizon(fallback_crop, state.day)
     ):
         fallback_cost = SEED_COSTS[fallback_crop]
-        fallback_buy = min(needed, avail_budget // fallback_cost)
+        fallback_buy = min(needed, int(avail_budget // fallback_cost))
         if fallback_buy > 0:
             market.append(["BUY_SEED", fallback_crop, fallback_buy])
             avail_budget -= fallback_buy * fallback_cost
@@ -445,11 +452,7 @@ def procure_livestock(
 ) -> int:
     """Purchase livestock when budget allows and animal slots are open."""
     avail_budget = state.money if budget is None else budget
-    if len(market) >= 10 or target_animal not in ANIMAL_COSTS:
-        return avail_budget
-
-    shed_count = state.inventory(target_animal)
-    if shed_count > 0:
+    if len(market) >= 10 or target_animal not in ANIMAL_COSTS or state.day >= 27:
         return avail_budget
 
     capacity = (
@@ -457,19 +460,72 @@ def procure_livestock(
         if max_animals is None
         else max_animals
     )
-    active_count = sum(
-        1
-        for t in animal_tiles
-        if getattr(t, "animal", None) == target_animal
-        or getattr(t, "is_animal", False)
-    )
-    if active_count >= capacity:
-        return avail_budget
+    num_units = 1 + len(state.hands)
 
-    cost = ANIMAL_COSTS[target_animal]
-    if avail_budget >= cost:
-        market.append(["BUY_ANIMAL", target_animal, 1])
-        avail_budget -= cost
+    def count_animal(a_type: str) -> int:
+        placed = sum(
+            1 for t in animal_tiles if getattr(t, "animal", None) == a_type
+        )
+        shed = state.inventory(a_type)
+        carried = sum(
+            state.worker_inventory(u).get(a_type, 0) for u in range(num_units)
+        )
+        ordered = sum(
+            order[2] if len(order) >= 3 and isinstance(order[2], int) else 1
+            for order in market
+            if len(order) >= 2 and order[0] == "BUY_ANIMAL" and order[1] == a_type
+        )
+        return placed + shed + carried + ordered
+
+    while len(market) < 10:
+        cows = count_animal("COW")
+        sheep = count_animal("SHEEP")
+        geese = count_animal("GOOSE")
+        total_active = cows + sheep + geese
+        if total_active >= capacity:
+            break
+
+        ordered_animals = sum(
+            order[2] if len(order) >= 3 and isinstance(order[2], int) else 1
+            for order in market
+            if len(order) >= 2 and order[0] == "BUY_ANIMAL"
+        )
+        unplaced = (
+            state.inventory("COW")
+            + state.inventory("SHEEP")
+            + state.inventory("GOOSE")
+            + ordered_animals
+            + sum(
+                state.worker_inventory(u).get("COW", 0)
+                + state.worker_inventory(u).get("SHEEP", 0)
+                + state.worker_inventory(u).get("GOOSE", 0)
+                for u in range(num_units)
+            )
+        )
+        if state.day > 0 and unplaced > 0:
+            break
+        if state.day == 0 and unplaced >= 2:
+            break
+
+        target_per_kind = max(1, capacity // 2)
+        if target_animal == "GOOSE":
+            chosen = "GOOSE"
+        elif target_animal == "COW" and cows < target_per_kind:
+            chosen = "COW"
+        elif target_animal == "SHEEP" and sheep < target_per_kind:
+            chosen = "SHEEP"
+        else:
+            chosen = "COW" if cows < sheep else "SHEEP"
+
+        cost = ANIMAL_COSTS.get(chosen, 500)
+        if avail_budget >= cost:
+            market.append(["BUY_ANIMAL", chosen, 1])
+            avail_budget -= cost
+            if state.day > 0:
+                break
+        else:
+            break
+
     return avail_budget
 
 
@@ -491,7 +547,16 @@ def procure_feed(
     if desired_reserve == 0:
         return avail_budget
 
-    current_wheat = state.inventory("WHEAT")
+    num_units = 1 + len(state.hands)
+    worker_wheat = sum(
+        state.worker_inventory(u).get("WHEAT", 0) for u in range(num_units)
+    )
+    ordered_wheat = sum(
+        order[2] if len(order) >= 3 and isinstance(order[2], int) else 1
+        for order in market
+        if len(order) >= 2 and order[0] == "BUY_PRODUCT" and order[1] == "WHEAT"
+    )
+    current_wheat = state.inventory("WHEAT") + worker_wheat + ordered_wheat
     needed = desired_reserve - current_wheat
     if needed > 0:
         wheat_price = state.price("WHEAT") or 25
@@ -529,9 +594,13 @@ def apply_procurement(
     )
     capacity = max_animals if max_animals is not None else pp.max_animals
     reserved_count = (
-        pp.reserved_animal_tiles
-        if hasattr(pp, "reserved_animal_tiles")
-        else capacity
+        capacity
+        if max_animals is not None
+        else (
+            pp.reserved_animal_tiles
+            if hasattr(pp, "reserved_animal_tiles")
+            else capacity
+        )
     )
     actual_reserved = (
         reserved_tiles
@@ -565,10 +634,20 @@ def apply_procurement(
     )
 
     animal_tiles = board.animals()
+    num_units = 1 + len(state.hands)
+    total_animals = (
+        len(animal_tiles)
+        + sum(state.inventory(a) for a in ("COW", "SHEEP", "GOOSE"))
+        + sum(
+            state.worker_inventory(u).get(a, 0)
+            for u in range(num_units)
+            for a in ("COW", "SHEEP", "GOOSE")
+        )
+    )
     budget = procure_feed(
         market,
         state,
-        len(animal_tiles),
+        total_animals,
         target_animal=target_animal,
         budget=budget,
     )
@@ -582,20 +661,28 @@ def apply_procurement(
     )
 
     has_animals = (
-        len(animal_tiles) > 0
-        or state.inventory("COW") > 0
-        or state.inventory("SHEEP") > 0
-        or state.inventory("GOOSE") > 0
+        total_animals > 0
         or target_animal in ANIMAL_COSTS
     )
-    wheat_anchor = 6 if (state.day == 0 or has_animals) else 0
+    wheat_anchor = 10 if state.day == 0 else (max(6, total_animals * 2) if has_animals else 0)
+
+    land_reserve = 0
+    if "NE" not in state.unlocked_quadrants_set and state.day >= 5:
+        land_reserve = int(LAND_COSTS["NE"] * actual_cost_mult)
+    elif "SW" not in state.unlocked_quadrants_set and state.day >= 9:
+        land_reserve = int(LAND_COSTS["SW"] * actual_cost_mult)
+
+    wheat_cost = wheat_anchor * SEED_COSTS["WHEAT"]
+    crew_reserve = 150 if state.day < 14 else 250
+    seed_budget = max(0, budget - land_reserve - crew_reserve)
+    seed_budget = max(seed_budget, min(budget, wheat_cost))
 
     budget = procure_seeds(
         market,
         state,
         board,
         target_crop,
-        budget=budget,
+        budget=seed_budget,
         reserved_tiles=actual_reserved,
         fallback_crop=pp.seed_fallback_crop,
         wheat_anchor=wheat_anchor,

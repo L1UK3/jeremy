@@ -42,7 +42,7 @@ class GameState:
         return cls(
             raw=obs,
             step=obs.get("step", 0),
-            day=obs.get("day", 0),
+            day=max(int(obs.get("day") or 0), int(obs.get("step") or 0) // 24),
             hour=obs.get("hour", 0),
             player=player,
             farm=farm,

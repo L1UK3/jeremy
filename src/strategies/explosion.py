@@ -114,7 +114,7 @@ def _dispatch_worker(
                 pending_deposits[item] = pending_deposits.get(item, 0) + count
         return ["DROP"]
 
-    if load > 0 and (dist_to_shed + 1 >= turns_left):
+    if load > 0 and (load >= 2 or dist_to_shed + 2 >= turns_left):
         return [step_toward(wx, wy, nearest_shed[0], nearest_shed[1])]
 
     tile = board.tile(wx, wy)

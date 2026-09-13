@@ -449,7 +449,12 @@ def generate_jobs(
     )
     total_wheat = state.inventory("WHEAT") + worker_wheat
     if total_wheat > 0:
-        for tile in board.needs_feed()[:total_wheat]:
+        feed_candidates = sorted(
+            board.needs_feed(),
+            key=lambda t: t.consecutive_unfed,
+            reverse=True,
+        )
+        for tile in feed_candidates[:total_wheat]:
             if not tile.fed_today:
                 prio = (
                     dp.prio_feed_urgent
@@ -462,12 +467,22 @@ def generate_jobs(
         if not tile.cared_today:
             jobs.append(Job(dp.prio_care, "CARE", tile.pos, item=tile.animal))
 
-    fertilizer_stock = state.inventory("FERTILIZER")
-    if fertilizer_stock > 0:
+    fertilizer_stock = sum(
+        state.worker_inventory(u).get("FERTILIZER", 0) for u in range(num_units)
+    )
+    if fertilizer_stock > 0 and state.day >= 13:
+        fert_count = 0
         for tile in board.plants():
-            if tile.pos not in harvest_positions and not getattr(
-                tile, "fertilized", False
-            ):
+            if fert_count >= fertilizer_stock:
+                break
+            if tile.pos in harvest_positions:
+                continue
+            is_fert = (
+                tile.is_fertilized(state.day)
+                if hasattr(tile, "is_fertilized")
+                else getattr(tile, "fertilized", False)
+            )
+            if not is_fert and tile.crop == "STRAWBERRY":
                 jobs.append(
                     Job(
                         dp.prio_fertilize,
@@ -476,6 +491,7 @@ def generate_jobs(
                         item="FERTILIZER",
                     )
                 )
+                fert_count += 1
 
     for tile in board.has_fertilizer_tiles():
         jobs.append(
@@ -617,6 +633,12 @@ def assign_jobs(
             if sum(inv.values()) >= 3 and inv.get("WHEAT", 0) == 0:
                 return False
             return True
+        if job.action == "COLLECT_FERTILIZER":
+            inv = state.worker_inventory(u_idx)
+            return sum(inv.values()) < 3
+        if job.action == "FERTILIZE":
+            inv = state.worker_inventory(u_idx)
+            return inv.get("FERTILIZER", 0) > 0
         return True
 
     while unassigned_units:
@@ -631,13 +653,19 @@ def assign_jobs(
                     continue
                 if not is_eligible(u_idx, job):
                     continue
+                penalty = 0.75 if job.action == "PLANT" else dp.dist_penalty
                 score = default_utility_scorer(
-                    job, ux, uy, dist_penalty=dp.dist_penalty
+                    job, ux, uy, dist_penalty=penalty
                 )
                 if job.action == "FEED":
                     inv = state.worker_inventory(u_idx)
                     if inv.get("WHEAT", 0) > 0:
                         score += 150.0
+                elif job.action == "PLANT":
+                    if state.hour < 14:
+                        score += 110.0
+                    elif state.hour < 18:
+                        score += 50.0
                 if score > best_score:
                     best_score = score
                     best_unit = u_idx
@@ -662,6 +690,7 @@ def assign_chores(
     target_crop: str | None = None,
     target_animal: str | None = None,
     params: DispatcherParams | None = None,
+    max_animals: int | None = None,
 ) -> tuple[list[str], list[list[str]]]:
     """Top-level pipeline generating prioritized chores and assigning them to units."""
     dp = params or get_active_parameters().dispatcher
@@ -671,6 +700,7 @@ def assign_chores(
         target_crop=target_crop,
         target_animal=target_animal,
         params=dp,
+        max_animals=max_animals,
     )
     return assign_jobs(state, jobs, board=board, params=dp)
 

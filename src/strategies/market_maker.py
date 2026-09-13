@@ -96,7 +96,7 @@ RESERVE: dict[str, float] = {}
 SORT_SELLS: bool = DEFAULT_PARAMETERS.market_maker.sort_sells
 SORT_KEY: str = DEFAULT_PARAMETERS.market_maker.sort_key
 SELLS_FIRST: bool = DEFAULT_PARAMETERS.market_maker.sells_first
-PROMOTE: tuple[str, ...] = ("MELON", "STRAWBERRY", "MILK", "WOOL")
+PROMOTE: tuple[str, ...] = ("MELON", "STRAWBERRY", "MILK", "WOOL", "FERTILIZER")
 RACE_WEIGHT: float = DEFAULT_PARAMETERS.market_maker.race_weight
 PROMOTE_AFTER: dict[str, int] = {}
 PROMOTE_IF_OPP_MONEY: dict[str, float] = {}
@@ -343,13 +343,22 @@ def plan_sells(
     forced = load >= mp.shed_pressure or short_of_cash > 0
 
     candidates: list[tuple[int, str, int]] = []
-    for item, scale in reserve.items():
+    items_to_sell = dict(reserve)
+    if "FERTILIZER" not in items_to_sell and state.inventory("FERTILIZER") > 0:
+        items_to_sell["FERTILIZER"] = 1.0
+    for item, scale in items_to_sell.items():
         held = state.inventory(item)
+        if item == "WHEAT" and step < 700:
+            total_animals = len(board.animals()) + sum(
+                state.inventory(a) for a in ("COW", "SHEEP", "GOOSE")
+            )
+            wheat_buffer = max(10, total_animals * 3) if total_animals > 0 or state.day < 5 else 0
+            held = max(0, held - wheat_buffer)
         if held <= 0:
             continue
         inv = int(inventory.get(item, I0) or I0)
         if forced:
-            units = held
+            units = min(held, 10) if step < 700 else held
         else:
             res_val = reserve_price(
                 item, step, state, board, shops, scale=scale, params=mp
@@ -494,7 +503,14 @@ def apply_market_controller(
         ]
         player = state.player
         money = float(state.money)
-        short = max(0.0, cash_needed(keep, state) - money)
+        target_land_cash = 0.0
+        unlocked = state.unlocked_quadrants_set
+        if "NE" not in unlocked and state.day >= 6:
+            target_land_cash = 2000.0
+        elif "SW" not in unlocked and state.day >= 10:
+            target_land_cash = 4000.0
+        land_deficit = max(0.0, target_land_cash - money)
+        short = max(0.0, cash_needed(keep, state) - money, land_deficit)
         sells = plan_sells(
             state,
             board,

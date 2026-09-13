@@ -39,11 +39,14 @@ def run_episode(
     seat: int = 0,
     steps: int = 720,
     keep_env: bool = False,
+    seed: int | None = None,
 ) -> EpisodeResult:
     """Runs a single 2-player Kaggriculture game and returns an EpisodeResult."""
-
+    config: dict[str, Any] = {"episodeSteps": steps}
+    if seed is not None:
+        config["seed"] = seed
     env: Any = make(
-        "kaggriculture", configuration={"episodeSteps": steps}, debug=False
+        "kaggriculture", configuration=config, debug=False
     )
     agents: list[str] = (
         [challenger, baseline] if seat == 0 else [baseline, challenger]

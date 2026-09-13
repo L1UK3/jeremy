@@ -115,10 +115,16 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
 
         market: list[list[Any]] = []
         target_crew = int(plan.get("crew", 0))
+        num_quads = len(state.unlocked_quadrants_set)
+        capacity = 6 if num_quads >= 2 else 4
         target_animal = str(plan.get("livestock") or "NONE").upper()
+        if (target_animal == "NONE" or day == 0) and len(board.animals()) < capacity:
+            target_animal = "SHEEP"
         target_crop = str(plan.get("crop") or "WHEAT")
-        if 8 <= day <= 22 and within_maturation_horizon("STRAWBERRY", day):
+        if 7 <= day <= 18 and within_maturation_horizon("STRAWBERRY", day):
             target_crop = "STRAWBERRY"
+        elif 19 <= day <= 27 and within_maturation_horizon("WHEAT", day):
+            target_crop = "WHEAT"
         elif not within_maturation_horizon(target_crop, day):
             target_crop = params.procurement.seed_fallback_crop
 
@@ -129,6 +135,7 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             target_crop=target_crop,
             target_animal=target_animal,
             target_crew=target_crew,
+            max_animals=capacity,
             params=params.procurement,
         )
 
@@ -156,6 +163,7 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             target_crop=target_crop,
             target_animal=target_animal,
             params=params.dispatcher,
+            max_animals=capacity,
         )
         action["farmer"] = farmer_act
         action["hands"] = hands_acts
