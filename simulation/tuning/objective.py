@@ -32,6 +32,7 @@ def create_objective(
                     challenger=agent,
                     baseline=baseline,
                     seat=seat,
+                    steps=steps,
                 )
 
                 scores.append(res.score_challenger)
