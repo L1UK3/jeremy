@@ -811,6 +811,7 @@ def assign_jobs(
             return inv.get("FERTILIZER", 0) > 0
         return True
 
+    assigned_jobs: dict[int, Job] = {}
     while unassigned_units:
         best_unit: int | None = None
         best_job: Job | None = None
@@ -846,10 +847,81 @@ def assign_jobs(
             unit_actions[best_unit] = job_to_action(
                 best_job, ux, uy, state=state, board=board, u_idx=best_unit
             )
+            assigned_jobs[best_unit] = best_job
             used_targets.add(best_job.target)
             unassigned_units.remove(best_unit)
         else:
             break
+
+    # Farmer Priority: prevent hired hands from starving the main farmer of chores
+    if 0 in unassigned_units and assigned_jobs:
+        fx, fy = unit_positions[0]
+        best_farmer_job: Job | None = None
+        best_farmer_score: float = -1e9
+        for job in jobs:
+            if not is_eligible(0, job):
+                continue
+            penalty = 0.75 if job.action == "PLANT" else dp.dist_penalty
+            score = default_utility_scorer(
+                job, fx, fy, dist_penalty=penalty
+            )
+            if job.action == "FEED":
+                inv = state.worker_inventory(0)
+                if inv.get("WHEAT", 0) > 0:
+                    score += 150.0
+            elif job.action == "PLANT":
+                if state.hour < 14:
+                    score += 110.0
+                elif state.hour < 18:
+                    score += 50.0
+            if score > best_farmer_score:
+                best_farmer_score = score
+                best_farmer_job = job
+
+        if best_farmer_job is not None:
+            # Displace any hand currently assigned to this target
+            for h_idx, h_job in list(assigned_jobs.items()):
+                if h_job.target == best_farmer_job.target and h_idx != 0:
+                    unit_actions[h_idx] = ["PASS"]
+                    del assigned_jobs[h_idx]
+                    break
+            unit_actions[0] = job_to_action(
+                best_farmer_job, fx, fy, state=state, board=board, u_idx=0
+            )
+            assigned_jobs[0] = best_farmer_job
+            unassigned_units.remove(0)
+
+    # 3. Idle Farmer Repositioning Fallback
+    if unit_actions[0] == ["PASS"]:
+        fx, fy = unit_positions[0]
+        if (fx, fy) not in SHED_ACCESS_TILES:
+            target_shed = (
+                board.nearest_shed(fx, fy) if board is not None else (4, 4)
+            )
+            step = step_toward(fx, fy, target_shed[0], target_shed[1])
+            if step != "PASS":
+                unit_actions[0] = [step]
+        else:
+            quad_counts: dict[str, int] = dict.fromkeys(state.unlocked_quadrants_set, 0)
+            if board is not None:
+                for plant in board.plants():
+                    qx = "E" if plant.x >= 5 else "W"
+                    qy = "S" if plant.y >= 5 else "N"
+                    q = qy + qx
+                    if q in quad_counts:
+                        quad_counts[q] += 1
+            if any(count > 0 for count in quad_counts.values()):
+                best_quad = max(quad_counts, key=lambda k: quad_counts[k])
+                quad_centers = {
+                    "NW": (2, 2),
+                    "NE": (7, 2),
+                    "SW": (2, 7),
+                    "SE": (7, 7),
+                }
+                cx, cy = quad_centers.get(best_quad, (2, 2))
+                step = step_toward(fx, fy, cx, cy)
+                if step != "PASS":
+                    unit_actions[0] = [step]
 
     return unit_actions[0], unit_actions[1:]
 

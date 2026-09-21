@@ -874,3 +874,52 @@ def test_generate_jobs_multiple_crop_occupied_fallback_across_candidates() -> No
     assert pasture_jobs[0].target == (3, 3)
     assert pasture_jobs[0].item == "COW"
 
+
+def test_farmer_priority_over_hands_for_candidate_chores() -> None:
+    """Farmer prioritizes high-utility field chores before allocating remaining chores to hands."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[2][0] = {
+        "kind": "PLANT",
+        "crop": "CARROT",
+        "planted_day": 0,
+        "watered_today": True,
+        "consecutive_unwatered": 0,
+        "yield_units": 3,
+        "max_lifespan_step": 100,
+        "fertilized_until_day": 0,
+    }
+
+    # Farmer is at (0, 0); Hand is at (0, 1) - closer to (0, 2)
+    obs = make_obs(
+        day=5,
+        farmer=(0, 0),
+        hands=[[0, 1]],
+        tiles=tiles,
+        prices={"CARROT": 20},
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    farmer_act, hands_acts = schedule_tasks(state, board)
+    # Farmer gets prioritized for the harvest job at (0, 2)
+    assert farmer_act == ["SOUTH"]
+    # Hand does not steal the chore
+    assert hands_acts[0] != ["SOUTH"]
+
+
+def test_idle_farmer_repositions_toward_center_drop() -> None:
+    """When no field chores exist, an idle farmer steps toward the Center Drop instead of emitting PASS."""
+    obs = make_obs(
+        farmer=(0, 0),
+        unlocked_quadrants=["NW"],
+        seeds={},
+        money=0,
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    farmer_act, _ = schedule_tasks(state, board)
+    assert farmer_act != ["PASS"]
+    # Stepping toward Center Drop (4, 4) from (0, 0)
+    assert farmer_act in (["EAST"], ["SOUTH"])
+

@@ -5,6 +5,8 @@ Combines neural macro economic policy with centralized spatial chore dispatching
 
 from __future__ import annotations
 
+import logging
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -63,7 +65,12 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             if farms and len(farms) > player
             else 0
         )
-    except Exception:
+    except Exception as exc:
+        logging.getLogger("jeremy").exception(
+            "Unhandled exception reading player/hands in agent: %s", exc
+        )
+        if os.environ.get("JEREMY_DEBUG", "").lower() in ("1", "true", "yes"):
+            raise
         hands_count = 0
 
     default_action: dict[str, Any] = {
@@ -186,5 +193,10 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
             "hands": hands,
             "market": [list(o) for o in (action.get("market") or [])][:10],
         }
-    except Exception:
+    except Exception as exc:
+        logging.getLogger("jeremy").exception(
+            "Unhandled exception in agent turn processing: %s", exc
+        )
+        if os.environ.get("JEREMY_DEBUG", "").lower() in ("1", "true", "yes"):
+            raise
         return default_action
