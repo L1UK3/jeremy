@@ -45,28 +45,40 @@ PLACE: str = "PLACE"
 DROP_SHED: float = 260.0
 PLANT_BASE: float = 75.0
 PLANT_CASCADE: float = 65.0
+QUADRANT_ORDER: tuple[str, ...] = ("NW", "NE", "SW", "SE")
 
-ALL_CANDIDATE_ANIMAL_TILES: tuple[tuple[int, int], ...] = (
+
+_NW_ANIMAL_TILES: tuple[tuple[int, int], ...] = (
     (3, 4),
     (4, 3),
     (3, 3),
     (2, 4),
-    (4, 2),
-    (2, 3),
-    (3, 2),
 )
+ALL_CANDIDATE_ANIMAL_TILES: tuple[tuple[int, int], ...] = _NW_ANIMAL_TILES
 
-QUADRANT_ORDER: tuple[str, ...] = ("NW", "NE", "SW", "SE")
+
+def _get_all_animal_plot_candidates(
+    animals_per_quadrant: int | None = None,
+) -> tuple[tuple[int, int], ...]:
+    """Return all animal-plot candidates in deterministic quadrant order."""
+    active = get_active_parameters().plot_allocation
+    per_quadrant = (
+        animals_per_quadrant
+        if animals_per_quadrant is not None
+        else active.animals_per_quadrant
+    )
+    candidates: list[tuple[int, int]] = []
+    for slot in range(max(0, per_quadrant)):
+        for quadrant in QUADRANT_ORDER:
+            candidates.append(_quadrant_animal_tiles(quadrant)[slot])
+    return tuple(candidates)
 
 
 def _quadrant_animal_tiles(quadrant: str) -> tuple[tuple[int, int], ...]:
     """Translate the NW candidate pattern into the requested quadrant."""
     x_offset = 5 if quadrant in ("NE", "SE") else 0
     y_offset = 5 if quadrant in ("SW", "SE") else 0
-    return tuple(
-        (x + x_offset, y + y_offset)
-        for x, y in ALL_CANDIDATE_ANIMAL_TILES
-    )
+    return tuple((x + x_offset, y + y_offset) for x, y in _NW_ANIMAL_TILES)
 
 
 def get_animal_plot_candidates(
@@ -99,6 +111,7 @@ def get_animal_plot_candidates(
     if max_animals is not None:
         candidates = candidates[: max(0, max_animals)]
     return tuple(candidates)
+
 
 RESERVED_ANIMAL_TILES: frozenset[tuple[int, int]] = frozenset(
     ALL_CANDIDATE_ANIMAL_TILES[:2]
@@ -388,9 +401,7 @@ def generate_jobs(
                 continue
 
             plot_params = get_active_parameters().plot_allocation
-            structure_counts: dict[str, int] = dict.fromkeys(
-                QUADRANT_ORDER, 0
-            )
+            structure_counts: dict[str, int] = dict.fromkeys(QUADRANT_ORDER, 0)
             for y, row in enumerate(state.tiles):
                 for x, tile in enumerate(row):
                     if not (
@@ -446,20 +457,26 @@ def generate_jobs(
                 (
                     quadrant
                     for quadrant in QUADRANT_ORDER
-                    if structure_counts[quadrant] < plot_params.animals_per_quadrant
+                    if structure_counts[quadrant]
+                    < plot_params.animals_per_quadrant
                     and any(
-                        state.tiles[y][x] is None and (x, y) not in planned_targets
+                        state.tiles[y][x] is None
+                        and (x, y) not in planned_targets
                         for x, y in candidate_by_quadrant[quadrant]
                     )
                 ),
                 key=lambda quadrant: (
-                    structure_counts[quadrant], QUADRANT_ORDER.index(quadrant)
+                    structure_counts[quadrant],
+                    QUADRANT_ORDER.index(quadrant),
                 ),
             )
             target_tile: tuple[int, int] | None = None
             for quadrant in candidate_quadrants:
                 for rx, ry in candidate_by_quadrant[quadrant]:
-                    if state.tiles[ry][rx] is None and (rx, ry) not in planned_targets:
+                    if (
+                        state.tiles[ry][rx] is None
+                        and (rx, ry) not in planned_targets
+                    ):
                         target_tile = (rx, ry)
                         break
                 if target_tile is not None:

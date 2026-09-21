@@ -80,7 +80,7 @@ def episode_trace(request: pytest.FixtureRequest) -> EpisodeTrace:
     seed_val = int(seed_env) if seed_env is not None else 7777
     result = run_episode(
         challenger="src/main.py",
-        baseline="starter",
+        baseline="simulation/base/main.py",
         seat=seat_arg,
         steps=720,
         keep_env=True,

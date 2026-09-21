@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def test_final_reward_invariant(episode_trace: EpisodeTrace) -> None:
-    """Invariant 1: Total score >= 100,000 at turn 720 against baseline starter."""
+    """Invariant 1: Total score >= 100,000 at turn 720 against simulation/base/main.py baseline."""
     seat = episode_trace.seat
     final_step = episode_trace.steps[-1]
     agent_record = final_step[seat]

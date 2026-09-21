@@ -60,6 +60,10 @@ _Avoid_: Barn, pen, animal house
 The maximum number of animal structures assigned to each unlocked quadrant. Animal structures are distributed across unlocked quadrants by current structure count, with deterministic quadrant-order tie breaking.
 _Avoid_: Species quota, livestock zone
 
+**Animal Plot Reservation**:
+The designated candidate tiles surrounding the Center Drop reserved across unlocked quadrants to house animal structures, capped by the active livestock target.
+_Avoid_: Animal zone, pasture grid, livestock lock
+
 **Labor Floor**:
 The minimum deterministic count of hired farm hands required to maintain daily watering and planting chores across all unlocked quadrants before applying neural policy recommendations.
 _Avoid_: Worker min, base crew, hand threshold
