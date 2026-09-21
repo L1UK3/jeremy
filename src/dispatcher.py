@@ -26,6 +26,7 @@ __all__ = [
     "Job",
     "_harvest_actions",
     "_plant_job",
+    "_quadrant_animal_tiles",
     "assign_chores",
     "assign_jobs",
     "default_utility_scorer",
@@ -75,10 +76,14 @@ def _get_all_animal_plot_candidates(
 
 
 def _quadrant_animal_tiles(quadrant: str) -> tuple[tuple[int, int], ...]:
-    """Translate the NW candidate pattern into the requested quadrant."""
-    x_offset = 5 if quadrant in ("NE", "SE") else 0
-    y_offset = 5 if quadrant in ("SW", "SE") else 0
-    return tuple((x + x_offset, y + y_offset) for x, y in _NW_ANIMAL_TILES)
+    """Reflect the NW candidate pattern into the requested quadrant across center boundary."""
+    if quadrant == "NE":
+        return tuple((9 - x, y) for x, y in _NW_ANIMAL_TILES)
+    if quadrant == "SW":
+        return tuple((x, 9 - y) for x, y in _NW_ANIMAL_TILES)
+    if quadrant == "SE":
+        return tuple((9 - x, 9 - y) for x, y in _NW_ANIMAL_TILES)
+    return _NW_ANIMAL_TILES
 
 
 def get_animal_plot_candidates(
@@ -121,21 +126,46 @@ RESERVED_ANIMAL_TILES: frozenset[tuple[int, int]] = frozenset(
 def get_animal_reserved_tiles(
     max_animals: int | None = None,
     unlocked_quadrants: frozenset[str] | set[str] | None = None,
+    target_animals: int | None = None,
 ) -> frozenset[tuple[int, int]]:
-    """Return reserved animal tiles for the active unlocked quadrants."""
-    if unlocked_quadrants is not None:
+    """Return reserved animal tiles capped to target animals and quadrant quotas."""
+    quadrants = (
+        frozenset(unlocked_quadrants)
+        if unlocked_quadrants is not None
+        else None
+    )
+
+    if target_animals is not None:
+        plot_params = get_active_parameters().plot_allocation
+        if quadrants is not None:
+            plot_quota = len(quadrants) * plot_params.animals_per_quadrant
+        else:
+            plot_quota = len(ALL_CANDIDATE_ANIMAL_TILES)
+
+        count = min(target_animals, plot_quota)
+        if max_animals is not None:
+            count = min(count, max_animals)
+        count = max(0, count)
+    elif max_animals is not None:
+        count = max(0, max_animals)
+    else:
+        if quadrants is not None:
+            plot_params = get_active_parameters().plot_allocation
+            count = len(quadrants) * plot_params.animals_per_quadrant
+        else:
+            count = get_active_parameters().dispatcher.reserved_animal_tiles
+
+    if count == 0:
+        return frozenset()
+
+    if quadrants is not None:
         return frozenset(
             get_animal_plot_candidates(
-                unlocked_quadrants=unlocked_quadrants,
-                max_animals=max_animals,
+                unlocked_quadrants=quadrants,
+                max_animals=count,
             )
         )
-    count = (
-        max_animals
-        if max_animals is not None
-        else get_active_parameters().dispatcher.reserved_animal_tiles
-    )
-    return frozenset(ALL_CANDIDATE_ANIMAL_TILES[: max(0, count)])
+    return frozenset(ALL_CANDIDATE_ANIMAL_TILES[:count])
 
 
 PRODUCE_ITEMS: frozenset[str] = frozenset(
@@ -283,6 +313,7 @@ def generate_jobs(
     params: DispatcherParams | None = None,
     target_animal: str | None = None,
     max_animals: int | None = None,
+    target_animals: int | None = None,
 ) -> list[Job]:
     """Streamlined single-pass chore generation directly from board spatial indexes."""
     dp = params or get_active_parameters().dispatcher
@@ -290,7 +321,9 @@ def generate_jobs(
         max_animals if max_animals is not None else dp.reserved_animal_tiles
     )
     active_reserved_tiles = get_animal_reserved_tiles(
-        effective_max_animals, state.unlocked_quadrants_set
+        max_animals=effective_max_animals,
+        unlocked_quadrants=state.unlocked_quadrants_set,
+        target_animals=target_animals,
     )
     jobs: list[Job] = []
     prices = state.prices
@@ -420,48 +453,39 @@ def generate_jobs(
                     )
                     structure_counts[quadrant] += 1
 
-            planned_targets = {j.target for j in jobs}
-            for x, y in planned_targets:
+            planned_structure_targets = {
+                j.target for j in jobs if j.action in (BUILD_COOP, BUILD_PASTURE)
+            }
+            for x, y in planned_structure_targets:
                 quadrant = (
                     "NW"
                     if x < 5 and y < 5
                     else "NE"
-                    if y < 5
+                    if x >= 5 and y < 5
                     else "SW"
-                    if x < 5
+                    if x < 5 and y >= 5
                     else "SE"
                 )
                 structure_counts[quadrant] += 1
-            candidates = get_animal_plot_candidates(
-                unlocked_quadrants=state.unlocked_quadrants_set,
-                max_animals=effective_max_animals,
-            )
+
             candidate_by_quadrant = {
-                quadrant: [
-                    position
-                    for position in candidates
-                    if (
-                        "NW"
-                        if position[0] < 5 and position[1] < 5
-                        else "NE"
-                        if position[0] >= 5 and position[1] < 5
-                        else "SW"
-                        if position[0] < 5
-                        else "SE"
-                    )
-                    == quadrant
-                ]
+                quadrant: (
+                    list(_quadrant_animal_tiles(quadrant))
+                    if quadrant in state.unlocked_quadrants_set
+                    else []
+                )
                 for quadrant in QUADRANT_ORDER
             }
             candidate_quadrants = sorted(
                 (
                     quadrant
                     for quadrant in QUADRANT_ORDER
-                    if structure_counts[quadrant]
+                    if quadrant in state.unlocked_quadrants_set
+                    and structure_counts[quadrant]
                     < plot_params.animals_per_quadrant
                     and any(
                         state.tiles[y][x] is None
-                        and (x, y) not in planned_targets
+                        and (x, y) not in planned_structure_targets
                         for x, y in candidate_by_quadrant[quadrant]
                     )
                 ),
@@ -475,7 +499,7 @@ def generate_jobs(
                 for rx, ry in candidate_by_quadrant[quadrant]:
                     if (
                         state.tiles[ry][rx] is None
-                        and (rx, ry) not in planned_targets
+                        and (rx, ry) not in planned_structure_targets
                     ):
                         target_tile = (rx, ry)
                         break
@@ -681,7 +705,13 @@ def generate_jobs(
             for c in ("WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON")
         }
 
+        structure_targets = {
+            j.target for j in jobs if j.action in (BUILD_COOP, BUILD_PASTURE)
+        }
+
         for tile in unplanted_unlocked:
+            if tile.pos in structure_targets:
+                continue
             chosen_crop: str | None = None
             prio = 350.0 if state.day >= 28 else dp.prio_plant_base
             if state.day >= 28:

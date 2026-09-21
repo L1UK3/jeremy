@@ -13,6 +13,7 @@ from src.dispatcher import (
     PLACE,
     RESERVED_ANIMAL_TILES,
     Job,
+    _quadrant_animal_tiles,
     assign_jobs,
     generate_jobs,
     get_animal_plot_candidates,
@@ -461,11 +462,11 @@ def test_animal_plot_candidates_interleave_unlocked_quadrants() -> None:
         frozenset({"NW", "NE", "SW"}), max_animals=6
     ) == (
         (3, 4),
-        (8, 4),
-        (3, 9),
+        (6, 4),
+        (3, 5),
         (4, 3),
-        (9, 3),
-        (4, 8),
+        (5, 3),
+        (4, 6),
     )
 
 
@@ -493,8 +494,8 @@ def test_generate_jobs_balances_multiple_animal_structures() -> None:
 
     assert [job.target for job in structure_jobs] == [
         (3, 4),
-        (8, 4),
-        (3, 9),
+        (6, 4),
+        (3, 5),
     ]
 
 
@@ -714,3 +715,162 @@ def test_assign_jobs_place_restricted_to_worker_holding_animal() -> None:
     assert hands_acts[0] == ["WEST"]
     # Farmer should not receive PLACE
     assert farmer_act != ["WEST"]
+
+
+def test_quadrant_animal_tiles_center_reflection() -> None:
+    """_quadrant_animal_tiles reflects across (4.5, 4.5) axis for all quadrants."""
+    assert _quadrant_animal_tiles("NW") == ((3, 4), (4, 3), (3, 3), (2, 4))
+    assert _quadrant_animal_tiles("NE") == ((6, 4), (5, 3), (6, 3), (7, 4))
+    assert _quadrant_animal_tiles("SW") == ((3, 5), (4, 6), (3, 6), (2, 5))
+    assert _quadrant_animal_tiles("SE") == ((6, 5), (5, 6), (6, 6), (7, 5))
+
+
+def test_animal_plot_candidates_all_four_quadrants_round_robin() -> None:
+    """All four quadrants interleave reflected slots adjacent to the center drop."""
+    candidates = get_animal_plot_candidates(
+        frozenset({"NW", "NE", "SW", "SE"}), max_animals=8
+    )
+    assert candidates == (
+        # Slot 0 round robin
+        (3, 4),
+        (6, 4),
+        (3, 5),
+        (6, 5),
+        # Slot 1 round robin
+        (4, 3),
+        (5, 3),
+        (4, 6),
+        (5, 6),
+    )
+
+
+def test_animal_reserved_tiles_target_animals_capped() -> None:
+    """get_animal_reserved_tiles caps reservations to min(target_animals, plot_quota)."""
+    # 0 target animals reserves nothing
+    assert get_animal_reserved_tiles(target_animals=0) == frozenset()
+    assert (
+        get_animal_reserved_tiles(
+            unlocked_quadrants=frozenset({"NW", "NE"}), target_animals=0
+        )
+        == frozenset()
+    )
+
+    # 1 target animal reserves exactly 1 candidate tile
+    res_1 = get_animal_reserved_tiles(
+        unlocked_quadrants=frozenset({"NW", "NE"}), target_animals=1
+    )
+    assert res_1 == frozenset({(3, 4)})
+
+    # 2 target animals across 2 quadrants reserves slot 0 of NW and NE
+    res_2 = get_animal_reserved_tiles(
+        unlocked_quadrants=frozenset({"NW", "NE"}), target_animals=2
+    )
+    assert res_2 == frozenset({(3, 4), (6, 4)})
+
+    # Target exceeding quadrant quota (2 per quadrant) is capped at plot_quota
+    res_capped = get_animal_reserved_tiles(
+        unlocked_quadrants=frozenset({"NW"}), target_animals=5
+    )
+    assert res_capped == frozenset({(3, 4), (4, 3)})
+    assert len(res_capped) == 2
+
+
+def test_empty_candidate_tiles_available_for_planting_when_target_low() -> None:
+    """Candidate tiles beyond target_animals are unreserved and get crop plant jobs."""
+    obs = make_obs(
+        unlocked_quadrants=["NW"],
+        seeds={"CARROT": 25},
+        money=1000,
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    # With target_animals=1, (3, 4) is reserved, but (4, 3) must NOT be reserved
+    jobs = generate_jobs(
+        state,
+        board,
+        target_crop="CARROT",
+        target_animal="NONE",
+        target_animals=1,
+    )
+    plant_targets = {j.target for j in jobs if j.action == "PLANT"}
+    assert (3, 4) not in plant_targets
+    assert (4, 3) in plant_targets
+
+    # With target_animals=0, neither (3, 4) nor (4, 3) is reserved; both get planted
+    jobs_zero = generate_jobs(
+        state,
+        board,
+        target_crop="CARROT",
+        target_animal="NONE",
+        target_animals=0,
+    )
+    plant_targets_zero = {j.target for j in jobs_zero if j.action == "PLANT"}
+    assert (3, 4) in plant_targets_zero
+    assert (4, 3) in plant_targets_zero
+
+
+def test_generate_jobs_skips_crop_occupied_candidate_fallback() -> None:
+    """When preferred candidate tile has a growing crop, structure job falls back to next empty candidate."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    # Preferred candidate (3, 4) has a growing crop
+    tiles[4][3] = {
+        "kind": "PLANT",
+        "crop": "WHEAT",
+        "planted_day": 0,
+        "watered_today": True,
+        "consecutive_unwatered": 0,
+        "yield_units": 0,
+        "max_lifespan_step": 100,
+        "fertilized_until_day": 0,
+    }
+
+    obs = make_obs(
+        unlocked_quadrants=["NW"],
+        shed={"GOOSE": 1},
+        tiles=tiles,
+        money=1000,
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board, target_animal="NONE", max_animals=2)
+    coop_jobs = [j for j in jobs if j.action == BUILD_COOP]
+    assert len(coop_jobs) == 1
+    # Skipped occupied (3, 4), targeted next empty candidate (4, 3)
+    assert coop_jobs[0].target == (4, 3)
+    assert coop_jobs[0].item == "GOOSE"
+
+
+def test_generate_jobs_multiple_crop_occupied_fallback_across_candidates() -> None:
+    """When multiple candidates have crops, structure job finds subsequent empty candidate."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    # Both slot 0 (3, 4) and slot 1 (4, 3) are occupied by crops
+    for cx, cy in ((3, 4), (4, 3)):
+        tiles[cy][cx] = {
+            "kind": "PLANT",
+            "crop": "CARROT",
+            "planted_day": 1,
+            "watered_today": True,
+            "consecutive_unwatered": 0,
+            "yield_units": 0,
+            "max_lifespan_step": 100,
+            "fertilized_until_day": 0,
+        }
+
+    obs = make_obs(
+        unlocked_quadrants=["NW"],
+        shed={"COW": 1},
+        tiles=tiles,
+        money=1000,
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board, target_animal="NONE")
+    pasture_jobs = [j for j in jobs if j.action == BUILD_PASTURE]
+    assert len(pasture_jobs) == 1
+    # Skipped (3, 4) and (4, 3), fell back to slot 2 (3, 3)
+    assert pasture_jobs[0].target == (3, 3)
+    assert pasture_jobs[0].item == "COW"
+
