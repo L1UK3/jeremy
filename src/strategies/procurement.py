@@ -60,6 +60,7 @@ ANIMAL_COSTS: dict[str, int] = {
 LAND_COSTS: dict[str, int] = {
     "NE": 1000,
     "SW": 2000,
+    "SE": 4000,
 }
 
 FIBONACCI: tuple[int, ...] = (1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144)
@@ -156,6 +157,14 @@ def procure_land(
         ):
             return avail_budget
         next_quad = "SW"
+    elif "SE" not in unlocked:
+        if state.day < 16 or state.money < 6000:
+            return avail_budget
+        if _LAST_LAND_PURCHASE_DAY != -1 and (
+            state.day < _LAST_LAND_PURCHASE_DAY + min_spacing
+        ):
+            return avail_budget
+        next_quad = "SE"
     else:
         return avail_budget
 
@@ -400,7 +409,6 @@ def procure_seeds(
     if (
         8 <= state.day <= 22
         and within_maturation_horizon("STRAWBERRY", state.day)
-        and (len(state.unlocked_quadrants_set) >= 2 or target_crop != "MELON")
     ):
         desired_crop = "STRAWBERRY"
     else:
@@ -421,16 +429,23 @@ def procure_seeds(
         if crop is None:
             return avail_budget
 
+    seed_budget = avail_budget
+    if 11 <= state.day <= 13 and (state.day < 13 or state.hour <= 12):
+        seed_budget = max(0, seed_budget - 10000)
+
     crop_cost = SEED_COSTS[crop]
-    target_buy = min(needed, int(avail_budget // crop_cost))
+    target_buy = min(needed, int(seed_budget // crop_cost))
     if target_buy > 0 and len(market) < 10:
         market.append(["BUY_SEED", crop, target_buy])
         avail_budget -= target_buy * crop_cost
+        seed_budget -= target_buy * crop_cost
         needed -= target_buy
 
+    is_strawberry_reserved = 8 <= state.day <= 22 and crop == "STRAWBERRY"
     if (
         needed > 0
         and crop != fallback_crop
+        and not is_strawberry_reserved
         and len(market) < 10
         and within_maturation_horizon(fallback_crop, state.day)
     ):
@@ -518,15 +533,18 @@ def procure_livestock(
         if state.day == 0 and unplaced >= 2:
             break
 
-        target_per_kind = max(1, capacity // 2)
         if target_animal == "GOOSE":
             chosen = "GOOSE"
-        elif target_animal == "COW" and cows < target_per_kind:
+        elif cows < 5 and (cows <= sheep + 1 or sheep >= 3):
             chosen = "COW"
-        elif target_animal == "SHEEP" and sheep < target_per_kind:
+        elif sheep < 3:
+            chosen = "SHEEP"
+        elif cows < 8:
+            chosen = "COW"
+        elif sheep < 5:
             chosen = "SHEEP"
         else:
-            chosen = "COW" if cows < sheep else "SHEEP"
+            chosen = "COW" if cows < sheep * 2 else "SHEEP"
 
         cost = ANIMAL_COSTS.get(chosen, 500)
         if avail_budget >= cost:
@@ -553,7 +571,7 @@ def procure_feed(
         return avail_budget
 
     desired_reserve = max(
-        n_animals * 2, 2 if target_animal in ANIMAL_COSTS else 0
+        n_animals * 3, 15 if n_animals > 0 or target_animal in ANIMAL_COSTS else 0
     )
     if desired_reserve == 0:
         return avail_budget

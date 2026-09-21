@@ -122,10 +122,32 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         market: list[list[Any]] = []
         target_crew = int(plan.get("crew", 0))
         num_quads = len(state.unlocked_quadrants_set)
-        capacity = num_quads * params.plot_allocation.animals_per_quadrant
-        target_animal = str(plan.get("livestock") or "NONE").upper()
-        if (target_animal == "NONE" or day == 0) and len(board.animals()) < capacity:
+        # Dynamically scale animals_per_quadrant post-melon harvest when funds allow
+        if state.money >= 5000 or day >= 10:
+            animals_per_quad = 4
+        else:
+            animals_per_quad = params.plot_allocation.animals_per_quadrant
+        capacity = num_quads * animals_per_quad
+
+        # Count active/placed/stored animals to guide target_animal
+        cows_count = sum(
+            1 for t in board.animals() if getattr(t, "animal", None) == "COW"
+        ) + state.inventory("COW")
+        sheep_count = sum(
+            1 for t in board.animals() if getattr(t, "animal", None) == "SHEEP"
+        ) + state.inventory("SHEEP")
+
+        if cows_count < 5 and (cows_count <= sheep_count + 1 or sheep_count >= 3):
+            target_animal = "COW"
+        elif sheep_count < 3:
             target_animal = "SHEEP"
+        elif cows_count < 8:
+            target_animal = "COW"
+        elif sheep_count < 5:
+            target_animal = "SHEEP"
+        else:
+            target_animal = "COW" if cows_count < sheep_count * 2 else "SHEEP"
+
         target_crop = str(plan.get("crop") or "WHEAT")
         if 7 <= day <= 22 and within_maturation_horizon("STRAWBERRY", day):
             target_crop = "STRAWBERRY"

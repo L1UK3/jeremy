@@ -29,8 +29,8 @@
         "prio_dig_weed": 110.0,
         "prio_plant_base": 75.0,
         "prio_plant_cascade": 65.0,
-        "prio_fertilize": 70.0,
-        "prio_collect_fertilizer": 60.0,
+        "prio_fertilize": 175.0,
+        "prio_collect_fertilizer": 190.0,
         "dist_penalty": 2.0,
         "harvest_crop_yield_threshold": 4,
         "crop_weight_threshold": 0.15,
@@ -78,6 +78,6 @@
         "clone_distance_medium": 4
     },
     "plot_allocation": {
-        "animals_per_quadrant": 2
+        "animals_per_quadrant": 4
     }
 }

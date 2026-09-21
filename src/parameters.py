@@ -58,8 +58,8 @@ class DispatcherParams:
     prio_dig_weed: float = 110.0
     prio_plant_base: float = 75.0
     prio_plant_cascade: float = 65.0
-    prio_fertilize: float = 70.0
-    prio_collect_fertilizer: float = 60.0
+    prio_fertilize: float = 175.0
+    prio_collect_fertilizer: float = 190.0
     dist_penalty: float = 2.0
     harvest_crop_yield_threshold: int = 4
     crop_weight_threshold: float = 0.15
@@ -135,7 +135,7 @@ class CloneDetectorParams:
 class PlotAllocationParams:
     """Hyperparameters governing plot allocation for sheep, cows and geese."""
 
-    animals_per_quadrant: int = 2
+    animals_per_quadrant: int = 4
 
 
 # =============================================================================

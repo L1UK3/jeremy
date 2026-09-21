@@ -56,7 +56,7 @@ def apply_predation(
             n_animals
             + sum(state.inventory(a) for a in ("GOOSE", "COW", "SHEEP"))
         )
-        feed_buffer = max(6, total_animals * pp.surplus_wheat_mult) if (total_animals > 0 or state.day < 10) else 0
+        feed_buffer = max(18, total_animals * 3) if (total_animals > 0 or state.day < 10) else 0
         surplus_wheat = state.inventory("WHEAT") - feed_buffer
         if surplus_wheat > 0 and len(market) < 10:
             market.append(["SELL", "WHEAT", min(100, surplus_wheat)])

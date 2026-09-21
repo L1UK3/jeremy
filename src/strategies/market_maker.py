@@ -340,9 +340,9 @@ def plan_sells(
     inventory = (state.raw.get("market") or {}).get("inventory") or {}
     shops = (state.raw.get("town") or {}).get("unlocked_shops") or []
     load = sum(max(0, int(v or 0)) for v in shed.values())
-    forced = load >= mp.shed_pressure or short_of_cash > 0
+    forced = load >= min(mp.shed_pressure, 50) or short_of_cash > 0
 
-    candidates: list[tuple[int, str, int]] = []
+    candidates: list[tuple[float, str, int]] = []
     items_to_sell = dict(reserve)
     if "FERTILIZER" not in items_to_sell and state.inventory("FERTILIZER") > 0:
         items_to_sell["FERTILIZER"] = 1.0
@@ -357,8 +357,9 @@ def plan_sells(
         if held <= 0:
             continue
         inv = int(inventory.get(item, I0) or I0)
-        if forced:
-            units = min(held, 10) if step < 700 else held
+        is_melon_liquidation = item == "MELON" and (10 <= state.day <= 14)
+        if is_melon_liquidation or forced or item in ("MILK", "WOOL", "EGG", "STRAWBERRY", "MELON"):
+            units = held
         else:
             res_val = reserve_price(
                 item, step, state, board, shops, scale=scale, params=mp
@@ -367,7 +368,14 @@ def plan_sells(
             while units < held and mprice(item, inv + units) >= res_val:
                 units += 1
         if units > 0:
-            candidates.append((mprice(item, inv) * units, item, units))
+            prio = float(mprice(item, inv) * units)
+            if is_melon_liquidation:
+                prio += 1e9
+            elif forced:
+                prio += 1e8
+            elif item in ("MILK", "WOOL", "STRAWBERRY"):
+                prio += 1e6
+            candidates.append((prio, item, units))
     candidates.sort(reverse=True)
     return [["SELL", item, units] for _, item, units in candidates[:slots]]
 

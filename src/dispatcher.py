@@ -8,6 +8,7 @@ from environment.board import (
     manhattan_distance,
     step_toward,
 )
+from model.constants import QUAD_BOUNDS
 from parameters import DispatcherParams, get_active_parameters
 
 if TYPE_CHECKING:
@@ -276,6 +277,21 @@ def job_to_action(
             sx, sy = board.nearest_shed(x, y) if board else (4, 4)
             return [step_toward(x, y, sx, sy)]
 
+    if act == "FERTILIZE":
+        inv = state.worker_inventory(actual_uidx) if state is not None else {}
+        if inv.get("FERTILIZER", 0) > 0:
+            if (x, y) == (tx, ty):
+                return ["FERTILIZE"]
+            return [step_toward(x, y, tx, ty)]
+        else:
+            if (x, y) in SHED_ACCESS_TILES:
+                if sum(inv.values()) >= 3 and inv.get("FERTILIZER", 0) == 0:
+                    return ["DROP"]
+                if state and state.inventory("FERTILIZER") > 0:
+                    return ["PICKUP", "FERTILIZER", 1]
+            sx, sy = board.nearest_shed(x, y) if board else (4, 4)
+            return [step_toward(x, y, sx, sy)]
+
     if (x, y) == (tx, ty):
         if act == "PLANT" and job.item:
             if state is not None:
@@ -360,6 +376,8 @@ def generate_jobs(
         if spec.ongoing:
             is_ripe = True
         elif emergency_harvest or state.day >= 28:
+            is_ripe = True
+        elif tile.crop == "MELON" and crop_age >= 10:
             is_ripe = True
         else:
             is_ripe = crop_age >= spec.max_yield_day
@@ -476,13 +494,26 @@ def generate_jobs(
                 )
                 for quadrant in QUADRANT_ORDER
             }
+            plot_params = get_active_parameters().plot_allocation
+            quad_limit = (
+                max(
+                    plot_params.animals_per_quadrant,
+                    (
+                        effective_max_animals
+                        + len(state.unlocked_quadrants_set)
+                        - 1
+                    )
+                    // max(1, len(state.unlocked_quadrants_set)),
+                )
+                if effective_max_animals > 0
+                else plot_params.animals_per_quadrant
+            )
             candidate_quadrants = sorted(
                 (
                     quadrant
                     for quadrant in QUADRANT_ORDER
                     if quadrant in state.unlocked_quadrants_set
-                    and structure_counts[quadrant]
-                    < plot_params.animals_per_quadrant
+                    and structure_counts[quadrant] < quad_limit
                     and any(
                         state.tiles[y][x] is None
                         and (x, y) not in planned_structure_targets
@@ -505,6 +536,22 @@ def generate_jobs(
                         break
                 if target_tile is not None:
                     break
+
+            if target_tile is None:
+                for quadrant in candidate_quadrants:
+                    (ymin, ymax, xmin, xmax) = QUAD_BOUNDS[quadrant]
+                    for ry in range(ymin, ymax):
+                        for rx in range(xmin, xmax):
+                            if (
+                                state.tiles[ry][rx] is None
+                                and (rx, ry) not in planned_structure_targets
+                            ):
+                                target_tile = (rx, ry)
+                                break
+                        if target_tile is not None:
+                            break
+                    if target_tile is not None:
+                        break
 
             if target_tile is not None:
                 prio = getattr(dp, "prio_build_structure", 220.0)
@@ -631,13 +678,13 @@ def generate_jobs(
         if not tile.cared_today:
             jobs.append(Job(dp.prio_care, "CARE", tile.pos, item=tile.animal))
 
-    fertilizer_stock = sum(
+    avail_fert = sum(
         state.worker_inventory(u).get("FERTILIZER", 0) for u in range(num_units)
-    )
-    if fertilizer_stock > 0 and state.day >= 13:
+    ) + state.inventory("FERTILIZER")
+    if avail_fert > 0 and state.day >= 10:
         fert_count = 0
         for tile in board.plants():
-            if fert_count >= fertilizer_stock:
+            if fert_count >= avail_fert:
                 break
             if tile.pos in harvest_positions:
                 continue
@@ -646,7 +693,7 @@ def generate_jobs(
                 if hasattr(tile, "is_fertilized")
                 else getattr(tile, "fertilized", False)
             )
-            if not is_fert and tile.crop == "STRAWBERRY":
+            if not is_fert and tile.crop in ("STRAWBERRY", "MELON"):
                 jobs.append(
                     Job(
                         dp.prio_fertilize,
@@ -731,7 +778,12 @@ def generate_jobs(
                             break
 
             if chosen_crop is not None:
-                jobs.append(_plant_job(prio, tile.pos, chosen_crop))
+                prio_to_use = prio
+                if chosen_crop == "STRAWBERRY" and (
+                    tile.x >= 5 or tile.y >= 5
+                ):
+                    prio_to_use = max(prio_to_use, 260.0)
+                jobs.append(_plant_job(prio_to_use, tile.pos, chosen_crop))
                 available_seeds[chosen_crop] -= 1
             else:
                 break
@@ -833,6 +885,8 @@ def assign_jobs(
                     if inv.get("WHEAT", 0) > 0:
                         score += 150.0
                 elif job.action == "PLANT":
+                    if job.item == "STRAWBERRY":
+                        score += 80.0
                     if state.hour < 14:
                         score += 110.0
                     elif state.hour < 18:
@@ -870,6 +924,8 @@ def assign_jobs(
                 if inv.get("WHEAT", 0) > 0:
                     score += 150.0
             elif job.action == "PLANT":
+                if job.item == "STRAWBERRY":
+                    score += 80.0
                 if state.hour < 14:
                     score += 110.0
                 elif state.hour < 18:
