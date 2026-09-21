@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 import src.main as main
 from src.main import agent, make_agent
 
@@ -172,6 +174,18 @@ def test_exception_fallback_returns_safe_pass() -> None:
     assert act["farmer"] == ["PASS"]
     assert act["hands"] == [["PASS"]]
     assert act["market"] == []
+
+
+def test_exception_in_debug_mode_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When JEREMY_DEBUG is enabled, unhandled exceptions raise rather than returning PASS."""
+    monkeypatch.setenv("JEREMY_DEBUG", "1")
+    obs = make_obs(step=5, day=0, hour=5, hands=[[1, 1]])
+
+    with patch(
+        "src.main.schedule_tasks", side_effect=RuntimeError("Simulated error")
+    ):
+        with pytest.raises(RuntimeError, match="Simulated error"):
+            agent(obs)
 
 
 def test_terminal_explosion_step_activates() -> None:
