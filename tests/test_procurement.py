@@ -12,7 +12,6 @@ from src.environment.state import GameState
 from src.strategies.procurement import (
     ANIMAL_COSTS,
     DEFAULT_ACTIONS_PER_HAND,
-    DEFAULT_ANIMAL_RESERVED_TILES,
     DEFAULT_EXPANSION_DAY_NE,
     DEFAULT_EXPANSION_DAY_SW,
     DEFAULT_LABOR_FLOOR,
@@ -124,7 +123,6 @@ def test_procurement_default_constants() -> None:
 
     assert DEFAULT_ACTIONS_PER_HAND == 8.0
     assert DEFAULT_MAX_DAILY_HIRES == 10
-    assert DEFAULT_ANIMAL_RESERVED_TILES == frozenset({(3, 4), (4, 3)})
     assert LAND_COSTS == {"NE": 1000, "SW": 2000}
     assert SEED_COSTS["WHEAT"] == 10
     assert ANIMAL_COSTS["COW"] == 400
@@ -618,15 +616,15 @@ def test_procure_seeds_capacity_limit_during_land_expansion() -> None:
     )
     state = GameState.from_obs(obs)
     board = Board(state)
-    # Total empty unlocked tiles across NW (25) & NE (25) minus 2 reserved tiles: 50 - 2 = 48.
+    # Total empty unlocked tiles across NW (25) & NE (25) minus 4 animal plots: 50 - 4 = 46.
     # 10 seeds held, 6 already queued in market -> needed = 48 - 16 = 32.
     market: list[list[Any]] = [["BUY_SEED", "WHEAT", 6]]
 
     procure_seeds(market, state, board, target_crop="WHEAT")
 
     total_bought = sum(o[2] for o in market if o[0] == "BUY_SEED")
-    assert total_bought + 10 <= 48
-    assert market == [["BUY_SEED", "WHEAT", 6], ["BUY_SEED", "WHEAT", 32]]
+    assert total_bought + 10 <= 46
+    assert market == [["BUY_SEED", "WHEAT", 6], ["BUY_SEED", "WHEAT", 30]]
 
 
 # =========================================================================

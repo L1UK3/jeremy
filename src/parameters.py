@@ -136,16 +136,6 @@ class PlotAllocationParams:
     """Hyperparameters governing plot allocation for sheep, cows and geese."""
 
     animals_per_quadrant: int = 2
-    animal_reserved_tiles: frozenset[tuple[int, int]] = frozenset(
-        {(3, 4), (4, 3)}
-    )
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "animal_reserved_tiles",
-            frozenset(tuple(position) for position in self.animal_reserved_tiles),
-        )
 
 
 # =============================================================================
@@ -231,12 +221,6 @@ class Parameters:
     def to_dict(self, flat: bool = True) -> dict[str, Any]:
         """Convert parameters to dictionary (flat or nested)."""
         nested = {g: asdict(getattr(self, g)) for g in self.GROUPS}
-        nested["plot_allocation"]["animal_reserved_tiles"] = [
-            list(position)
-            for position in sorted(
-                nested["plot_allocation"]["animal_reserved_tiles"]
-            )
-        ]
         if not flat:
             return nested
         return {k: v for g_dict in nested.values() for k, v in g_dict.items()}

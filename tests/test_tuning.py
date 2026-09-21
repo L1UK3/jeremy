@@ -84,7 +84,7 @@ def test_sample_parameters_samples_all_registered_parameters() -> None:
 
     assert params.procurement.land_cost_mult == 3.2
     assert params.dispatcher.dist_penalty == 1.5
-    assert len(trial.recorded_calls) == 57
+    assert len(trial.recorded_calls) == 56
 
 
 def test_sample_parameters_with_selective_groups() -> None:

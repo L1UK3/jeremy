@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 __all__ = [
     "ANIMAL_COSTS",
     "DEFAULT_ACTIONS_PER_HAND",
-    "DEFAULT_ANIMAL_RESERVED_TILES",
     "DEFAULT_EXPANSION_DAY_NE",
     "DEFAULT_EXPANSION_DAY_SW",
     "DEFAULT_LABOR_FLOOR",
@@ -76,9 +75,6 @@ DEFAULT_ACTIONS_PER_HAND: float = (
     DEFAULT_PARAMETERS.procurement.actions_per_hand
 )
 DEFAULT_MAX_DAILY_HIRES: int = DEFAULT_PARAMETERS.procurement.max_daily_hires
-DEFAULT_ANIMAL_RESERVED_TILES: frozenset[tuple[int, int]] = (
-    DEFAULT_PARAMETERS.plot_allocation.animal_reserved_tiles
-)
 
 
 def compute_quadrant_labor_floor(num_quads: int) -> int:
@@ -187,7 +183,11 @@ def estimate_daily_action_demand(
     reserved_set = (
         set(reserved_tiles)
         if reserved_tiles is not None
-        else DEFAULT_ANIMAL_RESERVED_TILES
+        else set(
+            get_animal_reserved_tiles(
+                unlocked_quadrants=state.unlocked_quadrants_set
+            )
+        )
     )
 
     # 1. Watering: all plants currently in the ground that are unwatered today
@@ -326,7 +326,7 @@ def procure_seeds(
     board: Board,
     target_crop: str,
     budget: int | None = None,
-    reserved_tiles: Collection[tuple[int, int]] = DEFAULT_ANIMAL_RESERVED_TILES,
+    reserved_tiles: Collection[tuple[int, int]] | None = None,
     fallback_crop: str = "WHEAT",
     wheat_anchor: int = 0,
 ) -> int:
@@ -335,7 +335,15 @@ def procure_seeds(
     if len(market) >= 10 or state.day >= 28:
         return avail_budget
 
-    reserved_set = set(reserved_tiles)
+    reserved_set = (
+        set(reserved_tiles)
+        if reserved_tiles is not None
+        else set(
+            get_animal_reserved_tiles(
+                unlocked_quadrants=state.unlocked_quadrants_set
+            )
+        )
+    )
     empty_unlocked = [
         t
         for t in board.empty_tiles(only_unlocked=True)
@@ -453,7 +461,11 @@ def procure_livestock(
         return avail_budget
 
     capacity = (
-        len(DEFAULT_ANIMAL_RESERVED_TILES)
+        len(
+            get_animal_reserved_tiles(
+                unlocked_quadrants=state.unlocked_quadrants_set
+            )
+        )
         if max_animals is None
         else max_animals
     )

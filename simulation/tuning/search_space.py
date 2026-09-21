@@ -233,17 +233,7 @@ def sample_parameters(
         plot_allocation=(
             PlotAllocationParams(
                 animals_per_quadrant=trial.suggest_int(
-                    "animals_per_quadrant", 1, 4
-                ),
-                animal_reserved_tiles=frozenset(
-                    trial.suggest_categorical(
-                        "animal_reserved_tiles",
-                        [
-                            frozenset({(3, 4), (4, 3)}),
-                            frozenset({(2, 5), (5, 2)}),
-                            frozenset({(1, 6), (6, 1)}),
-                        ],
-                    )
+                    "animals_per_quadrant", 1, 9
                 ),
             )
             if in_group("plot_allocation")
