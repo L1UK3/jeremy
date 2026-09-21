@@ -51,10 +51,12 @@ QUADRANT_ORDER: tuple[str, ...] = ("NW", "NE", "SW", "SE")
 
 
 _NW_ANIMAL_TILES: tuple[tuple[int, int], ...] = (
+    (4, 4),
     (3, 4),
+    (2, 4),
     (4, 3),
     (3, 3),
-    (2, 4),
+    (4, 2),
 )
 ALL_CANDIDATE_ANIMAL_TILES: tuple[tuple[int, int], ...] = _NW_ANIMAL_TILES
 
@@ -72,7 +74,9 @@ def _get_all_animal_plot_candidates(
     candidates: list[tuple[int, int]] = []
     for slot in range(max(0, per_quadrant)):
         for quadrant in QUADRANT_ORDER:
-            candidates.append(_quadrant_animal_tiles(quadrant)[slot])
+            tiles = _quadrant_animal_tiles(quadrant)
+            if slot < len(tiles):
+                candidates.append(tiles[slot])
     return tuple(candidates)
 
 
@@ -113,7 +117,9 @@ def get_animal_plot_candidates(
     for slot in range(max(0, per_quadrant)):
         for quadrant in QUADRANT_ORDER:
             if quadrant in quadrants:
-                candidates.append(_quadrant_animal_tiles(quadrant)[slot])
+                tiles = _quadrant_animal_tiles(quadrant)
+                if slot < len(tiles):
+                    candidates.append(tiles[slot])
     if max_animals is not None:
         candidates = candidates[: max(0, max_animals)]
     return tuple(candidates)

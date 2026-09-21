@@ -104,13 +104,13 @@ def make_obs(
 
 
 def test_reserved_animal_tiles_constants() -> None:
-    """Shed-adjacent tiles (3, 4) and (4, 3) must be reserved for animals."""
-    assert RESERVED_ANIMAL_TILES == frozenset({(3, 4), (4, 3)})
+    """Shed-adjacent tiles (4, 4) and (3, 4) must be reserved for animals."""
+    assert RESERVED_ANIMAL_TILES == frozenset({(4, 4), (3, 4)})
     assert DROP_SHED == 260.0
 
 
 def test_reserved_animal_tiles_excluded_from_planting() -> None:
-    """Planting chores must never target the reserved animal tiles (3, 4) or (4, 3)."""
+    """Planting chores must never target the reserved animal tiles (4, 4) or (3, 4)."""
     obs = make_obs(seeds={"WHEAT": 100})
     state = GameState.from_obs(obs)
     board = Board(state)
@@ -118,8 +118,8 @@ def test_reserved_animal_tiles_excluded_from_planting() -> None:
     jobs = generate_jobs(state, board, target_crop="WHEAT")
     plant_targets = {j.target for j in jobs if j.action == "PLANT"}
 
+    assert (4, 4) not in plant_targets
     assert (3, 4) not in plant_targets
-    assert (4, 3) not in plant_targets
     # Other NW tiles (e.g. (0, 0)) should be present
     assert (0, 0) in plant_targets
 
@@ -446,12 +446,12 @@ def test_late_hour_drop_only_for_produce() -> None:
 
 def test_animal_reserved_tiles_scale_with_max_animals() -> None:
     """Reserved animal tiles scale dynamically with max_animals."""
-    assert ALL_CANDIDATE_ANIMAL_TILES[:2] == ((3, 4), (4, 3))
-    assert get_animal_reserved_tiles(1) == frozenset({(3, 4)})
-    assert get_animal_reserved_tiles(2) == frozenset({(3, 4), (4, 3)})
-    assert get_animal_reserved_tiles(3) == frozenset({(3, 4), (4, 3), (3, 3)})
+    assert ALL_CANDIDATE_ANIMAL_TILES[:2] == ((4, 4), (3, 4))
+    assert get_animal_reserved_tiles(1) == frozenset({(4, 4)})
+    assert get_animal_reserved_tiles(2) == frozenset({(4, 4), (3, 4)})
+    assert get_animal_reserved_tiles(3) == frozenset({(4, 4), (3, 4), (4, 3)})
     assert get_animal_reserved_tiles(4) == frozenset(
-        {(3, 4), (4, 3), (3, 3), (2, 4)}
+        {(4, 4), (3, 4), (4, 3), (3, 3)}
     )
     assert get_animal_reserved_tiles(0) == frozenset()
 
@@ -461,12 +461,12 @@ def test_animal_plot_candidates_interleave_unlocked_quadrants() -> None:
     assert get_animal_plot_candidates(
         frozenset({"NW", "NE", "SW"}), max_animals=6
     ) == (
+        (4, 4),
+        (5, 4),
+        (4, 5),
         (3, 4),
         (6, 4),
         (3, 5),
-        (4, 3),
-        (5, 3),
-        (4, 6),
     )
 
 
@@ -493,9 +493,9 @@ def test_generate_jobs_balances_multiple_animal_structures() -> None:
     ]
 
     assert [job.target for job in structure_jobs] == [
-        (3, 4),
-        (6, 4),
-        (3, 5),
+        (4, 4),
+        (5, 4),
+        (4, 5),
     ]
 
 
@@ -509,7 +509,7 @@ def test_generate_jobs_build_coop_for_goose() -> None:
     jobs = generate_jobs(state, board, target_animal="GOOSE")
     coop_jobs = [j for j in jobs if j.action == BUILD_COOP]
     assert len(coop_jobs) == 1
-    assert coop_jobs[0].target == (3, 4)
+    assert coop_jobs[0].target == (4, 4)
     assert coop_jobs[0].item == "GOOSE"
     assert coop_jobs[0].priority == 220.0
 
@@ -521,7 +521,7 @@ def test_generate_jobs_build_coop_for_goose() -> None:
     jobs_shed = generate_jobs(state_shed, board_shed, target_animal="NONE")
     coop_jobs_shed = [j for j in jobs_shed if j.action == BUILD_COOP]
     assert len(coop_jobs_shed) == 1
-    assert coop_jobs_shed[0].target == (3, 4)
+    assert coop_jobs_shed[0].target == (4, 4)
 
 
 def test_generate_jobs_build_pasture_for_cow_and_sheep() -> None:
@@ -534,7 +534,7 @@ def test_generate_jobs_build_pasture_for_cow_and_sheep() -> None:
     jobs_cow = generate_jobs(state_cow, board_cow, target_animal="COW")
     pasture_jobs_cow = [j for j in jobs_cow if j.action == BUILD_PASTURE]
     assert len(pasture_jobs_cow) == 1
-    assert pasture_jobs_cow[0].target == (3, 4)
+    assert pasture_jobs_cow[0].target == (4, 4)
     assert pasture_jobs_cow[0].item == "COW"
 
     # SHEEP
@@ -545,7 +545,7 @@ def test_generate_jobs_build_pasture_for_cow_and_sheep() -> None:
     jobs_sheep = generate_jobs(state_sheep, board_sheep, target_animal="SHEEP")
     pasture_jobs_sheep = [j for j in jobs_sheep if j.action == BUILD_PASTURE]
     assert len(pasture_jobs_sheep) == 1
-    assert pasture_jobs_sheep[0].target == (3, 4)
+    assert pasture_jobs_sheep[0].target == (4, 4)
     assert pasture_jobs_sheep[0].item == "SHEEP"
 
 
@@ -719,10 +719,10 @@ def test_assign_jobs_place_restricted_to_worker_holding_animal() -> None:
 
 def test_quadrant_animal_tiles_center_reflection() -> None:
     """_quadrant_animal_tiles reflects across (4.5, 4.5) axis for all quadrants."""
-    assert _quadrant_animal_tiles("NW") == ((3, 4), (4, 3), (3, 3), (2, 4))
-    assert _quadrant_animal_tiles("NE") == ((6, 4), (5, 3), (6, 3), (7, 4))
-    assert _quadrant_animal_tiles("SW") == ((3, 5), (4, 6), (3, 6), (2, 5))
-    assert _quadrant_animal_tiles("SE") == ((6, 5), (5, 6), (6, 6), (7, 5))
+    assert _quadrant_animal_tiles("NW") == ((4, 4), (3, 4), (4, 3), (3, 3))
+    assert _quadrant_animal_tiles("NE") == ((5, 4), (6, 4), (5, 3), (6, 3))
+    assert _quadrant_animal_tiles("SW") == ((4, 5), (3, 5), (4, 6), (3, 6))
+    assert _quadrant_animal_tiles("SE") == ((5, 5), (6, 5), (5, 6), (6, 6))
 
 
 def test_animal_plot_candidates_all_four_quadrants_round_robin() -> None:
@@ -732,15 +732,15 @@ def test_animal_plot_candidates_all_four_quadrants_round_robin() -> None:
     )
     assert candidates == (
         # Slot 0 round robin
+        (4, 4),
+        (5, 4),
+        (4, 5),
+        (5, 5),
+        # Slot 1 round robin
         (3, 4),
         (6, 4),
         (3, 5),
         (6, 5),
-        # Slot 1 round robin
-        (4, 3),
-        (5, 3),
-        (4, 6),
-        (5, 6),
     )
 
 
@@ -759,20 +759,20 @@ def test_animal_reserved_tiles_target_animals_capped() -> None:
     res_1 = get_animal_reserved_tiles(
         unlocked_quadrants=frozenset({"NW", "NE"}), target_animals=1
     )
-    assert res_1 == frozenset({(3, 4)})
+    assert res_1 == frozenset({(4, 4)})
 
     # 2 target animals across 2 quadrants reserves slot 0 of NW and NE
     res_2 = get_animal_reserved_tiles(
         unlocked_quadrants=frozenset({"NW", "NE"}), target_animals=2
     )
-    assert res_2 == frozenset({(3, 4), (6, 4)})
+    assert res_2 == frozenset({(4, 4), (5, 4)})
 
-    # Target exceeding quadrant quota (2 per quadrant) is capped at plot_quota
+    # Target exceeding quadrant quota (4 per quadrant) is capped at plot_quota
     res_capped = get_animal_reserved_tiles(
         unlocked_quadrants=frozenset({"NW"}), target_animals=5
     )
-    assert res_capped == frozenset({(3, 4), (4, 3)})
-    assert len(res_capped) == 2
+    assert res_capped == frozenset({(4, 4), (3, 4), (4, 3), (3, 3)})
+    assert len(res_capped) == 4
 
 
 def test_empty_candidate_tiles_available_for_planting_when_target_low() -> None:
@@ -785,7 +785,7 @@ def test_empty_candidate_tiles_available_for_planting_when_target_low() -> None:
     state = GameState.from_obs(obs)
     board = Board(state)
 
-    # With target_animals=1, (3, 4) is reserved, but (4, 3) must NOT be reserved
+    # With target_animals=1, (4, 4) is reserved, but (3, 4) must NOT be reserved
     jobs = generate_jobs(
         state,
         board,
@@ -794,10 +794,10 @@ def test_empty_candidate_tiles_available_for_planting_when_target_low() -> None:
         target_animals=1,
     )
     plant_targets = {j.target for j in jobs if j.action == "PLANT"}
-    assert (3, 4) not in plant_targets
-    assert (4, 3) in plant_targets
+    assert (4, 4) not in plant_targets
+    assert (3, 4) in plant_targets
 
-    # With target_animals=0, neither (3, 4) nor (4, 3) is reserved; both get planted
+    # With target_animals=0, neither (4, 4) nor (3, 4) is reserved; both get planted
     jobs_zero = generate_jobs(
         state,
         board,
@@ -806,15 +806,15 @@ def test_empty_candidate_tiles_available_for_planting_when_target_low() -> None:
         target_animals=0,
     )
     plant_targets_zero = {j.target for j in jobs_zero if j.action == "PLANT"}
+    assert (4, 4) in plant_targets_zero
     assert (3, 4) in plant_targets_zero
-    assert (4, 3) in plant_targets_zero
 
 
 def test_generate_jobs_skips_crop_occupied_candidate_fallback() -> None:
     """When preferred candidate tile has a growing crop, structure job falls back to next empty candidate."""
     tiles = [[None for _ in range(10)] for _ in range(10)]
-    # Preferred candidate (3, 4) has a growing crop
-    tiles[4][3] = {
+    # Preferred candidate (4, 4) has a growing crop
+    tiles[4][4] = {
         "kind": "PLANT",
         "crop": "WHEAT",
         "planted_day": 0,
@@ -837,16 +837,16 @@ def test_generate_jobs_skips_crop_occupied_candidate_fallback() -> None:
     jobs = generate_jobs(state, board, target_animal="NONE", max_animals=2)
     coop_jobs = [j for j in jobs if j.action == BUILD_COOP]
     assert len(coop_jobs) == 1
-    # Skipped occupied (3, 4), targeted next empty candidate (4, 3)
-    assert coop_jobs[0].target == (4, 3)
+    # Skipped occupied (4, 4), targeted next empty candidate (3, 4)
+    assert coop_jobs[0].target == (3, 4)
     assert coop_jobs[0].item == "GOOSE"
 
 
 def test_generate_jobs_multiple_crop_occupied_fallback_across_candidates() -> None:
     """When multiple candidates have crops, structure job finds subsequent empty candidate."""
     tiles = [[None for _ in range(10)] for _ in range(10)]
-    # Both slot 0 (3, 4) and slot 1 (4, 3) are occupied by crops
-    for cx, cy in ((3, 4), (4, 3)):
+    # Both slot 0 (4, 4) and slot 1 (3, 4) are occupied by crops
+    for cx, cy in ((4, 4), (3, 4)):
         tiles[cy][cx] = {
             "kind": "PLANT",
             "crop": "CARROT",
@@ -870,8 +870,8 @@ def test_generate_jobs_multiple_crop_occupied_fallback_across_candidates() -> No
     jobs = generate_jobs(state, board, target_animal="NONE")
     pasture_jobs = [j for j in jobs if j.action == BUILD_PASTURE]
     assert len(pasture_jobs) == 1
-    # Skipped (3, 4) and (4, 3), fell back to slot 2 (3, 3)
-    assert pasture_jobs[0].target == (3, 3)
+    # Skipped (4, 4) and (3, 4), fell back to slot 2 (4, 3)
+    assert pasture_jobs[0].target == (4, 3)
     assert pasture_jobs[0].item == "COW"
 
 

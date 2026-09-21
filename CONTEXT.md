@@ -61,7 +61,7 @@ The maximum number of animal structures assigned to each unlocked quadrant. Anim
 _Avoid_: Species quota, livestock zone
 
 **Animal Plot Reservation**:
-The designated candidate tiles surrounding the Center Drop reserved across unlocked quadrants to house animal structures, capped by the active livestock target.
+The designated candidate tiles starting at the Center Drop and surrounding tiles reserved across unlocked quadrants to house animal structures, capped by the active livestock target.
 _Avoid_: Animal zone, pasture grid, livestock lock
 
 **Labor Floor**:

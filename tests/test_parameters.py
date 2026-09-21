@@ -327,22 +327,22 @@ def test_reserved_animal_tiles_hyperparameter_override() -> None:
     state = GameState.from_obs(obs)
     board = Board(state)
 
-    # Override with 3 reserved tiles: (3, 4), (4, 3), (3, 3)
+    # Override with 3 reserved tiles: (4, 4), (3, 4), (4, 3)
     custom_dp = DispatcherParams(reserved_animal_tiles=3)
     jobs = generate_jobs(state, board, target_crop="WHEAT", params=custom_dp)
     plant_targets = {j.target for j in jobs if j.action == "PLANT"}
 
+    assert (4, 4) not in plant_targets
     assert (3, 4) not in plant_targets
     assert (4, 3) not in plant_targets
-    assert (3, 3) not in plant_targets
 
-    # With 1 reserved tile: only (3, 4) is reserved; (4, 3) and (3, 3) are planted
+    # With 1 reserved tile: only (4, 4) is reserved; (3, 4) and (4, 3) are planted
     custom_dp_1 = DispatcherParams(reserved_animal_tiles=1)
     jobs_1 = generate_jobs(
         state, board, target_crop="WHEAT", params=custom_dp_1
     )
     plant_targets_1 = {j.target for j in jobs_1 if j.action == "PLANT"}
 
-    assert (3, 4) not in plant_targets_1
+    assert (4, 4) not in plant_targets_1
+    assert (3, 4) in plant_targets_1
     assert (4, 3) in plant_targets_1
-    assert (3, 3) in plant_targets_1

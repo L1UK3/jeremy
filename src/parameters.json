@@ -78,6 +78,6 @@
         "clone_distance_medium": 4
     },
     "plot_allocation": {
-        "animals_per_quadrant": 4
+        "animals_per_quadrant": 6
     }
 }

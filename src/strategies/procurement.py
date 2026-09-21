@@ -157,14 +157,6 @@ def procure_land(
         ):
             return avail_budget
         next_quad = "SW"
-    elif "SE" not in unlocked:
-        if state.day < 16 or state.money < 6000:
-            return avail_budget
-        if _LAST_LAND_PURCHASE_DAY != -1 and (
-            state.day < _LAST_LAND_PURCHASE_DAY + min_spacing
-        ):
-            return avail_budget
-        next_quad = "SE"
     else:
         return avail_budget
 
