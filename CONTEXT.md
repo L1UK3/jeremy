@@ -56,6 +56,10 @@ _Avoid_: Crop timer, growth check, seed expiry
 A specialized tile construction (`COOP` or `PASTURE`) deployed on reserved tiles to house specific livestock species (`GOOSE` or `COW`/`SHEEP`).
 _Avoid_: Barn, pen, animal house
 
+**Animal Plot Quota**:
+The maximum number of animal structures assigned to each unlocked quadrant. Animal structures are distributed across unlocked quadrants by current structure count, with deterministic quadrant-order tie breaking.
+_Avoid_: Species quota, livestock zone
+
 **Labor Floor**:
 The minimum deterministic count of hired farm hands required to maintain daily watering and planting chores across all unlocked quadrants before applying neural policy recommendations.
 _Avoid_: Worker min, base crew, hand threshold

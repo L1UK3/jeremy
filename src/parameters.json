@@ -76,5 +76,12 @@
     "clone_detector": {
         "clone_distance_high": 1,
         "clone_distance_medium": 4
+    },
+    "plot_allocation": {
+        "animals_per_quadrant": 2,
+        "animal_reserved_tiles": [
+            [3, 4],
+            [4, 3]
+        ]
     }
 }

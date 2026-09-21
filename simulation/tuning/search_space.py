@@ -12,6 +12,7 @@ from src.parameters import (
     ExplosionParams,
     MarketMakerParams,
     Parameters,
+    PlotAllocationParams,
     PredationParams,
     ProcurementParams,
     WeedRepairParams,
@@ -228,5 +229,24 @@ def sample_parameters(
             )
             if in_group("clone_detector")
             else base_params.clone_detector
+        ),
+        plot_allocation=(
+            PlotAllocationParams(
+                animals_per_quadrant=trial.suggest_int(
+                    "animals_per_quadrant", 1, 4
+                ),
+                animal_reserved_tiles=frozenset(
+                    trial.suggest_categorical(
+                        "animal_reserved_tiles",
+                        [
+                            frozenset({(3, 4), (4, 3)}),
+                            frozenset({(2, 5), (5, 2)}),
+                            frozenset({(1, 6), (6, 1)}),
+                        ],
+                    )
+                ),
+            )
+            if in_group("plot_allocation")
+            else base_params.plot_allocation
         ),
     )

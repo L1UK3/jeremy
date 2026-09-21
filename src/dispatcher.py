@@ -30,6 +30,7 @@ __all__ = [
     "assign_jobs",
     "default_utility_scorer",
     "generate_jobs",
+    "get_animal_plot_candidates",
     "get_animal_reserved_tiles",
     "job_to_action",
     "needs_center_drop",
@@ -55,6 +56,50 @@ ALL_CANDIDATE_ANIMAL_TILES: tuple[tuple[int, int], ...] = (
     (3, 2),
 )
 
+QUADRANT_ORDER: tuple[str, ...] = ("NW", "NE", "SW", "SE")
+
+
+def _quadrant_animal_tiles(quadrant: str) -> tuple[tuple[int, int], ...]:
+    """Translate the NW candidate pattern into the requested quadrant."""
+    x_offset = 5 if quadrant in ("NE", "SE") else 0
+    y_offset = 5 if quadrant in ("SW", "SE") else 0
+    return tuple(
+        (x + x_offset, y + y_offset)
+        for x, y in ALL_CANDIDATE_ANIMAL_TILES
+    )
+
+
+def get_animal_plot_candidates(
+    unlocked_quadrants: frozenset[str] | set[str] | None = None,
+    animals_per_quadrant: int | None = None,
+    max_animals: int | None = None,
+) -> tuple[tuple[int, int], ...]:
+    """Return balanced animal-plot candidates in deterministic quadrant order."""
+    active = get_active_parameters().plot_allocation
+    quadrants = (
+        frozenset(unlocked_quadrants)
+        if unlocked_quadrants is not None
+        else frozenset({"NW"})
+    )
+    per_quadrant = (
+        animals_per_quadrant
+        if animals_per_quadrant is not None
+        else active.animals_per_quadrant
+    )
+    if max_animals is not None and quadrants:
+        per_quadrant = max(
+            per_quadrant,
+            (max_animals + len(quadrants) - 1) // len(quadrants),
+        )
+    candidates: list[tuple[int, int]] = []
+    for slot in range(max(0, per_quadrant)):
+        for quadrant in QUADRANT_ORDER:
+            if quadrant in quadrants:
+                candidates.append(_quadrant_animal_tiles(quadrant)[slot])
+    if max_animals is not None:
+        candidates = candidates[: max(0, max_animals)]
+    return tuple(candidates)
+
 RESERVED_ANIMAL_TILES: frozenset[tuple[int, int]] = frozenset(
     ALL_CANDIDATE_ANIMAL_TILES[:2]
 )
@@ -62,8 +107,16 @@ RESERVED_ANIMAL_TILES: frozenset[tuple[int, int]] = frozenset(
 
 def get_animal_reserved_tiles(
     max_animals: int | None = None,
+    unlocked_quadrants: frozenset[str] | set[str] | None = None,
 ) -> frozenset[tuple[int, int]]:
-    """Return reserved animal tiles scaled to max_animals or dispatcher hyperparameter."""
+    """Return reserved animal tiles for the active unlocked quadrants."""
+    if unlocked_quadrants is not None:
+        return frozenset(
+            get_animal_plot_candidates(
+                unlocked_quadrants=unlocked_quadrants,
+                max_animals=max_animals,
+            )
+        )
     count = (
         max_animals
         if max_animals is not None
@@ -223,7 +276,9 @@ def generate_jobs(
     effective_max_animals = (
         max_animals if max_animals is not None else dp.reserved_animal_tiles
     )
-    active_reserved_tiles = get_animal_reserved_tiles(effective_max_animals)
+    active_reserved_tiles = get_animal_reserved_tiles(
+        effective_max_animals, state.unlocked_quadrants_set
+    )
     jobs: list[Job] = []
     prices = state.prices
 
@@ -332,14 +387,82 @@ def generate_jobs(
             else:
                 continue
 
+            plot_params = get_active_parameters().plot_allocation
+            structure_counts: dict[str, int] = dict.fromkeys(
+                QUADRANT_ORDER, 0
+            )
+            for y, row in enumerate(state.tiles):
+                for x, tile in enumerate(row):
+                    if not (
+                        isinstance(tile, dict)
+                        and tile.get("kind") in ("COOP", "PASTURE")
+                    ):
+                        continue
+                    quadrant = (
+                        "NW"
+                        if x < 5 and y < 5
+                        else "NE"
+                        if x >= 5 and y < 5
+                        else "SW"
+                        if x < 5
+                        else "SE"
+                    )
+                    structure_counts[quadrant] += 1
+
+            planned_targets = {j.target for j in jobs}
+            for x, y in planned_targets:
+                quadrant = (
+                    "NW"
+                    if x < 5 and y < 5
+                    else "NE"
+                    if y < 5
+                    else "SW"
+                    if x < 5
+                    else "SE"
+                )
+                structure_counts[quadrant] += 1
+            candidates = get_animal_plot_candidates(
+                unlocked_quadrants=state.unlocked_quadrants_set,
+                max_animals=effective_max_animals,
+            )
+            candidate_by_quadrant = {
+                quadrant: [
+                    position
+                    for position in candidates
+                    if (
+                        "NW"
+                        if position[0] < 5 and position[1] < 5
+                        else "NE"
+                        if position[0] >= 5 and position[1] < 5
+                        else "SW"
+                        if position[0] < 5
+                        else "SE"
+                    )
+                    == quadrant
+                ]
+                for quadrant in QUADRANT_ORDER
+            }
+            candidate_quadrants = sorted(
+                (
+                    quadrant
+                    for quadrant in QUADRANT_ORDER
+                    if structure_counts[quadrant] < plot_params.animals_per_quadrant
+                    and any(
+                        state.tiles[y][x] is None and (x, y) not in planned_targets
+                        for x, y in candidate_by_quadrant[quadrant]
+                    )
+                ),
+                key=lambda quadrant: (
+                    structure_counts[quadrant], QUADRANT_ORDER.index(quadrant)
+                ),
+            )
             target_tile: tuple[int, int] | None = None
-            for rx, ry in ALL_CANDIDATE_ANIMAL_TILES[:effective_max_animals]:
-                if not state.is_tile_unlocked(rx, ry):
-                    continue
-                if state.tiles[ry][rx] is None and not any(
-                    j.target == (rx, ry) for j in jobs
-                ):
-                    target_tile = (rx, ry)
+            for quadrant in candidate_quadrants:
+                for rx, ry in candidate_by_quadrant[quadrant]:
+                    if state.tiles[ry][rx] is None and (rx, ry) not in planned_targets:
+                        target_tile = (rx, ry)
+                        break
+                if target_tile is not None:
                     break
 
             if target_tile is not None:

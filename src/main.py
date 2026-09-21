@@ -115,7 +115,7 @@ def agent(obs: dict[str, Any]) -> dict[str, Any]:
         market: list[list[Any]] = []
         target_crew = int(plan.get("crew", 0))
         num_quads = len(state.unlocked_quadrants_set)
-        capacity = 6 if num_quads >= 2 else 4
+        capacity = num_quads * params.plot_allocation.animals_per_quadrant
         target_animal = str(plan.get("livestock") or "NONE").upper()
         if (target_animal == "NONE" or day == 0) and len(board.animals()) < capacity:
             target_animal = "SHEEP"

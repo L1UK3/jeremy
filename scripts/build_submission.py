@@ -27,6 +27,7 @@ OUTPUT_TAR = ROOT / ".out" / "submission.tar.gz"
 FILES = [
     "main.py",
     "parameters.py",
+    "parameters.json",
     "dispatcher.py",
     "environment/board.py",
     "environment/state.py",

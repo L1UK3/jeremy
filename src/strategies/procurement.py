@@ -76,8 +76,8 @@ DEFAULT_ACTIONS_PER_HAND: float = (
     DEFAULT_PARAMETERS.procurement.actions_per_hand
 )
 DEFAULT_MAX_DAILY_HIRES: int = DEFAULT_PARAMETERS.procurement.max_daily_hires
-DEFAULT_ANIMAL_RESERVED_TILES: frozenset[tuple[int, int]] = frozenset(
-    {(3, 4), (4, 3)}
+DEFAULT_ANIMAL_RESERVED_TILES: frozenset[tuple[int, int]] = (
+    DEFAULT_PARAMETERS.plot_allocation.animal_reserved_tiles
 )
 
 
@@ -275,7 +275,8 @@ def procure_crew(
         )
 
     midgame_floor = (
-        10 if (num_quads >= 3 and 11 <= state.day <= 25)
+        10
+        if (num_quads >= 3 and 11 <= state.day <= 25)
         else (8 if (num_quads >= 2 and 8 <= state.day <= 25) else 0)
     )
 
@@ -288,7 +289,6 @@ def procure_crew(
         target_crew, quadrant_floor, action_crew, midgame_floor
     )
     effective_target_crew = min(effective_target_crew, dynamic_hire_cap)
-
 
     current_crew = len(state.hands)
     hires_queued = 0
@@ -388,7 +388,6 @@ def procure_seeds(
     if needed <= 0:
         return avail_budget
 
-
     # Mid-game cash engine: between Days 8 and 22, empty tiles default to STRAWBERRY
     if (
         8 <= state.day <= 22
@@ -397,7 +396,9 @@ def procure_seeds(
     ):
         desired_crop = "STRAWBERRY"
     else:
-        desired_crop = target_crop if target_crop in SEED_COSTS else fallback_crop
+        desired_crop = (
+            target_crop if target_crop in SEED_COSTS else fallback_crop
+        )
 
     crop: str | None = None
     if within_maturation_horizon(desired_crop, state.day):
@@ -444,7 +445,11 @@ def procure_livestock(
 ) -> int:
     """Purchase livestock when budget allows and animal slots are open."""
     avail_budget = state.money if budget is None else budget
-    if len(market) >= 10 or target_animal not in ANIMAL_COSTS or state.day >= 27:
+    if (
+        len(market) >= 10
+        or target_animal not in ANIMAL_COSTS
+        or state.day >= 27
+    ):
         return avail_budget
 
     capacity = (
@@ -465,7 +470,9 @@ def procure_livestock(
         ordered = sum(
             order[2] if len(order) >= 3 and isinstance(order[2], int) else 1
             for order in market
-            if len(order) >= 2 and order[0] == "BUY_ANIMAL" and order[1] == a_type
+            if len(order) >= 2
+            and order[0] == "BUY_ANIMAL"
+            and order[1] == a_type
         )
         return placed + shed + carried + ordered
 
@@ -597,7 +604,9 @@ def apply_procurement(
     actual_reserved = (
         reserved_tiles
         if reserved_tiles is not None
-        else get_animal_reserved_tiles(reserved_count)
+        else get_animal_reserved_tiles(
+            reserved_count, state.unlocked_quadrants_set
+        )
     )
 
     budget = state.money
@@ -652,11 +661,12 @@ def apply_procurement(
         max_animals=capacity,
     )
 
-    has_animals = (
-        total_animals > 0
-        or target_animal in ANIMAL_COSTS
+    has_animals = total_animals > 0 or target_animal in ANIMAL_COSTS
+    wheat_anchor = (
+        8
+        if state.day == 0
+        else (max(6, total_animals * 2) if has_animals else 0)
     )
-    wheat_anchor = 8 if state.day == 0 else (max(6, total_animals * 2) if has_animals else 0)
 
     land_reserve = 0
     if "NE" not in state.unlocked_quadrants_set and state.day >= 5:
@@ -680,5 +690,3 @@ def apply_procurement(
         wheat_anchor=wheat_anchor,
     )
     return budget
-
-

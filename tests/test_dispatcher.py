@@ -15,6 +15,7 @@ from src.dispatcher import (
     Job,
     assign_jobs,
     generate_jobs,
+    get_animal_plot_candidates,
     get_animal_reserved_tiles,
     job_to_action,
     schedule_tasks,
@@ -452,6 +453,49 @@ def test_animal_reserved_tiles_scale_with_max_animals() -> None:
         {(3, 4), (4, 3), (3, 3), (2, 4)}
     )
     assert get_animal_reserved_tiles(0) == frozenset()
+
+
+def test_animal_plot_candidates_interleave_unlocked_quadrants() -> None:
+    """Animal plots are allocated evenly in deterministic quadrant order."""
+    assert get_animal_plot_candidates(
+        frozenset({"NW", "NE", "SW"}), max_animals=6
+    ) == (
+        (3, 4),
+        (8, 4),
+        (3, 9),
+        (4, 3),
+        (9, 3),
+        (4, 8),
+    )
+
+
+def test_generate_jobs_balances_multiple_animal_structures() -> None:
+    """Multiple structures planned together use the least-loaded quadrant."""
+    obs = make_obs(
+        unlocked_quadrants=["NW", "NE", "SW"],
+        shed={"GOOSE": 1, "COW": 1, "SHEEP": 1},
+        money=3000,
+    )
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(
+        state,
+        board,
+        target_animal="GOOSE",
+        max_animals=6,
+    )
+    structure_jobs = [
+        job
+        for job in jobs
+        if job.action in (BUILD_COOP, BUILD_PASTURE)
+    ]
+
+    assert [job.target for job in structure_jobs] == [
+        (3, 4),
+        (8, 4),
+        (3, 9),
+    ]
 
 
 def test_generate_jobs_build_coop_for_goose() -> None:
