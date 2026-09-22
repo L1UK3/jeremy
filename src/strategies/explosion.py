@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from environment.board import step_toward
+from environment.board import CROP_SPECS, step_toward
 from parameters import (
     DEFAULT_PARAMETERS,
     ExplosionParams,
@@ -13,7 +13,12 @@ if TYPE_CHECKING:
     from environment.board import Board
     from environment.state import GameState
 
-__all__ = ["SELLABLE", "explosion", "pre_terminal_liquidation"]
+__all__ = [
+    "SELLABLE",
+    "explosion",
+    "is_valid_terminal_water",
+    "pre_terminal_liquidation",
+]
 
 SELLABLE: tuple[str, ...] = (
     "MELON",
@@ -65,18 +70,65 @@ def _shed_nav(x: int, y: int) -> tuple[int, tuple[int, int]]:
     return abs(nearest[0] - x) + abs(nearest[1] - y), nearest
 
 
+def is_valid_terminal_water(tile: Any, day: int) -> bool:
+    """Evaluate whether a plant tile should be watered during termination.
+
+    During termination (day >= 28), watering is restricted strictly to one-time
+    crops within their bonus watering window that produce an immediate yield
+    bonus on the turn of the action. Ongoing crops and crops that cannot mature
+    before Step 720 are suppressed.
+    """
+    crop = getattr(tile, "crop", None)
+    if not crop:
+        return False
+    spec = CROP_SPECS.get(crop)
+    if spec is None:
+        return False
+
+    planted_day = getattr(tile, "planted_day", 0)
+
+    # Ongoing crops never yield immediately on water; Day 29 midnight yield cannot be harvested
+    if spec.ongoing:
+        if day >= 28 or (planted_day + spec.first_yield_day >= 29):
+            return False
+        return True
+
+    # One-time crops:
+    if planted_day + spec.first_yield_day >= 30:
+        return False
+
+    crop_age = tile.age(day) if hasattr(tile, "age") else (day - planted_day)
+    bonus_start = (spec.max_yield_day + 1) // 2
+
+    # During late termination (day >= 28), only water if inside the immediate bonus window
+    if day >= 28:
+        return bonus_start <= crop_age <= spec.max_yield_day
+
+    return True
+
+
 def _collect_harvest_targets(
     state: GameState, board: Board
 ) -> list[HarvestTarget]:
-    """Collect unharvested plants, animal yields, and available fertilizer."""
+    """Collect unharvested plants, animal yields, available fertilizer, and immediate-yield bonus crops."""
     targets: list[HarvestTarget] = []
     prices = state.prices
 
     for tile in board.all_tiles():
-        if tile.is_plant and tile.yield_units > 0 and tile.crop:
-            val = float(tile.yield_units * max(1, prices.get(tile.crop, 1)))
-            dist, _ = _shed_nav(tile.x, tile.y)
-            targets.append(HarvestTarget(tile.pos, val, dist))
+        if tile.is_plant and tile.crop:
+            if tile.yield_units > 0:
+                val = float(tile.yield_units * max(1, prices.get(tile.crop, 1)))
+                dist, _ = _shed_nav(tile.x, tile.y)
+                targets.append(HarvestTarget(tile.pos, val, dist))
+            elif is_valid_terminal_water(tile, state.day) and not tile.watered:
+                bonus = (
+                    2
+                    if getattr(tile, "fertilized_until_day", -1) >= state.day
+                    else 1
+                )
+                val = float(bonus * max(1, prices.get(tile.crop, 1)))
+                dist, _ = _shed_nav(tile.x, tile.y)
+                targets.append(HarvestTarget(tile.pos, val, dist))
         elif tile.is_animal and tile.animal:
             if tile.yield_units > 0:
                 prod = ANIMAL_PRODUCT.get(tile.animal, tile.animal)
@@ -125,6 +177,13 @@ def _dispatch_worker(
         if tile.is_animal and tile.fertilizer_available:
             claimed_tiles.add((wx, wy))
             return ["COLLECT_FERTILIZER"]
+        if (
+            tile.is_plant
+            and not tile.watered
+            and is_valid_terminal_water(tile, state.day)
+        ):
+            claimed_tiles.add((wx, wy))
+            return ["WATER"]
 
     best_target: HarvestTarget | None = None
     best_score: float = -1.0

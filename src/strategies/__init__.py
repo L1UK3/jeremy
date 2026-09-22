@@ -6,7 +6,11 @@ from .clone_detector import (
     update_clone_profile,
 )
 from .debt_manager import opening, repay, reset
-from .explosion import explosion, pre_terminal_liquidation
+from .explosion import (
+    explosion,
+    is_valid_terminal_water,
+    pre_terminal_liquidation,
+)
 from .market_maker import (
     BASE_PRICE,
     GLUT_WEIGHT,
@@ -65,6 +69,7 @@ __all__ = [
     "compute_analytical_supply",
     "explosion",
     "filter_predation_sells",
+    "is_valid_terminal_water",
     "mprice",
     "mshape",
     "opening",

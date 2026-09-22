@@ -225,3 +225,45 @@ def test_simulation_run_episode_integration() -> None:
     saved_file = Path(res.replay_path)
     assert saved_file.exists()
     assert res.score_challenger > 0
+
+
+def test_explosion_strategy_waters_only_immediate_bonus_crops() -> None:
+    """Explosion strategy waters bonus-window one-time crops but ignores ongoing crops."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    # (2, 2): Wheat planted day 26, on day 29: age 3 (inside bonus window 2..4).
+    # yield_units = 0, watered_today = False.
+    tiles[2][2] = {
+        "kind": "PLANT",
+        "crop": "WHEAT",
+        "planted_day": 26,
+        "watered_today": False,
+        "consecutive_unwatered": 0,
+        "yield_units": 0,
+        "max_lifespan_step": 750,
+        "fertilized_until_day": -1,
+    }
+    obs = make_obs(
+        step=712,
+        day=29,
+        hour=16,
+        farmer=(2, 2),
+        tiles=tiles,
+    )
+    act = agent(obs)
+    # Farmer is at (2, 2) on a bonus-window crop; watering yields +1 unit immediately
+    assert act["farmer"] == ["WATER"]
+
+    # Now replace with ongoing STRAWBERRY: watering produces 0 units that turn
+    tiles[2][2]["crop"] = "STRAWBERRY"
+    tiles[2][2]["planted_day"] = 15
+    obs_ongoing = make_obs(
+        step=712,
+        day=29,
+        hour=16,
+        farmer=(2, 2),
+        tiles=tiles,
+    )
+    act_ongoing = agent(obs_ongoing)
+    # Farmer must NOT water strawberry
+    assert act_ongoing["farmer"] != ["WATER"]
+

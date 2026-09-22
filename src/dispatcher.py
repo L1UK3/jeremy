@@ -628,27 +628,31 @@ def generate_jobs(
                     Job(prio, "PICKUP_ANIMAL", shed_target, item=animal)
                 )
 
+    from strategies.explosion import is_valid_terminal_water
+
     for tile in board.needs_water():
         if tile.pos in harvest_positions:
             continue
-        if tile.consecutive_unwatered >= 1:
+        if not is_valid_terminal_water(tile, state.day):
+            continue
+
+        crop_age = tile.age(state.day)
+        spec = CROP_SPECS.get(tile.crop) if tile.crop else None
+        bonus_start = (
+            (spec.max_yield_day + 1) // 2
+            if spec and not spec.ongoing
+            else 0
+        )
+
+        # Urgent priority deactivation: disable urgent priority during termination
+        if tile.consecutive_unwatered >= 1 and state.day < 28:
             prio = dp.prio_water_urgent
-        elif tile.crop:
-            spec = CROP_SPECS.get(tile.crop)
-            bonus_start = (
-                (spec.max_yield_day + 1) // 2
-                if spec and not spec.ongoing
-                else 0
-            )
-            crop_age = tile.age(state.day)
-            if (
-                spec
-                and not spec.ongoing
-                and bonus_start <= crop_age < spec.max_yield_day
-            ):
-                prio = dp.prio_water_bonus
-            else:
-                prio = dp.prio_water
+        elif (
+            spec
+            and not spec.ongoing
+            and bonus_start <= crop_age <= spec.max_yield_day
+        ):
+            prio = dp.prio_water_bonus
         else:
             prio = dp.prio_water
         jobs.append(Job(prio, "WATER", tile.pos))

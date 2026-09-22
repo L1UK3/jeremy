@@ -111,7 +111,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--baseline",
         type=str,
-        default="starter",
+        default="simulation/base/main.py",
         help="Path to the baseline agent (default: starter)",
     )
 

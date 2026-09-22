@@ -923,3 +923,98 @@ def test_idle_farmer_repositions_toward_center_drop() -> None:
     # Stepping toward Center Drop (4, 4) from (0, 0)
     assert farmer_act in (["EAST"], ["SOUTH"])
 
+
+def test_terminal_watering_suppresses_immature_one_time_crop() -> None:
+    """Crops that cannot mature before Day 30 (e.g. Day 28 wheat) are not watered."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[0][0] = {
+        "kind": "PLANT",
+        "crop": "WHEAT",
+        "planted_day": 28,
+        "watered_today": False,
+        "consecutive_unwatered": 1,
+        "yield_units": 1,
+        "max_lifespan_step": 750,
+        "fertilized_until_day": -1,
+    }
+    obs = make_obs(day=28, tiles=tiles, unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board)
+    water_jobs = [j for j in jobs if j.action == "WATER"]
+    assert len(water_jobs) == 0
+
+
+def test_terminal_watering_suppresses_ongoing_crops_on_late_days() -> None:
+    """Ongoing crops (Strawberry, Tomato) generate no WATER jobs on Day 28 or 29."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    tiles[0][0] = {
+        "kind": "PLANT",
+        "crop": "STRAWBERRY",
+        "planted_day": 15,
+        "watered_today": False,
+        "consecutive_unwatered": 0,
+        "yield_units": 0,
+        "max_lifespan_step": -1,
+        "fertilized_until_day": -1,
+    }
+    obs = make_obs(day=28, tiles=tiles, unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board)
+    water_jobs = [j for j in jobs if j.action == "WATER"]
+    assert len(water_jobs) == 0
+
+
+def test_terminal_watering_allows_bonus_window_one_time_crop() -> None:
+    """One-time crops in their bonus window before harvest receive WATER bonus priority."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    # Wheat planted day 25, on day 27: age = 2, bonus_start = 2, max_yield = 4.
+    # Can mature before day 30 (25 + 2 = 27 < 30).
+    tiles[0][0] = {
+        "kind": "PLANT",
+        "crop": "WHEAT",
+        "planted_day": 25,
+        "watered_today": False,
+        "consecutive_unwatered": 0,
+        "yield_units": 0,  # not ripe yet, so not in harvest_positions
+        "max_lifespan_step": 750,
+        "fertilized_until_day": -1,
+    }
+    obs = make_obs(day=27, tiles=tiles, unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board)
+    water_jobs = [j for j in jobs if j.action == "WATER"]
+    assert len(water_jobs) == 1
+    assert water_jobs[0].priority == 160.0  # prio_water_bonus
+
+
+def test_terminal_watering_deactivates_urgent_priority_near_termination() -> None:
+    """On Day >= 28, consecutive_unwatered >= 1 does NOT grant prio_water_urgent (300.0)."""
+    tiles = [[None for _ in range(10)] for _ in range(10)]
+    # Wheat planted day 26, on day 28: age = 2 (in bonus window).
+    tiles[0][0] = {
+        "kind": "PLANT",
+        "crop": "WHEAT",
+        "planted_day": 26,
+        "watered_today": False,
+        "consecutive_unwatered": 1,
+        "yield_units": 0,  # not in harvest_positions
+        "max_lifespan_step": 750,
+        "fertilized_until_day": -1,
+    }
+    obs = make_obs(day=28, tiles=tiles, unlocked_quadrants=["NW"])
+    state = GameState.from_obs(obs)
+    board = Board(state)
+
+    jobs = generate_jobs(state, board)
+    water_jobs = [j for j in jobs if j.action == "WATER"]
+    assert len(water_jobs) == 1
+    # Priority is bonus (160.0), NOT urgent (300.0)
+    assert water_jobs[0].priority == 160.0
+
+

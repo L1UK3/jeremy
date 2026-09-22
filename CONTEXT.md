@@ -52,6 +52,11 @@ _Avoid_: Model parameters, hardcoded hyperparams, trial dataclass
 The remaining season duration evaluated against a crop's growth curve to determine if planting will yield harvestable commodity before game termination.
 _Avoid_: Crop timer, growth check, seed expiry
 
+**Terminal Watering**:
+Watering restricted strictly to one-time crops within their bonus window that yield immediate commodity units, suppressing all maintenance watering that cannot produce harvestable yield before season end.
+_Avoid_: Late-game water, death save, maintenance spray
+
+
 **Animal Structure**:
 A specialized tile construction (`COOP` or `PASTURE`) deployed on reserved tiles to house specific livestock species (`GOOSE` or `COW`/`SHEEP`).
 _Avoid_: Barn, pen, animal house
