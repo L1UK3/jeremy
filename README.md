@@ -4,7 +4,7 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Documentation: Diataxis](https://img.shields.io/badge/docs-Diátaxis-brightgreen.svg)](docs/README.md)
 
-Autonomous competitive agent and simulation framework for [Kaggle Kaggriculture](https://www.kaggle.com/competitions/kaggriculture). Named after Jeremy Clarkson.
+Autonomous competitive agent and simulation framework for [Kaggle Kaggriculture](https://www.kaggle.com/competitions/kaggriculture). Named after a lovely local farmer named Jeremy.
 
 <img src="https://i2-prod.manchestereveningnews.co.uk/article34141179.ece/ALTERNATES/s1200f/0_clarkson.jpg" width="60%" height="auto">
 
