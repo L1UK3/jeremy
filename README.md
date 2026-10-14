@@ -10,7 +10,7 @@ Autonomous competitive agent and simulation framework for [Kaggle Kaggriculture]
 
 ---
 
-## 1. Quickstart (Tutorial) — ⏱️ 2 minutes
+## 1. Quickstart
 
 Run a match against the baseline agent immediately:
 
@@ -31,9 +31,9 @@ Run a match against the baseline agent immediately:
 
 ---
 
-## 2. Common Tasks (How-To Guides)
+## 2. Common Tasks
 
-### Run head-to-head simulations (⏱️ 5 seconds)
+### Run head-to-head simulations
 ```bash
 # Challenge baseline starter:
 python simulation/episode.py --challenger src/main.py --baseline starter
@@ -43,13 +43,13 @@ python simulation/episode.py --challenger src/main.py --baseline random
 ```
 *Output:* Match score printed to terminal; HTML replay saved in `.out/replays/`.
 
-### Run unit tests (⏱️ 7 seconds)
+### Run unit tests
 ```bash
 pytest tests/test_agent.py tests/test_dispatcher.py tests/test_parameters.py tests/test_procurement.py tests/test_market_maker.py tests/test_tuning.py
 ```
 *Output:* 68 unit tests asserting chore assignment, market logic, and parameter parsing.
 
-### Tune hyperparameters with Optuna (⏱️ 30s to 5m)
+### Tune hyperparameters with Optuna
 ```bash
 # Quick smoke test (3 trials, 24 steps):
 python scripts/tune.py --n-trials 3 --steps 24 --groups procurement
@@ -59,7 +59,7 @@ python scripts/tune.py --n-trials 50 --n-jobs 4 --groups market_maker
 ```
 *Output:* Optimal parameters saved to `.out/best_parameters.json`.
 
-### Build Kaggle submission (⏱️ 2 seconds)
+### Build Kaggle submission
 ```bash
 # Standalone single-file submission:
 python scripts/build_submission.py --build
@@ -71,7 +71,7 @@ python scripts/build_submission.py --bundle
 
 ---
 
-## 3. Architecture & Strategy (Explanation)
+## 3. Architecture & Strategy
 
 Jeremy decouples high-level economic planning from per-turn movement:
 
